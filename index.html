@@ -112,7 +112,7 @@
   .stat-box .num { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
   .stat-box .txt { font-size: 0.75rem; color: var(--sub); margin-top: 2px; }
 
-  .preview-box { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin-top: 8px; display: none; }
+  .preview-box { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 8px; display: none; background: #000; }
   .api-tip { font-size: 0.8rem; color: #8b5cf6; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
@@ -172,7 +172,18 @@
 
     <!-- InBody / 五大身體組成分析輸入區 -->
     <div class="card">
-      <div class="card-title">📝 記錄 InBody 全方位數據</div>
+      <div class="card-title">
+        <span>📝 記錄 InBody 全方位數據</span>
+        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
+      </div>
+
+      <!-- InBody AI 拍照/圖庫上傳區塊 -->
+      <div class="form-group" style="background: #eff6ff; padding: 12px; border-radius: 12px; border: 1px dashed #60a5fa; margin-bottom: 15px;">
+        <label style="color: #1d4ed8; font-weight: bold;">📸 拍照 / 上傳 InBody 報告紙本（AI 自動辨識填表）</label>
+        <input type="file" id="inbodyImage" accept="image/*" onchange="previewAndAnalyzeInBody(this)">
+        <img id="inbodyImagePreview" class="preview-box">
+        <button id="inbodyAiBtn" class="btn btn-ai" style="display: none; background: #2563eb;" onclick="analyzeInBodyImage()">✨ 開始 AI 辨識 InBody 數據</button>
+      </div>
       
       <div class="form-group">
         <label>測量日期</label>
@@ -483,6 +494,124 @@
     }
   }
 
+  // --- InBody 圖片上傳與 AI 辨識 ---
+  let base64InBodyImage = '';
+  function previewAndAnalyzeInBody(input) {
+    const file = input.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview = document.getElementById('inbodyImagePreview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        base64InBodyImage = e.target.result.split(',')[1];
+        document.getElementById('inbodyAiBtn').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  async function analyzeInBodyImage() {
+    let apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+      apiKey = prompt('首次使用 InBody 辨識，請輸入您的 Gemini API Key：');
+      if (!apiKey) return alert('未輸入 API Key，無法進行分析');
+      localStorage.setItem('gemini_api_key', apiKey.trim());
+    }
+
+    const aiBtn = document.getElementById('inbodyAiBtn');
+    aiBtn.disabled = true;
+    aiBtn.innerText = '⏳ AI 辨識 InBody 報告中...';
+
+    const promptText = `請分析這張 InBody 報告圖片，精準擷取各項數值。請務必且嚴格僅回傳如下純 JSON 格式，若某項目找不到請填 0 或 null，切勿加入任何額外 markdown 或說明文字：
+{
+  "weight": 體重(數字),
+  "tbw": 身體總水分(數字),
+  "protein": 蛋白質(數字),
+  "minerals": 礦物質(數字),
+  "smm": 骨骼肌重(數字),
+  "bfm": 體脂肪重(數字),
+  "bmi": BMI(數字),
+  "pbf": 體脂肪率(數字),
+  "whr": 腰臀圍比(數字),
+  "vfl": 內臟脂肪等級(數字),
+  "m_ra_kg": 右上肢肌肉重, "m_ra_pct": 右上肢肌肉百分比,
+  "m_la_kg": 左上肢肌肉重, "m_la_pct": 左上肢肌肉百分比,
+  "m_tr_kg": 軀幹肌肉重,   "m_tr_pct": 軀幹肌肉百分比,
+  "m_rl_kg": 右下肢肌肉重, "m_rl_pct": 右下肢肌肉百分比,
+  "m_ll_kg": 左下肢肌肉重, "m_ll_pct": 左下肢肌肉百分比,
+  "f_ra_kg": 右上肢脂肪重, "f_ra_pct": 右上肢脂肪百分比,
+  "f_la_kg": 左上肢脂肪重, "f_la_pct": 左上肢脂肪百分比,
+  "f_tr_kg": 軀幹脂肪重,   "f_tr_pct": 軀幹脂肪百分比,
+  "f_rl_kg": 右下肢脂肪重, "f_rl_pct": 右下肢脂肪百分比,
+  "f_ll_kg": 左下肢脂肪重, "f_ll_pct": 左下肢脂肪百分比
+}`;
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: promptText },
+              { inlineData: { mimeType: "image/jpeg", data: base64InBodyImage } }
+            ]
+          }]
+        })
+      });
+
+      const resData = await response.json();
+      if (resData.error) throw new Error(resData.error.message);
+
+      let rawText = resData.candidates[0].content.parts[0].text.trim();
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const res = JSON.parse(rawText);
+
+      // 自動填入表單
+      if (res.weight) document.getElementById('bodyWeight').value = res.weight;
+      if (res.tbw) document.getElementById('bodyTBW').value = res.tbw;
+      if (res.protein) document.getElementById('bodyProtein').value = res.protein;
+      if (res.minerals) document.getElementById('bodyMinerals').value = res.minerals;
+      if (res.smm) document.getElementById('bodySMM').value = res.smm;
+      if (res.bfm) document.getElementById('bodyBFM').value = res.bfm;
+      if (res.bmi) document.getElementById('bodyBMI').value = res.bmi;
+      if (res.pbf) document.getElementById('bodyPBF').value = res.pbf;
+      if (res.whr) document.getElementById('bodyWHR').value = res.whr;
+      if (res.vfl) document.getElementById('bodyVFL').value = res.vfl;
+
+      if (res.m_ra_kg) document.getElementById('m_ra_kg').value = res.m_ra_kg;
+      if (res.m_ra_pct) document.getElementById('m_ra_pct').value = res.m_ra_pct;
+      if (res.m_la_kg) document.getElementById('m_la_kg').value = res.m_la_kg;
+      if (res.m_la_pct) document.getElementById('m_la_pct').value = res.m_la_pct;
+      if (res.m_tr_kg) document.getElementById('m_tr_kg').value = res.m_tr_kg;
+      if (res.m_tr_pct) document.getElementById('m_tr_pct').value = res.m_tr_pct;
+      if (res.m_rl_kg) document.getElementById('m_rl_kg').value = res.m_rl_kg;
+      if (res.m_rl_pct) document.getElementById('m_rl_pct').value = res.m_rl_pct;
+      if (res.m_ll_kg) document.getElementById('m_ll_kg').value = res.m_ll_kg;
+      if (res.m_ll_pct) document.getElementById('m_ll_pct').value = res.m_ll_pct;
+
+      if (res.f_ra_kg) document.getElementById('f_ra_kg').value = res.f_ra_kg;
+      if (res.f_ra_pct) document.getElementById('f_ra_pct').value = res.f_ra_pct;
+      if (res.f_la_kg) document.getElementById('f_la_kg').value = res.f_la_kg;
+      if (res.f_la_pct) document.getElementById('f_la_pct').value = res.f_la_pct;
+      if (res.f_tr_kg) document.getElementById('f_tr_kg').value = res.f_tr_kg;
+      if (res.f_tr_pct) document.getElementById('f_tr_pct').value = res.f_tr_pct;
+      if (res.f_rl_kg) document.getElementById('f_rl_kg').value = res.f_rl_kg;
+      if (res.f_rl_pct) document.getElementById('f_rl_pct').value = res.f_rl_pct;
+      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_kg;
+      if (res.f_ll_pct) document.getElementById('f_ll_pct').value = res.f_ll_pct;
+
+      alert('✨ InBody 報告辨識完成！已自動帶入下方欄位，請檢視數值後點擊「儲存完整 InBody 數據」。');
+    } catch (err) {
+      alert('辨識失敗：' + err.message + '\n請確認照片清晰度或 API Key 狀態。');
+    } finally {
+      aiBtn.disabled = false;
+      aiBtn.innerText = '✨ 開始 AI 辨識 InBody 數據';
+    }
+  }
+
+  // --- 飲食相片 AI 辨識 ---
   let base64Image = '';
   function previewAndAnalyze(input) {
     const file = input.files[0];
@@ -514,7 +643,7 @@
     const promptText = "請辨識此照片中的食物，以繁體中文簡要列出食物名稱，並預估其總熱量(kcal)與總蛋白質(g)。請務必且嚴格僅回傳如下純 JSON 格式，不要加入額外 markdown 標籤或文字：{\"food\": \"食物名稱摘要\", \"cal\": 450, \"pro\": 25.5}";
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
