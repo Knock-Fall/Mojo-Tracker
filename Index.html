@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>健體紀錄與猛健樂追蹤</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --primary: #3b82f6;
+    --accent: #10b981;
+    --shot: #ec4899;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --sub: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding-bottom: 70px; }
+  
+  header { background: #0f172a; color: #fff; padding: 18px 20px; text-align: center; }
+  header h1 { font-size: 1.2rem; }
+  
+  .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+  .tab-btn { flex: 1; padding: 12px 0; border: none; background: none; font-size: 0.95rem; font-weight: bold; color: var(--sub); cursor: pointer; }
+  .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+  
+  .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+  .card-title { font-size: 1.05rem; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  
+  .form-group { margin-bottom: 12px; }
+  label { display: block; font-size: 0.85rem; color: var(--sub); margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; outline: none; }
+  input:focus, select:focus { border-color: var(--primary); }
+  
+  .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; }
+  .btn-shot { background: var(--shot); }
+  
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  
+  .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .log-item:last-child { border-bottom: none; }
+  .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+  .badge-shot { background: #fdf2f8; color: var(--shot); }
+  
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+  .stat-box { background: #f1f5f9; padding: 10px 4px; border-radius: 10px; }
+  .stat-box .num { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
+  .stat-box .txt { font-size: 0.75rem; color: var(--sub); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>個人健體與猛健樂管理</h1>
+</header>
+
+<div class="nav-tabs">
+  <button class="tab-btn active" onclick="switchTab('inbody')">📊 體態與猛健樂</button>
+  <button class="tab-btn" onclick="switchTab('diet')">🥗 飲食紀錄</button>
+</div>
+
+<div class="container">
+  
+  <!-- 體態與猛健樂 TAB -->
+  <div id="tab-inbody" class="tab-content active">
+    
+    <!-- 猛健樂 施打打卡 -->
+    <div class="card" style="border-left: 5px solid var(--shot);">
+      <div class="card-title">
+        <span>💉 猛健樂 (Mounjaro) 施打紀錄</span>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>施打日期</label>
+          <input type="date" id="shotDate">
+        </div>
+        <div class="form-group">
+          <label>劑量 (mg)</label>
+          <select id="shotDose">
+            <option value="2.5mg">2.5 mg</option>
+            <option value="5.0mg">5.0 mg</option>
+            <option value="7.5mg">7.5 mg</option>
+            <option value="10.0mg">10.0 mg</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>備註 / 施打部位</label>
+        <input type="text" id="shotNote" placeholder="例：肚臍右側、第1針">
+      </div>
+      <button class="btn btn-shot" onclick="saveShot()">記錄本次施打</button>
+    </div>
+
+    <!-- InBody / 體重數據輸入 -->
+    <div class="card">
+      <div class="card-title">📝 記錄 InBody / 體重數據</div>
+      <div class="form-group">
+        <label>測量日期</label>
+        <input type="date" id="bodyDate">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>體重 (kg)</label>
+          <input type="number" step="0.1" id="bodyWeight" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label>體脂率 (%)</label>
+          <input type="number" step="0.1" id="bodyPBF" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label>骨骼肌重 (kg)</label>
+          <input type="number" step="0.1" id="bodySMM" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label>內臟脂肪級別</label>
+          <input type="number" id="bodyVFL" placeholder="0">
+        </div>
+      </div>
+      <button class="btn" onclick="saveBodyData()">儲存體態數據</button>
+    </div>
+
+    <!-- 趨勢圖表 -->
+    <div class="card">
+      <div class="card-title">📈 體重與體脂趨勢</div>
+      <canvas id="bodyChart" height="200"></canvas>
+    </div>
+
+    <!-- 歷史清單 -->
+    <div class="card">
+      <div class="card-title">📋 歷史體態與施打紀錄</div>
+      <div id="bodyLogList"></div>
+    </div>
+  </div>
+
+  <!-- 飲食紀錄 TAB -->
+  <div id="tab-diet" class="tab-content">
+    
+    <!-- 今日摘要 -->
+    <div class="card">
+      <div class="card-title">⚡ 今日營養累計</div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="num" id="todayCal">0</div>
+          <div class="txt">熱量 (kcal)</div>
+        </div>
+        <div class="stat-box">
+          <div class="num" id="todayPro" style="color: #10b981;">0g</div>
+          <div class="txt">蛋白質</div>
+        </div>
+        <div class="stat-box">
+          <div class="num" id="targetCal">1500</div>
+          <div class="txt">目標熱量</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 記錄餐點 -->
+    <div class="card">
+      <div class="card-title">🍽️ 新增餐點紀錄</div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>餐別</label>
+          <select id="dietType">
+            <option value="早餐">早餐</option>
+            <option value="午餐">午餐</option>
+            <option value="晚餐">晚餐</option>
+            <option value="點心/補充">點心/補充</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>日期</label>
+          <input type="date" id="dietDate">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>食物內容</label>
+        <input type="text" id="dietContent" placeholder="例：雞胸肉沙拉、無糖豆漿">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>熱量 (kcal)</label>
+          <input type="number" id="dietCal" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>蛋白質 (g)</label>
+          <input type="number" step="0.1" id="dietPro" placeholder="0.0">
+        </div>
+      </div>
+      <button class="btn" style="background: var(--accent);" onclick="saveDiet()">加入今日飲食</button>
+    </div>
+
+    <!-- 今日餐點清單 -->
+    <div class="card">
+      <div class="card-title">📖 當日飲食明細</div>
+      <div id="dietLogList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 初始化日期為今日
+  const todayStr = new Date().toISOString().split('T')[0];
+  document.getElementById('shotDate').value = todayStr;
+  document.getElementById('bodyDate').value = todayStr;
+  document.getElementById('dietDate').value = todayStr;
+
+  // LocalStorage 純本地讀取（初始為全空陣列，無任何預設數據）
+  let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
+  let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
+  let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    if(tab === 'inbody') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+      document.getElementById('tab-inbody').classList.add('active');
+      renderBodyChart();
+    } else {
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+      document.getElementById('tab-diet').classList.add('active');
+      renderDiet();
+    }
+  }
+
+  function saveShot() {
+    const shot = {
+      date: document.getElementById('shotDate').value,
+      dose: document.getElementById('shotDose').value,
+      note: document.getElementById('shotNote').value
+    };
+    shotLogs.unshift(shot);
+    localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+    alert('猛健樂紀錄已儲存！');
+    renderBodyList();
+  }
+
+  function saveBodyData() {
+    const b = {
+      date: document.getElementById('bodyDate').value,
+      weight: parseFloat(document.getElementById('bodyWeight').value) || 0,
+      pbf: parseFloat(document.getElementById('bodyPBF').value) || 0,
+      smm: parseFloat(document.getElementById('bodySMM').value) || 0,
+      vfl: parseInt(document.getElementById('bodyVFL').value) || 0
+    };
+    if(!b.weight) return alert('請輸入體重');
+    bodyLogs.push(b);
+    bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+    localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+    alert('體態數據已儲存！');
+    renderBodyChart();
+    renderBodyList();
+  }
+
+  function saveDiet() {
+    const d = {
+      date: document.getElementById('dietDate').value,
+      type: document.getElementById('dietType').value,
+      content: document.getElementById('dietContent').value,
+      cal: parseInt(document.getElementById('dietCal').value) || 0,
+      pro: parseFloat(document.getElementById('dietPro').value) || 0
+    };
+    if(!d.content) return alert('請輸入食物內容');
+    dietLogs.unshift(d);
+    localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+    document.getElementById('dietContent').value = '';
+    document.getElementById('dietCal').value = '';
+    document.getElementById('dietPro').value = '';
+    renderDiet();
+  }
+
+  let chartInstance = null;
+  function renderBodyChart() {
+    const ctx = document.getElementById('bodyChart').getContext('2d');
+    const labels = bodyLogs.map(l => l.date.slice(5));
+    const weights = bodyLogs.map(l => l.weight);
+    const pbfs = bodyLogs.map(l => l.pbf);
+
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: '體重 (kg)', data: weights, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.2 },
+          { label: '體脂率 (%)', data: pbfs, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.2 }
+        ]
+      },
+      options: { 
+        responsive: true, 
+        plugins: { legend: { position: 'bottom' } },
+        scales: {
+          y: { beginAtZero: false }
+        }
+      }
+    });
+  }
+
+  function renderBodyList() {
+    const container = document.getElementById('bodyLogList');
+    let html = '';
+    shotLogs.forEach(s => {
+      html += `<div class="log-item">
+        <div><strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br><small>${s.note || ''}</small></div>
+        <span class="badge badge-shot">${s.dose}</span>
+      </div>`;
+    });
+    bodyLogs.slice().reverse().forEach(b => {
+      html += `<div class="log-item">
+        <div><strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br><small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級</small></div>
+      </div>`;
+    });
+    container.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有體態或施打紀錄</p>';
+  }
+
+  function renderDiet() {
+    const today = document.getElementById('dietDate').value;
+    const list = document.getElementById('dietLogList');
+    const todayItems = dietLogs.filter(d => d.date === today);
+    
+    let totalC = 0, totalP = 0, html = '';
+    todayItems.forEach(item => {
+      totalC += item.cal;
+      totalP += item.pro;
+      html += `<div class="log-item">
+        <div><strong>[${item.type}] ${item.content}</strong></div>
+        <div style="text-align:right;"><strong>${item.cal} kcal</strong><br><small style="color:var(--accent);">${item.pro}g 蛋白</small></div>
+      </div>`;
+    });
+
+    document.getElementById('todayCal').innerText = totalC;
+    document.getElementById('todayPro').innerText = totalP.toFixed(1) + 'g';
+    list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">今日尚無餐點紀錄</p>';
+  }
+
+  // 初次執行渲染
+  renderBodyChart();
+  renderBodyList();
+  renderDiet();
+</script>
+</body>
+</html>
