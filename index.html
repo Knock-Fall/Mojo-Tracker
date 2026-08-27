@@ -14,6 +14,7 @@
     --card: #ffffff;
     --text: #1e293b;
     --sub: #64748b;
+    --border: #e2e8f0;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   body { background: var(--bg); color: var(--text); padding-bottom: 70px; }
@@ -21,7 +22,7 @@
   header { background: #0f172a; color: #fff; padding: 18px 20px; text-align: center; }
   header h1 { font-size: 1.2rem; }
   
-  .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+  .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
   .tab-btn { flex: 1; padding: 12px 0; border: none; background: none; font-size: 0.95rem; font-weight: bold; color: var(--sub); cursor: pointer; }
   .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
   
@@ -35,7 +36,6 @@
   .form-group { margin-bottom: 12px; min-width: 0; }
   label { display: block; font-size: 0.85rem; color: var(--sub); margin-bottom: 4px; }
   
-  /* 徹底修正 iOS Safari 輸入框重疊與溢出 */
   input, select, textarea {
     width: 100%;
     min-width: 0;
@@ -65,7 +65,43 @@
   .btn-sync { background: #0284c7; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; color: #fff; border: none; cursor: pointer; }
   
   .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   
+  /* InBody 模組分組樣式 */
+  .section-box {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+  }
+  .section-subtitle {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+  .segment-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .segment-card h4 {
+    font-size: 0.8rem;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .segment-card input {
+    padding: 6px 4px;
+    font-size: 0.85rem;
+    margin-top: 4px;
+    text-align: center;
+  }
+
   .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
   .log-item:last-child { border-bottom: none; }
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
@@ -122,47 +158,162 @@
             <option value="5.0mg">5.0 mg</option>
             <option value="7.5mg">7.5 mg</option>
             <option value="10.0mg">10.0 mg</option>
+            <option value="12.5mg">12.5 mg</option>
+            <option value="15.0mg">15.0 mg</option>
           </select>
         </div>
       </div>
       <div class="form-group">
         <label>備註 / 施打部位</label>
-        <input type="text" id="shotNote" placeholder="例：肚臍右側、第1針">
+        <input type="text" id="shotNote" placeholder="例：肚臍右側、食慾控制佳">
       </div>
       <button class="btn btn-shot" onclick="saveShot()">記錄本次施打</button>
     </div>
 
-    <!-- InBody / 體重數據輸入 -->
+    <!-- InBody / 五大身體組成分析輸入區 -->
     <div class="card">
-      <div class="card-title">📝 記錄 InBody / 體重數據</div>
+      <div class="card-title">📝 記錄 InBody 全方位數據</div>
+      
       <div class="form-group">
         <label>測量日期</label>
         <input type="date" id="bodyDate">
       </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>體重 (kg)</label>
-          <input type="number" step="0.1" id="bodyWeight" placeholder="0.0">
-        </div>
-        <div class="form-group">
-          <label>體脂率 (%)</label>
-          <input type="number" step="0.1" id="bodyPBF" placeholder="0.0">
-        </div>
-        <div class="form-group">
-          <label>骨骼肌重 (kg)</label>
-          <input type="number" step="0.1" id="bodySMM" placeholder="0.0">
-        </div>
-        <div class="form-group">
-          <label>內臟脂肪級別</label>
-          <input type="number" id="bodyVFL" placeholder="0">
+
+      <!-- 1. 身體組成分析 -->
+      <div class="section-box">
+        <div class="section-subtitle">1. 身體組成分析</div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>總體重 (kg) *</label>
+            <input type="number" step="0.1" id="bodyWeight" placeholder="必填">
+          </div>
+          <div class="form-group">
+            <label>身體總水分 (L/kg)</label>
+            <input type="number" step="0.1" id="bodyTBW" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>蛋白質 (kg)</label>
+            <input type="number" step="0.1" id="bodyProtein" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>礦物質 (kg)</label>
+            <input type="number" step="0.1" id="bodyMinerals" placeholder="0.0">
+          </div>
         </div>
       </div>
-      <button class="btn" onclick="saveBodyData()">儲存體態數據</button>
+
+      <!-- 2. 肌肉脂肪分析 -->
+      <div class="section-box">
+        <div class="section-subtitle">2. 肌肉脂肪分析</div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>骨骼肌重 SMM (kg)</label>
+            <input type="number" step="0.1" id="bodySMM" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>體脂肪重 BFM (kg)</label>
+            <input type="number" step="0.1" id="bodyBFM" placeholder="0.0">
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 肥胖分析 -->
+      <div class="section-box">
+        <div class="section-subtitle">3. 肥胖分析</div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>BMI (kg/m²)</label>
+            <input type="number" step="0.1" id="bodyBMI" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>體脂肪率 PBF (%)</label>
+            <input type="number" step="0.1" id="bodyPBF" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>腰臀圍比 (WHR)</label>
+            <input type="number" step="0.01" id="bodyWHR" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>內臟脂肪等級</label>
+            <input type="number" id="bodyVFL" placeholder="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 部位肌肉分析 (kg / %) -->
+      <div class="section-box">
+        <div class="section-subtitle">4. 部位肌肉分析 (重量 kg / 比例 %)</div>
+        <div class="grid-3" style="margin-bottom: 8px;">
+          <div class="segment-card">
+            <h4>右上肢</h4>
+            <input type="number" step="0.01" id="m_ra_kg" placeholder="kg">
+            <input type="number" step="0.1" id="m_ra_pct" placeholder="%">
+          </div>
+          <div class="segment-card">
+            <h4>軀幹</h4>
+            <input type="number" step="0.01" id="m_tr_kg" placeholder="kg">
+            <input type="number" step="0.1" id="m_tr_pct" placeholder="%">
+          </div>
+          <div class="segment-card">
+            <h4>左上肢</h4>
+            <input type="number" step="0.01" id="m_la_kg" placeholder="kg">
+            <input type="number" step="0.1" id="m_la_pct" placeholder="%">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="segment-card">
+            <h4>右下肢</h4>
+            <input type="number" step="0.01" id="m_rl_kg" placeholder="kg">
+            <input type="number" step="0.1" id="m_rl_pct" placeholder="%">
+          </div>
+          <div class="segment-card">
+            <h4>左下肢</h4>
+            <input type="number" step="0.01" id="m_ll_kg" placeholder="kg">
+            <input type="number" step="0.1" id="m_ll_pct" placeholder="%">
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. 部位脂肪分析 (kg / %) -->
+      <div class="section-box">
+        <div class="section-subtitle">5. 部位脂肪分析 (重量 kg / 比例 %)</div>
+        <div class="grid-3" style="margin-bottom: 8px;">
+          <div class="segment-card">
+            <h4>右上肢</h4>
+            <input type="number" step="0.01" id="f_ra_kg" placeholder="kg">
+            <input type="number" step="0.1" id="f_ra_pct" placeholder="%">
+          </div>
+          <div class="segment-card">
+            <h4>軀幹</h4>
+            <input type="number" step="0.01" id="f_tr_kg" placeholder="kg">
+            <input type="number" step="0.1" id="f_tr_pct" placeholder="%">
+          </div>
+          <div class="segment-card">
+            <h4>左上肢</h4>
+            <input type="number" step="0.01" id="f_la_kg" placeholder="kg">
+            <input type="number" step="0.1" id="f_la_pct" placeholder="%">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="segment-card">
+            <h4>右下肢</h4>
+            <input type="number" step="0.01" id="f_rl_kg" placeholder="kg">
+            <input type="number" step="0.1" id="f_rl_pct" placeholder="%">
+          </div>
+          <div class="segment-card">
+            <h4>左下肢</h4>
+            <input type="number" step="0.01" id="f_ll_kg" placeholder="kg">
+            <input type="number" step="0.1" id="f_ll_pct" placeholder="%">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
     <!-- 趨勢圖表 -->
     <div class="card">
-      <div class="card-title">📈 體重與體脂趨勢</div>
+      <div class="card-title">📈 體重、骨骼肌與體脂趨勢</div>
       <canvas id="bodyChart" height="200"></canvas>
     </div>
 
@@ -423,19 +574,53 @@
   }
 
   function saveBodyData() {
+    const weightVal = parseFloat(document.getElementById('bodyWeight').value);
+    if (!weightVal) return alert('請至少輸入「總體重」數值！');
+
     const b = {
       date: document.getElementById('bodyDate').value,
-      weight: parseFloat(document.getElementById('bodyWeight').value) || 0,
-      pbf: parseFloat(document.getElementById('bodyPBF').value) || 0,
+      // 1. 身體組成
+      weight: weightVal,
+      tbw: parseFloat(document.getElementById('bodyTBW').value) || 0,
+      protein: parseFloat(document.getElementById('bodyProtein').value) || 0,
+      minerals: parseFloat(document.getElementById('bodyMinerals').value) || 0,
+      // 2. 肌肉脂肪
       smm: parseFloat(document.getElementById('bodySMM').value) || 0,
-      vfl: parseInt(document.getElementById('bodyVFL').value) || 0
+      bfm: parseFloat(document.getElementById('bodyBFM').value) || 0,
+      // 3. 肥胖分析
+      bmi: parseFloat(document.getElementById('bodyBMI').value) || 0,
+      pbf: parseFloat(document.getElementById('bodyPBF').value) || 0,
+      whr: parseFloat(document.getElementById('bodyWHR').value) || 0,
+      vfl: parseInt(document.getElementById('bodyVFL').value) || 0,
+      // 4. 部位肌肉
+      m_ra_kg: parseFloat(document.getElementById('m_ra_kg').value) || 0,
+      m_ra_pct: parseFloat(document.getElementById('m_ra_pct').value) || 0,
+      m_la_kg: parseFloat(document.getElementById('m_la_kg').value) || 0,
+      m_la_pct: parseFloat(document.getElementById('m_la_pct').value) || 0,
+      m_tr_kg: parseFloat(document.getElementById('m_tr_kg').value) || 0,
+      m_tr_pct: parseFloat(document.getElementById('m_tr_pct').value) || 0,
+      m_rl_kg: parseFloat(document.getElementById('m_rl_kg').value) || 0,
+      m_rl_pct: parseFloat(document.getElementById('m_rl_pct').value) || 0,
+      m_ll_kg: parseFloat(document.getElementById('m_ll_kg').value) || 0,
+      m_ll_pct: parseFloat(document.getElementById('m_ll_pct').value) || 0,
+      // 5. 部位脂肪
+      f_ra_kg: parseFloat(document.getElementById('f_ra_kg').value) || 0,
+      f_ra_pct: parseFloat(document.getElementById('f_ra_pct').value) || 0,
+      f_la_kg: parseFloat(document.getElementById('f_la_kg').value) || 0,
+      f_la_pct: parseFloat(document.getElementById('f_la_pct').value) || 0,
+      f_tr_kg: parseFloat(document.getElementById('f_tr_kg').value) || 0,
+      f_tr_pct: parseFloat(document.getElementById('f_tr_pct').value) || 0,
+      f_rl_kg: parseFloat(document.getElementById('f_rl_kg').value) || 0,
+      f_rl_pct: parseFloat(document.getElementById('f_rl_pct').value) || 0,
+      f_ll_kg: parseFloat(document.getElementById('f_ll_kg').value) || 0,
+      f_ll_pct: parseFloat(document.getElementById('f_ll_pct').value) || 0
     };
-    if(!b.weight) return alert('請輸入體重');
+
     bodyLogs.push(b);
     bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
     localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
     uploadToCloud('BODY', b);
-    alert('體態數據已儲存並同步至試算表！');
+    alert('全方位 InBody 數據已儲存並同步至試算表！');
     renderBodyChart();
     renderBodyList();
   }
@@ -468,6 +653,7 @@
     const labels = bodyLogs.map(l => l.date.slice(5));
     const weights = bodyLogs.map(l => l.weight);
     const pbfs = bodyLogs.map(l => l.pbf);
+    const smms = bodyLogs.map(l => l.smm);
 
     if (chartInstance) chartInstance.destroy();
     chartInstance = new Chart(ctx, {
@@ -476,6 +662,7 @@
         labels: labels,
         datasets: [
           { label: '體重 (kg)', data: weights, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.2 },
+          { label: '骨骼肌 (kg)', data: smms, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 },
           { label: '體脂率 (%)', data: pbfs, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.2 }
         ]
       },
@@ -497,8 +684,12 @@
       </div>`;
     });
     bodyLogs.slice().reverse().forEach(b => {
+      const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
       html += `<div class="log-item">
-        <div><strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br><small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級</small></div>
+        <div>
+          <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
+          <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
+        </div>
       </div>`;
     });
     container.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有體態或施打紀錄</p>';
