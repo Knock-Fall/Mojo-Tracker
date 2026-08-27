@@ -111,6 +111,33 @@
     text-align: center;
   }
 
+  /* 圖表切換按鈕橫向捲軸 */
+  .chart-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chart-tab-btn {
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: #f1f5f9;
+    color: var(--sub);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .chart-tab-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+
   .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
   .log-item:last-child { border-bottom: none; }
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
@@ -331,10 +358,20 @@
       <button class="btn" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
-    <!-- 趨勢圖表 (已全面升級雙 Y 軸放大縮放) -->
+    <!-- 趨勢圖表（含切換選單） -->
     <div class="card">
-      <div class="card-title">📈 體重、骨骼肌與體脂趨勢</div>
-      <canvas id="bodyChart" height="220"></canvas>
+      <div class="card-title">📈 數據趨勢分析</div>
+      
+      <!-- 線圖維度切換按鈕列 -->
+      <div class="chart-tabs">
+        <button class="chart-tab-btn active" onclick="switchChartMode('core')">核心體態 (雙軸)</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('comp')">身體組成</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('muscle_seg')">部位肌肉 (kg)</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('fat_seg')">部位脂肪 (kg)</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('obesity')">肥胖與內臟</button>
+      </div>
+
+      <canvas id="bodyChart" height="230"></canvas>
     </div>
 
     <!-- 歷史清單 -->
@@ -432,6 +469,7 @@
   let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
   let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
   let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
+  let currentChartMode = 'core';
 
   function getSecretToken() {
     return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
@@ -696,6 +734,13 @@
     }
   }
 
+  function switchChartMode(mode) {
+    currentChartMode = mode;
+    document.querySelectorAll('.chart-tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    renderBodyChart();
+  }
+
   function saveShot() {
     const shot = {
       date: document.getElementById('shotDate').value,
@@ -784,95 +829,120 @@
     if (bodyLogs.length === 0) return;
 
     const labels = bodyLogs.map(l => l.date.slice(5));
-    const weights = bodyLogs.map(l => l.weight);
-    const pbfs = bodyLogs.map(l => l.pbf);
-    const smms = bodyLogs.map(l => l.smm);
-
-    const minW = Math.min(...weights);
-    const maxW = Math.max(...weights);
-    const validOthers = pbfs.concat(smms).filter(v => v > 0);
-    const minOther = validOthers.length ? Math.min(...validOthers) : 0;
-    const maxOther = validOthers.length ? Math.max(...validOthers) : 50;
-
     if (chartInstance) chartInstance.destroy();
+
+    let datasets = [];
+    let scales = { x: { grid: { display: false } } };
+
+    if (currentChartMode === 'core') {
+      const weights = bodyLogs.map(l => l.weight);
+      const pbfs = bodyLogs.map(l => l.pbf);
+      const smms = bodyLogs.map(l => l.smm);
+      const minW = Math.min(...weights);
+      const maxW = Math.max(...weights);
+      const validOthers = pbfs.concat(smms).filter(v => v > 0);
+      const minOther = validOthers.length ? Math.min(...validOthers) : 0;
+      const maxOther = validOthers.length ? Math.max(...validOthers) : 50;
+
+      datasets = [
+        {
+          label: '體重 (kg)',
+          data: weights,
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+          borderWidth: 3,
+          pointRadius: 5,
+          tension: 0.3,
+          yAxisID: 'yWeight',
+          fill: true
+        },
+        {
+          label: '骨骼肌 (kg)',
+          data: smms,
+          borderColor: '#10b981',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          borderDash: [4, 4],
+          tension: 0.3,
+          yAxisID: 'yOther'
+        },
+        {
+          label: '體脂率 (%)',
+          data: pbfs,
+          borderColor: '#ef4444',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          tension: 0.3,
+          yAxisID: 'yOther'
+        }
+      ];
+
+      scales.yWeight = {
+        type: 'linear',
+        position: 'left',
+        title: { display: true, text: '體重 (kg)', color: '#2563eb' },
+        min: Math.floor(minW - 1),
+        max: Math.ceil(maxW + 1),
+        grid: { color: '#f1f5f9' }
+      };
+      scales.yOther = {
+        type: 'linear',
+        position: 'right',
+        title: { display: true, text: '肌肉 / 體脂', color: '#64748b' },
+        min: Math.floor(minOther - 2),
+        max: Math.ceil(maxOther + 2),
+        grid: { drawOnChartArea: false }
+      };
+
+    } else if (currentChartMode === 'comp') {
+      datasets = [
+        { label: '水分 (L)', data: bodyLogs.map(l => l.tbw), borderColor: '#06b6d4', tension: 0.3 },
+        { label: '蛋白質 (kg)', data: bodyLogs.map(l => l.protein), borderColor: '#10b981', tension: 0.3 },
+        { label: '礦物質 (kg)', data: bodyLogs.map(l => l.minerals), borderColor: '#f59e0b', tension: 0.3 },
+        { label: '體脂肪 (kg)', data: bodyLogs.map(l => l.bfm), borderColor: '#ef4444', tension: 0.3 }
+      ];
+      scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '數值 (kg / L)' } };
+
+    } else if (currentChartMode === 'muscle_seg') {
+      datasets = [
+        { label: '右上肢', data: bodyLogs.map(l => l.m_ra_kg), borderColor: '#3b82f6', tension: 0.3 },
+        { label: '左上肢', data: bodyLogs.map(l => l.m_la_kg), borderColor: '#60a5fa', tension: 0.3 },
+        { label: '軀幹', data: bodyLogs.map(l => l.m_tr_kg), borderColor: '#10b981', tension: 0.3, borderWidth: 3 },
+        { label: '右下肢', data: bodyLogs.map(l => l.m_rl_kg), borderColor: '#f59e0b', tension: 0.3 },
+        { label: '左下肢', data: bodyLogs.map(l => l.m_ll_kg), borderColor: '#fbbf24', tension: 0.3 }
+      ];
+      scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '部位肌肉重 (kg)' } };
+
+    } else if (currentChartMode === 'fat_seg') {
+      datasets = [
+        { label: '右上肢', data: bodyLogs.map(l => l.f_ra_kg), borderColor: '#f87171', tension: 0.3 },
+        { label: '左上肢', data: bodyLogs.map(l => l.f_la_kg), borderColor: '#fca5a5', tension: 0.3 },
+        { label: '軀幹', data: bodyLogs.map(l => l.f_tr_kg), borderColor: '#ef4444', tension: 0.3, borderWidth: 3 },
+        { label: '右下肢', data: bodyLogs.map(l => l.f_rl_kg), borderColor: '#c084fc', tension: 0.3 },
+        { label: '左下肢', data: bodyLogs.map(l => l.f_ll_kg), borderColor: '#e879f9', tension: 0.3 }
+      ];
+      scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '部位脂肪重 (kg)' } };
+
+    } else if (currentChartMode === 'obesity') {
+      datasets = [
+        { label: 'BMI', data: bodyLogs.map(l => l.bmi), borderColor: '#8b5cf6', tension: 0.3 },
+        { label: '內臟脂肪級別', data: bodyLogs.map(l => l.vfl), borderColor: '#ea580c', tension: 0.3 },
+        { label: '腰臀比 (WHR*10)', data: bodyLogs.map(l => (l.whr ? l.whr * 10 : 0)), borderColor: '#ec4899', tension: 0.3 }
+      ];
+      scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '等級 / 指標' } };
+    }
+
     chartInstance = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: '體重 (kg)',
-            data: weights,
-            borderColor: '#2563eb',
-            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-            borderWidth: 3,
-            pointRadius: 5,
-            pointBackgroundColor: '#2563eb',
-            tension: 0.3,
-            yAxisID: 'yWeight',
-            fill: true
-          },
-          {
-            label: '骨骼肌 (kg)',
-            data: smms,
-            borderColor: '#10b981',
-            backgroundColor: '#10b981',
-            borderWidth: 2.5,
-            pointRadius: 4,
-            borderDash: [4, 4],
-            tension: 0.3,
-            yAxisID: 'yOther'
-          },
-          {
-            label: '體脂率 (%)',
-            data: pbfs,
-            borderColor: '#ef4444',
-            backgroundColor: '#ef4444',
-            borderWidth: 2.5,
-            pointRadius: 4,
-            tension: 0.3,
-            yAxisID: 'yOther'
-          }
-        ]
-      },
+      data: { labels: labels, datasets: datasets },
       options: {
         responsive: true,
-        interaction: {
-          mode: 'index',
-          intersect: false
-        },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { position: 'bottom' },
-          tooltip: {
-            padding: 10,
-            callbacks: {
-              label: function(context) {
-                return `${context.dataset.label}: ${context.raw} ${context.dataset.yAxisID === 'yWeight' ? 'kg' : (context.datasetIndex === 2 ? '%' : 'kg')}`;
-              }
-            }
-          }
+          tooltip: { padding: 10 }
         },
-        scales: {
-          yWeight: {
-            type: 'linear',
-            position: 'left',
-            title: { display: true, text: '體重 (kg)', color: '#2563eb' },
-            min: Math.floor(minW - 1),
-            max: Math.ceil(maxW + 1),
-            grid: { color: '#f1f5f9' }
-          },
-          yOther: {
-            type: 'linear',
-            position: 'right',
-            title: { display: true, text: '肌肉 / 體脂', color: '#64748b' },
-            min: Math.floor(minOther - 2),
-            max: Math.ceil(maxOther + 2),
-            grid: { drawOnChartArea: false }
-          },
-          x: {
-            grid: { display: false }
-          }
-        }
+        scales: scales
       }
     });
   }
