@@ -60,6 +60,18 @@
   
   .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; }
   .btn-shot { background: var(--shot); }
+  .btn-upload {
+    background: #eff6ff;
+    border: 2px dashed #3b82f6;
+    color: #1d4ed8;
+    padding: 14px;
+    border-radius: 12px;
+    text-align: center;
+    font-weight: bold;
+    cursor: pointer;
+    display: block;
+    margin-bottom: 10px;
+  }
   .btn-ai { background: #8b5cf6; margin-top: 6px; }
   .btn-ai:disabled { background: #cbd5e1; cursor: not-allowed; }
   .btn-sync { background: #0284c7; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; color: #fff; border: none; cursor: pointer; }
@@ -67,7 +79,6 @@
   .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   
-  /* InBody 模組分組樣式 */
   .section-box {
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -80,8 +91,6 @@
     font-weight: bold;
     color: var(--primary);
     margin-bottom: 8px;
-    display: flex;
-    align-items: center;
   }
   .segment-card {
     background: #fff;
@@ -177,13 +186,13 @@
         <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
       </div>
 
-      <!-- InBody AI 拍照/圖庫上傳區塊 -->
-      <div class="form-group" style="background: #eff6ff; padding: 12px; border-radius: 12px; border: 1px dashed #60a5fa; margin-bottom: 15px;">
-        <label style="color: #1d4ed8; font-weight: bold;">📸 拍照 / 上傳 InBody 報告紙本（AI 自動辨識填表）</label>
-        <input type="file" id="inbodyImage" accept="image/*" onchange="previewAndAnalyzeInBody(this)">
-        <img id="inbodyImagePreview" class="preview-box">
-        <button id="inbodyAiBtn" class="btn btn-ai" style="display: none; background: #2563eb;" onclick="analyzeInBodyImage()">✨ 開始 AI 辨識 InBody 數據</button>
-      </div>
+      <!-- 顯著的 InBody 上傳拍照專區 -->
+      <label for="inbodyImage" class="btn-upload">
+        📷 點擊此處拍照／上傳 InBody 報告照片
+      </label>
+      <input type="file" id="inbodyImage" accept="image/*" style="display: none;" onchange="previewAndAnalyzeInBody(this)">
+      <img id="inbodyImagePreview" class="preview-box">
+      <button id="inbodyAiBtn" class="btn" style="display: none; background: #2563eb; margin-bottom: 15px;" onclick="analyzeInBodyImage()">✨ 開始 AI 辨識 InBody 數據</button>
       
       <div class="form-group">
         <label>測量日期</label>
@@ -364,15 +373,14 @@
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄</div>
       
-      <!-- AI 拍照/圖庫上傳區塊 -->
-      <div class="form-group" style="background: #faf5ff; padding: 12px; border-radius: 12px; border: 1px dashed #c084fc; margin-bottom: 15px;">
-        <label style="color: #7e22ce; font-weight: bold;">📸 拍照 / 從相簿選取照片 AI 自動估算</label>
-        <input type="file" id="foodImage" accept="image/*" onchange="previewAndAnalyze(this)">
-        <img id="imagePreview" class="preview-box">
-        <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與蛋白質</button>
-      </div>
+      <label for="foodImage" class="btn-upload" style="border-color: #a855f7; color: #7e22ce; background: #faf5ff;">
+        📸 點擊此處拍照／選取餐點照片（AI 自動估算）
+      </label>
+      <input type="file" id="foodImage" accept="image/*" style="display: none;" onchange="previewAndAnalyze(this)">
+      <img id="imagePreview" class="preview-box">
+      <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與蛋白質</button>
 
-      <div class="grid-2">
+      <div class="grid-2" style="margin-top: 10px;">
         <div class="form-group">
           <label>餐別</label>
           <select id="dietType">
@@ -568,7 +576,6 @@
       rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
       const res = JSON.parse(rawText);
 
-      // 自動填入表單
       if (res.weight) document.getElementById('bodyWeight').value = res.weight;
       if (res.tbw) document.getElementById('bodyTBW').value = res.tbw;
       if (res.protein) document.getElementById('bodyProtein').value = res.protein;
@@ -599,7 +606,7 @@
       if (res.f_tr_pct) document.getElementById('f_tr_pct').value = res.f_tr_pct;
       if (res.f_rl_kg) document.getElementById('f_rl_kg').value = res.f_rl_kg;
       if (res.f_rl_pct) document.getElementById('f_rl_pct').value = res.f_rl_pct;
-      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_kg;
+      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_pct;
       if (res.f_ll_pct) document.getElementById('f_ll_pct').value = res.f_ll_pct;
 
       alert('✨ InBody 報告辨識完成！已自動帶入下方欄位，請檢視數值後點擊「儲存完整 InBody 數據」。');
@@ -708,20 +715,16 @@
 
     const b = {
       date: document.getElementById('bodyDate').value,
-      // 1. 身體組成
       weight: weightVal,
       tbw: parseFloat(document.getElementById('bodyTBW').value) || 0,
       protein: parseFloat(document.getElementById('bodyProtein').value) || 0,
       minerals: parseFloat(document.getElementById('bodyMinerals').value) || 0,
-      // 2. 肌肉脂肪
       smm: parseFloat(document.getElementById('bodySMM').value) || 0,
       bfm: parseFloat(document.getElementById('bodyBFM').value) || 0,
-      // 3. 肥胖分析
       bmi: parseFloat(document.getElementById('bodyBMI').value) || 0,
       pbf: parseFloat(document.getElementById('bodyPBF').value) || 0,
       whr: parseFloat(document.getElementById('bodyWHR').value) || 0,
       vfl: parseInt(document.getElementById('bodyVFL').value) || 0,
-      // 4. 部位肌肉
       m_ra_kg: parseFloat(document.getElementById('m_ra_kg').value) || 0,
       m_ra_pct: parseFloat(document.getElementById('m_ra_pct').value) || 0,
       m_la_kg: parseFloat(document.getElementById('m_la_kg').value) || 0,
@@ -732,7 +735,6 @@
       m_rl_pct: parseFloat(document.getElementById('m_rl_pct').value) || 0,
       m_ll_kg: parseFloat(document.getElementById('m_ll_kg').value) || 0,
       m_ll_pct: parseFloat(document.getElementById('m_ll_pct').value) || 0,
-      // 5. 部位脂肪
       f_ra_kg: parseFloat(document.getElementById('f_ra_kg').value) || 0,
       f_ra_pct: parseFloat(document.getElementById('f_ra_pct').value) || 0,
       f_la_kg: parseFloat(document.getElementById('f_la_kg').value) || 0,
