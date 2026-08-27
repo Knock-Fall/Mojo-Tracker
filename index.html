@@ -35,7 +35,7 @@
   .form-group { margin-bottom: 12px; min-width: 0; }
   label { display: block; font-size: 0.85rem; color: var(--sub); margin-bottom: 4px; }
   
-  /* 徹底修正 iOS Safari 輸入框重疊與溢出問題 */
+  /* 徹底修正 iOS Safari 輸入框重疊與溢出 */
   input, select, textarea {
     width: 100%;
     min-width: 0;
@@ -62,6 +62,7 @@
   .btn-shot { background: var(--shot); }
   .btn-ai { background: #8b5cf6; margin-top: 6px; }
   .btn-ai:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .btn-sync { background: #0284c7; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; color: #fff; border: none; cursor: pointer; }
   
   .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   
@@ -91,6 +92,15 @@
 </div>
 
 <div class="container">
+  
+  <!-- 雲端試算表同步狀態條 -->
+  <div class="card" style="padding: 10px 16px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center;">
+    <span style="font-size: 0.85rem; color: #0369a1;">☁️ Google 試算表同步已就緒</span>
+    <div>
+      <button class="btn-sync" onclick="syncFromCloud()">從雲端載入</button>
+      <button class="btn-sync" style="background:#64748b;" onclick="setupSecretToken()">設定金鑰</button>
+    </div>
+  </div>
   
   <!-- 體態與猛健樂 TAB -->
   <div id="tab-inbody" class="tab-content active">
@@ -242,6 +252,8 @@
 </div>
 
 <script>
+  const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
+
   const todayStr = new Date().toISOString().split('T')[0];
   document.getElementById('shotDate').value = todayStr;
   document.getElementById('bodyDate').value = todayStr;
@@ -250,6 +262,66 @@
   let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
   let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
   let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
+
+  function getSecretToken() {
+    return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
+  }
+
+  function setupSecretToken() {
+    const current = getSecretToken();
+    const token = prompt('請輸入您的試算表密鑰 (Secret Token)：', current);
+    if (token !== null) {
+      localStorage.setItem('gas_secret_token', token.trim());
+      alert('密鑰已儲存！');
+    }
+  }
+
+  function uploadToCloud(type, payload) {
+    const token = getSecretToken();
+    fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token, type: type, payload: payload })
+    }).catch(err => console.log('Cloud sync pending:', err));
+  }
+
+  async function syncFromCloud() {
+    const token = getSecretToken();
+    try {
+      const res = await fetch(`${GAS_URL}?token=${encodeURIComponent(token)}`);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '驗證失敗');
+
+      let newBody = [], newDiet = [], newShot = [];
+      data.rows.forEach(r => {
+        const type = r[1];
+        try {
+          const payload = JSON.parse(r[2]);
+          if (type === 'BODY') newBody.push(payload);
+          else if (type === 'DIET') newDiet.push(payload);
+          else if (type === 'SHOT') newShot.push(payload);
+        } catch(e){}
+      });
+
+      if (newBody.length || newDiet.length || newShot.length) {
+        bodyLogs = newBody;
+        dietLogs = newDiet;
+        shotLogs = newShot;
+        localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+        localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+        localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+        renderBodyChart();
+        renderBodyList();
+        renderDiet();
+        alert('✅ 已成功從 Google 試算表載入最新資料！');
+      } else {
+        alert('雲端試算表目前尚無資料。');
+      }
+    } catch(err) {
+      alert('同步失敗：' + err.message + '\n請確認 Secret Token 是否與 Apps Script 一致。');
+    }
+  }
 
   function setupApiKey() {
     const currentKey = localStorage.getItem('gemini_api_key') || '';
@@ -291,7 +363,7 @@
     const promptText = "請辨識此照片中的食物，以繁體中文簡要列出食物名稱，並預估其總熱量(kcal)與總蛋白質(g)。請務必且嚴格僅回傳如下純 JSON 格式，不要加入額外 markdown 標籤或文字：{\"food\": \"食物名稱摘要\", \"cal\": 450, \"pro\": 25.5}";
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -345,7 +417,8 @@
     };
     shotLogs.unshift(shot);
     localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
-    alert('猛健樂紀錄已儲存！');
+    uploadToCloud('SHOT', shot);
+    alert('猛健樂紀錄已儲存並同步至試算表！');
     renderBodyList();
   }
 
@@ -361,7 +434,8 @@
     bodyLogs.push(b);
     bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
     localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
-    alert('體態數據已儲存！');
+    uploadToCloud('BODY', b);
+    alert('體態數據已儲存並同步至試算表！');
     renderBodyChart();
     renderBodyList();
   }
@@ -377,6 +451,7 @@
     if(!d.content) return alert('請輸入食物內容');
     dietLogs.unshift(d);
     localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+    uploadToCloud('DIET', d);
     document.getElementById('dietContent').value = '';
     document.getElementById('dietCal').value = '';
     document.getElementById('dietPro').value = '';
@@ -384,6 +459,7 @@
     document.getElementById('imagePreview').style.display = 'none';
     document.getElementById('aiBtn').style.display = 'none';
     renderDiet();
+    alert('餐點已記錄並同步至試算表！');
   }
 
   let chartInstance = null;
