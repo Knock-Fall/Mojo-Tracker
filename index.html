@@ -32,9 +32,30 @@
   .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
   .card-title { font-size: 1.05rem; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
   
-  .form-group { margin-bottom: 12px; }
+  .form-group { margin-bottom: 12px; min-width: 0; }
   label { display: block; font-size: 0.85rem; color: var(--sub); margin-bottom: 4px; }
-  input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.95rem; outline: none; }
+  
+  /* 徹底修正 iOS Safari 輸入框重疊與溢出問題 */
+  input, select, textarea {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    outline: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    display: block;
+  }
+  select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 32px;
+  }
   input:focus, select:focus { border-color: var(--primary); }
   
   .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; }
@@ -42,7 +63,7 @@
   .btn-ai { background: #8b5cf6; margin-top: 6px; }
   .btn-ai:disabled { background: #cbd5e1; cursor: not-allowed; }
   
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   
   .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
   .log-item:last-child { border-bottom: none; }
@@ -167,14 +188,14 @@
       </div>
     </div>
 
-    <!-- 記錄餐點 & 拍照估算 -->
+    <!-- 記錄餐點 & 拍照/相簿估算 -->
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄</div>
       
-      <!-- AI 拍照上傳區塊 -->
+      <!-- AI 拍照/圖庫上傳區塊 -->
       <div class="form-group" style="background: #faf5ff; padding: 12px; border-radius: 12px; border: 1px dashed #c084fc; margin-bottom: 15px;">
-        <label style="color: #7e22ce; font-weight: bold;">📸 拍照 / 上傳食物照片 AI 自動估算</label>
-        <input type="file" id="foodImage" accept="image/*" capture="environment" onchange="previewAndAnalyze(this)">
+        <label style="color: #7e22ce; font-weight: bold;">📸 拍照 / 從相簿選取照片 AI 自動估算</label>
+        <input type="file" id="foodImage" accept="image/*" onchange="previewAndAnalyze(this)">
         <img id="imagePreview" class="preview-box">
         <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與蛋白質</button>
       </div>
@@ -232,7 +253,7 @@
 
   function setupApiKey() {
     const currentKey = localStorage.getItem('gemini_api_key') || '';
-    const key = prompt('請輸入您的 Google Gemini API Key（免費用戶可至 Google AI Studio 申請，金鑰僅存在您的手機本地）：', currentKey);
+    const key = prompt('請輸入您的 Google Gemini API Key（金鑰僅存在您的手機本地）：', currentKey);
     if (key !== null) {
       localStorage.setItem('gemini_api_key', key.trim());
       alert(key ? 'API Key 設定成功！' : '已清除 API Key');
