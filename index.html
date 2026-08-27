@@ -186,7 +186,7 @@
         <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
       </div>
 
-      <!-- 顯著的 InBody 上傳拍照專區 -->
+      <!-- InBody 上傳拍照專區 -->
       <label for="inbodyImage" class="btn-upload">
         📷 點擊此處拍照／上傳 InBody 報告照片
       </label>
@@ -331,10 +331,10 @@
       <button class="btn" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
-    <!-- 趨勢圖表 -->
+    <!-- 趨勢圖表 (已全面升級雙 Y 軸放大縮放) -->
     <div class="card">
       <div class="card-title">📈 體重、骨骼肌與體脂趨勢</div>
-      <canvas id="bodyChart" height="200"></canvas>
+      <canvas id="bodyChart" height="220"></canvas>
     </div>
 
     <!-- 歷史清單 -->
@@ -606,7 +606,7 @@
       if (res.f_tr_pct) document.getElementById('f_tr_pct').value = res.f_tr_pct;
       if (res.f_rl_kg) document.getElementById('f_rl_kg').value = res.f_rl_kg;
       if (res.f_rl_pct) document.getElementById('f_rl_pct').value = res.f_rl_pct;
-      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_pct;
+      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_kg;
       if (res.f_ll_pct) document.getElementById('f_ll_pct').value = res.f_ll_pct;
 
       alert('✨ InBody 報告辨識完成！已自動帶入下方欄位，請檢視數值後點擊「儲存完整 InBody 數據」。');
@@ -781,10 +781,18 @@
   let chartInstance = null;
   function renderBodyChart() {
     const ctx = document.getElementById('bodyChart').getContext('2d');
+    if (bodyLogs.length === 0) return;
+
     const labels = bodyLogs.map(l => l.date.slice(5));
     const weights = bodyLogs.map(l => l.weight);
     const pbfs = bodyLogs.map(l => l.pbf);
     const smms = bodyLogs.map(l => l.smm);
+
+    const minW = Math.min(...weights);
+    const maxW = Math.max(...weights);
+    const validOthers = pbfs.concat(smms).filter(v => v > 0);
+    const minOther = validOthers.length ? Math.min(...validOthers) : 0;
+    const maxOther = validOthers.length ? Math.max(...validOthers) : 50;
 
     if (chartInstance) chartInstance.destroy();
     chartInstance = new Chart(ctx, {
@@ -792,15 +800,79 @@
       data: {
         labels: labels,
         datasets: [
-          { label: '體重 (kg)', data: weights, borderColor: '#3b82f6', backgroundColor: '#3b82f6', tension: 0.2 },
-          { label: '骨骼肌 (kg)', data: smms, borderColor: '#10b981', backgroundColor: '#10b981', tension: 0.2 },
-          { label: '體脂率 (%)', data: pbfs, borderColor: '#ef4444', backgroundColor: '#ef4444', tension: 0.2 }
+          {
+            label: '體重 (kg)',
+            data: weights,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            borderWidth: 3,
+            pointRadius: 5,
+            pointBackgroundColor: '#2563eb',
+            tension: 0.3,
+            yAxisID: 'yWeight',
+            fill: true
+          },
+          {
+            label: '骨骼肌 (kg)',
+            data: smms,
+            borderColor: '#10b981',
+            backgroundColor: '#10b981',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            borderDash: [4, 4],
+            tension: 0.3,
+            yAxisID: 'yOther'
+          },
+          {
+            label: '體脂率 (%)',
+            data: pbfs,
+            borderColor: '#ef4444',
+            backgroundColor: '#ef4444',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            tension: 0.3,
+            yAxisID: 'yOther'
+          }
         ]
       },
-      options: { 
-        responsive: true, 
-        plugins: { legend: { position: 'bottom' } },
-        scales: { y: { beginAtZero: false } }
+      options: {
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            padding: 10,
+            callbacks: {
+              label: function(context) {
+                return `${context.dataset.label}: ${context.raw} ${context.dataset.yAxisID === 'yWeight' ? 'kg' : (context.datasetIndex === 2 ? '%' : 'kg')}`;
+              }
+            }
+          }
+        },
+        scales: {
+          yWeight: {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: '體重 (kg)', color: '#2563eb' },
+            min: Math.floor(minW - 1),
+            max: Math.ceil(maxW + 1),
+            grid: { color: '#f1f5f9' }
+          },
+          yOther: {
+            type: 'linear',
+            position: 'right',
+            title: { display: true, text: '肌肉 / 體脂', color: '#64748b' },
+            min: Math.floor(minOther - 2),
+            max: Math.ceil(maxOther + 2),
+            grid: { drawOnChartArea: false }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
       }
     });
   }
