@@ -39,6 +39,8 @@
   
   .btn { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; }
   .btn-shot { background: var(--shot); }
+  .btn-ai { background: #8b5cf6; margin-top: 6px; }
+  .btn-ai:disabled { background: #cbd5e1; cursor: not-allowed; }
   
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   
@@ -51,6 +53,9 @@
   .stat-box { background: #f1f5f9; padding: 10px 4px; border-radius: 10px; }
   .stat-box .num { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
   .stat-box .txt { font-size: 0.75rem; color: var(--sub); margin-top: 2px; }
+
+  .preview-box { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin-top: 8px; display: none; }
+  .api-tip { font-size: 0.8rem; color: #8b5cf6; cursor: pointer; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -142,7 +147,10 @@
     
     <!-- 今日摘要 -->
     <div class="card">
-      <div class="card-title">⚡ 今日營養累計</div>
+      <div class="card-title">
+        <span>⚡ 今日營養累計</span>
+        <span class="api-tip" onclick="setupApiKey()">⚙️ 設定 AI API Key</span>
+      </div>
       <div class="stat-grid">
         <div class="stat-box">
           <div class="num" id="todayCal">0</div>
@@ -159,9 +167,18 @@
       </div>
     </div>
 
-    <!-- 記錄餐點 -->
+    <!-- 記錄餐點 & 拍照估算 -->
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄</div>
+      
+      <!-- AI 拍照上傳區塊 -->
+      <div class="form-group" style="background: #faf5ff; padding: 12px; border-radius: 12px; border: 1px dashed #c084fc; margin-bottom: 15px;">
+        <label style="color: #7e22ce; font-weight: bold;">📸 拍照 / 上傳食物照片 AI 自動估算</label>
+        <input type="file" id="foodImage" accept="image/*" capture="environment" onchange="previewAndAnalyze(this)">
+        <img id="imagePreview" class="preview-box">
+        <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與蛋白質</button>
+      </div>
+
       <div class="grid-2">
         <div class="form-group">
           <label>餐別</label>
@@ -204,16 +221,86 @@
 </div>
 
 <script>
-  // 初始化日期為今日
   const todayStr = new Date().toISOString().split('T')[0];
   document.getElementById('shotDate').value = todayStr;
   document.getElementById('bodyDate').value = todayStr;
   document.getElementById('dietDate').value = todayStr;
 
-  // LocalStorage 純本地讀取（初始為全空陣列，無任何預設數據）
   let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
   let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
   let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
+
+  function setupApiKey() {
+    const currentKey = localStorage.getItem('gemini_api_key') || '';
+    const key = prompt('請輸入您的 Google Gemini API Key（免費用戶可至 Google AI Studio 申請，金鑰僅存在您的手機本地）：', currentKey);
+    if (key !== null) {
+      localStorage.setItem('gemini_api_key', key.trim());
+      alert(key ? 'API Key 設定成功！' : '已清除 API Key');
+    }
+  }
+
+  let base64Image = '';
+  function previewAndAnalyze(input) {
+    const file = input.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const preview = document.getElementById('imagePreview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        base64Image = e.target.result.split(',')[1];
+        document.getElementById('aiBtn').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  async function analyzeFoodImage() {
+    let apiKey = localStorage.getItem('gemini_api_key');
+    if (!apiKey) {
+      apiKey = prompt('首次使用拍照估算，請輸入您的 Gemini API Key：');
+      if (!apiKey) return alert('未輸入 API Key，無法進行分析');
+      localStorage.setItem('gemini_api_key', apiKey.trim());
+    }
+
+    const aiBtn = document.getElementById('aiBtn');
+    aiBtn.disabled = true;
+    aiBtn.innerText = '⏳ AI 分析估算中，請稍候...';
+
+    const promptText = "請辨識此照片中的食物，以繁體中文簡要列出食物名稱，並預估其總熱量(kcal)與總蛋白質(g)。請務必且嚴格僅回傳如下純 JSON 格式，不要加入額外 markdown 標籤或文字：{\"food\": \"食物名稱摘要\", \"cal\": 450, \"pro\": 25.5}";
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: promptText },
+              { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+            ]
+          }]
+        })
+      });
+
+      const resData = await response.json();
+      if (resData.error) throw new Error(resData.error.message);
+
+      let rawText = resData.candidates[0].content.parts[0].text.trim();
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const result = JSON.parse(rawText);
+
+      document.getElementById('dietContent').value = result.food || '';
+      document.getElementById('dietCal').value = result.cal || '';
+      document.getElementById('dietPro').value = result.pro || '';
+      alert('✨ AI 估算完成！已自動填入食物名稱、熱量與蛋白質，請確認後按「加入今日飲食」。');
+    } catch (err) {
+      alert('分析失敗：' + err.message + '\n請確認 API Key 是否正確或網路狀態。');
+    } finally {
+      aiBtn.disabled = false;
+      aiBtn.innerText = '✨ 開始 AI 分析熱量與蛋白質';
+    }
+  }
 
   function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -272,6 +359,9 @@
     document.getElementById('dietContent').value = '';
     document.getElementById('dietCal').value = '';
     document.getElementById('dietPro').value = '';
+    document.getElementById('foodImage').value = '';
+    document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById('aiBtn').style.display = 'none';
     renderDiet();
   }
 
@@ -295,9 +385,7 @@
       options: { 
         responsive: true, 
         plugins: { legend: { position: 'bottom' } },
-        scales: {
-          y: { beginAtZero: false }
-        }
+        scales: { y: { beginAtZero: false } }
       }
     });
   }
@@ -339,7 +427,6 @@
     list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">今日尚無餐點紀錄</p>';
   }
 
-  // 初次執行渲染
   renderBodyChart();
   renderBodyList();
   renderDiet();
