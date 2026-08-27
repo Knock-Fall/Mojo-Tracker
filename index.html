@@ -111,7 +111,6 @@
     text-align: center;
   }
 
-  /* 圖表切換按鈕橫向捲軸 */
   .chart-tabs {
     display: flex;
     gap: 6px;
@@ -138,15 +137,37 @@
     border-color: var(--primary);
   }
 
+  /* 營養進度面板樣式 */
+  .nutrition-card {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  .nutrition-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  .progress-bg {
+    background: #e2e8f0;
+    border-radius: 6px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+
   .log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
   .log-item:last-child { border-bottom: none; }
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
   .badge-shot { background: #fdf2f8; color: var(--shot); }
-  
-  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
-  .stat-box { background: #f1f5f9; padding: 10px 4px; border-radius: 10px; }
-  .stat-box .num { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
-  .stat-box .txt { font-size: 0.75rem; color: var(--sub); margin-top: 2px; }
 
   .preview-box { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 8px; display: none; background: #000; }
   .api-tip { font-size: 0.8rem; color: #8b5cf6; cursor: pointer; text-decoration: underline; }
@@ -361,8 +382,6 @@
     <!-- 趨勢圖表（含切換選單） -->
     <div class="card">
       <div class="card-title">📈 數據趨勢分析</div>
-      
-      <!-- 線圖維度切換按鈕列 -->
       <div class="chart-tabs">
         <button class="chart-tab-btn active" onclick="switchChartMode('core')">核心體態 (雙軸)</button>
         <button class="chart-tab-btn" onclick="switchChartMode('comp')">身體組成</button>
@@ -370,7 +389,6 @@
         <button class="chart-tab-btn" onclick="switchChartMode('fat_seg')">部位脂肪 (kg)</button>
         <button class="chart-tab-btn" onclick="switchChartMode('obesity')">肥胖與內臟</button>
       </div>
-
       <canvas id="bodyChart" height="230"></canvas>
     </div>
 
@@ -384,24 +402,40 @@
   <!-- 飲食紀錄 TAB -->
   <div id="tab-diet" class="tab-content">
     
-    <!-- 今日摘要 -->
+    <!-- 建議 vs 已攝取 智慧進度看板 (自動連動 InBody) -->
     <div class="card">
       <div class="card-title">
-        <span>⚡ 今日營養累計</span>
-        <span class="api-tip" onclick="setupApiKey()">⚙️ 設定 AI API Key</span>
+        <span>⚡ 今日營養攝取進度</span>
+        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
       </div>
-      <div class="stat-grid">
-        <div class="stat-box">
-          <div class="num" id="todayCal">0</div>
-          <div class="txt">熱量 (kcal)</div>
+
+      <!-- 熱量進度條 -->
+      <div class="nutrition-card">
+        <div class="nutrition-head">
+          <span style="color: var(--primary);">🔥 熱量攝取</span>
+          <span><strong id="calCurrent">0</strong> / <span id="calTarget" style="color:var(--sub);">1800</span> kcal</span>
         </div>
-        <div class="stat-box">
-          <div class="num" id="todayPro" style="color: #10b981;">0g</div>
-          <div class="txt">蛋白質</div>
+        <div class="progress-bg">
+          <div id="calProgress" class="progress-fill" style="width: 0%; background: var(--primary);"></div>
         </div>
-        <div class="stat-box">
-          <div class="num" id="targetCal">1500</div>
-          <div class="txt">目標熱量</div>
+        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
+          <span id="calRemainTxt">剩餘：1800 kcal</span>
+          <span id="inbodyWeightRef">依最新體重估算</span>
+        </div>
+      </div>
+
+      <!-- 蛋白質進度條 -->
+      <div class="nutrition-card">
+        <div class="nutrition-head">
+          <span style="color: var(--accent);">🥩 蛋白質攝取</span>
+          <span><strong id="proCurrent">0</strong> / <span id="proTarget" style="color:var(--sub);">130</span> g</span>
+        </div>
+        <div class="progress-bg">
+          <div id="proProgress" class="progress-fill" style="width: 0%; background: var(--accent);"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
+          <span id="proRemainTxt">剩餘：130 g</span>
+          <span>減重保肌 (1.6g/kg)</span>
         </div>
       </div>
     </div>
@@ -429,7 +463,7 @@
         </div>
         <div class="form-group">
           <label>日期</label>
-          <input type="date" id="dietDate">
+          <input type="date" id="dietDate" onchange="renderDiet()">
         </div>
       </div>
       <div class="form-group">
@@ -446,10 +480,10 @@
           <input type="number" step="0.1" id="dietPro" placeholder="0.0">
         </div>
       </div>
-      <button class="btn" style="background: var(--accent);" onclick="saveDiet()">加入今日飲食</button>
+      <button class="btn" style="background: var(--accent);" onclick="saveDiet()">加入飲食紀錄</button>
     </div>
 
-    <!-- 今日餐點清單 -->
+    <!-- 當日餐點清單 -->
     <div class="card">
       <div class="card-title">📖 當日飲食明細</div>
       <div id="dietLogList"></div>
@@ -644,7 +678,7 @@
       if (res.f_tr_pct) document.getElementById('f_tr_pct').value = res.f_tr_pct;
       if (res.f_rl_kg) document.getElementById('f_rl_kg').value = res.f_rl_kg;
       if (res.f_rl_pct) document.getElementById('f_rl_pct').value = res.f_rl_pct;
-      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_kg;
+      if (res.f_ll_kg) document.getElementById('f_ll_kg').value = res.f_ll_pct;
       if (res.f_ll_pct) document.getElementById('f_ll_pct').value = res.f_ll_pct;
 
       alert('✨ InBody 報告辨識完成！已自動帶入下方欄位，請檢視數值後點擊「儲存完整 InBody 數據」。');
@@ -711,7 +745,7 @@
       document.getElementById('dietContent').value = result.food || '';
       document.getElementById('dietCal').value = result.cal || '';
       document.getElementById('dietPro').value = result.pro || '';
-      alert('✨ AI 估算完成！已自動填入食物名稱、熱量與蛋白質，請確認後按「加入今日飲食」。');
+      alert('✨ AI 估算完成！已自動填入食物名稱、熱量與蛋白質，請確認後按「加入飲食紀錄」。');
     } catch (err) {
       alert('分析失敗：' + err.message + '\n請確認 API Key 是否正確或網路狀態。');
     } finally {
@@ -799,6 +833,7 @@
     alert('全方位 InBody 數據已儲存並同步至試算表！');
     renderBodyChart();
     renderBodyList();
+    renderDiet(); // 更新飲食建議攝取連動
   }
 
   function saveDiet() {
@@ -968,13 +1003,14 @@
     container.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有體態或施打紀錄</p>';
   }
 
+  // --- 飲食進度與 InBody 連動計算 ---
   function renderDiet() {
-    const today = document.getElementById('dietDate').value;
+    const queryDate = document.getElementById('dietDate').value;
     const list = document.getElementById('dietLogList');
-    const todayItems = dietLogs.filter(d => d.date === today);
+    const dayItems = dietLogs.filter(d => d.date === queryDate);
     
     let totalC = 0, totalP = 0, html = '';
-    todayItems.forEach(item => {
+    dayItems.forEach(item => {
       totalC += item.cal;
       totalP += item.pro;
       html += `<div class="log-item">
@@ -983,9 +1019,39 @@
       </div>`;
     });
 
-    document.getElementById('todayCal').innerText = totalC;
-    document.getElementById('todayPro').innerText = totalP.toFixed(1) + 'g';
-    list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">今日尚無餐點紀錄</p>';
+    // 抓取最新 InBody 體重做連動
+    let latestWeight = 80; // 預設參考基準
+    if (bodyLogs.length > 0) {
+      latestWeight = bodyLogs[bodyLogs.length - 1].weight || 80;
+    }
+
+    // 計算建議攝取量（減脂熱量目標：體重 * 22 kcal，蛋白質保肌：體重 * 1.6 g）
+    const targetCalories = Math.round(latestWeight * 22);
+    const targetProtein = Math.round(latestWeight * 1.6);
+
+    document.getElementById('calCurrent').innerText = totalC;
+    document.getElementById('calTarget').innerText = targetCalories;
+    document.getElementById('proCurrent').innerText = totalP.toFixed(1);
+    document.getElementById('proTarget').innerText = targetProtein;
+    document.getElementById('inbodyWeightRef').innerText = `依最新體重 ${latestWeight}kg 連動`;
+
+    // 計算百分比與剩餘量
+    const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
+    const proPct = Math.min(100, Math.round((totalP / targetProtein) * 100));
+
+    document.getElementById('calProgress').style.width = calPct + '%';
+    document.getElementById('proProgress').style.width = proPct + '%';
+
+    const calDiff = targetCalories - totalC;
+    const proDiff = (targetProtein - totalP).toFixed(1);
+
+    document.getElementById('calRemainTxt').innerText = calDiff >= 0 ? `剩餘：${calDiff} kcal` : `超標：${Math.abs(calDiff)} kcal`;
+    document.getElementById('calRemainTxt').style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
+
+    document.getElementById('proRemainTxt').innerText = proDiff >= 0 ? `剩餘：${proDiff} g` : `已達標 (+${Math.abs(proDiff)}g)`;
+    document.getElementById('proRemainTxt').style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
+
+    list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
   }
 
   renderBodyChart();
