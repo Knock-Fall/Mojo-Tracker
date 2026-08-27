@@ -179,8 +179,8 @@
 </header>
 
 <div class="nav-tabs">
-  <button class="tab-btn active" onclick="switchTab('inbody')">📊 體態與猛健樂</button>
-  <button class="tab-btn" onclick="switchTab('diet')">🥗 飲食紀錄</button>
+  <button id="btnTabInbody" class="tab-btn active" onclick="switchTab('inbody')">📊 體態與猛健樂</button>
+  <button id="btnTabDiet" class="tab-btn" onclick="switchTab('diet')">🥗 飲食紀錄</button>
 </div>
 
 <div class="container">
@@ -371,11 +371,11 @@
     <div class="card">
       <div class="card-title">📈 數據趨勢分析</div>
       <div class="chart-tabs">
-        <button class="chart-tab-btn active" onclick="switchChartMode('core')">核心體態 (雙軸)</button>
-        <button class="chart-tab-btn" onclick="switchChartMode('comp')">身體組成</button>
-        <button class="chart-tab-btn" onclick="switchChartMode('muscle_seg')">部位肌肉 (kg)</button>
-        <button class="chart-tab-btn" onclick="switchChartMode('fat_seg')">部位脂肪 (kg)</button>
-        <button class="chart-tab-btn" onclick="switchChartMode('obesity')">肥胖與內臟</button>
+        <button class="chart-tab-btn active" onclick="switchChartMode('core', this)">核心體態 (雙軸)</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('comp', this)">身體組成</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('muscle_seg', this)">部位肌肉 (kg)</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('fat_seg', this)">部位脂肪 (kg)</button>
+        <button class="chart-tab-btn" onclick="switchChartMode('obesity', this)">肥胖與內臟</button>
       </div>
       <canvas id="bodyChart" height="230"></canvas>
     </div>
@@ -529,7 +529,7 @@
 
       let newBody = [], newDiet = [], newShot = [];
       data.rows.forEach(r => {
-        const type = String(r[1]).trim().toUpperCase();
+        const type = String(r[1] || '').trim().toUpperCase();
         try {
           let payload = typeof r[2] === 'string' ? JSON.parse(r[2]) : r[2];
           if (payload && payload.date) {
