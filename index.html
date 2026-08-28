@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80001">
+  <link rel="stylesheet" href="style.css?v=80924">
 </head>
 <body>
 
@@ -145,10 +145,20 @@
       <button class="btn" type="button" style="background:#0284c7;" onclick="saveScaleData()">記錄家用體重數據</button>
     </div>
 
-    <!-- 家用體重計專屬趨勢圖 -->
+    <!-- Zepp 多維度分類趨勢圖（支援橫向拉動） -->
     <div class="card">
-      <div class="card-title">📈 家用日常體重趨勢 (Zepp Life)</div>
-      <canvas id="scaleChart" height="210"></canvas>
+      <div class="card-title">📈 家用日常趨勢 (Zepp Life)</div>
+      <div class="chart-tabs">
+        <button class="chart-tab-btn active" type="button" onclick="switchScaleChartMode('core', this)">核心體態 (雙軸)</button>
+        <button class="chart-tab-btn" type="button" onclick="switchScaleChartMode('water_bmr', this)">水分與代謝</button>
+        <button class="chart-tab-btn" type="button" onclick="switchScaleChartMode('bone_protein', this)">骨質與蛋白質</button>
+        <button class="chart-tab-btn" type="button" onclick="switchScaleChartMode('vfl_score', this)">內臟脂肪與評分</button>
+      </div>
+      <div class="chart-scroll-wrapper">
+        <div id="scaleChartContainer" class="chart-scroll-inner">
+          <canvas id="scaleChart"></canvas>
+        </div>
+      </div>
     </div>
 
     <!-- InBody vs 家用體重計 差異分析卡片 -->
@@ -305,7 +315,7 @@
       <button class="btn" type="button" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
-    <!-- InBody 趨勢分析 -->
+    <!-- InBody 趨勢分析（支援橫向拉動） -->
     <div class="card">
       <div class="card-title">📈 InBody 數據趨勢分析</div>
       <div class="chart-tabs">
@@ -315,7 +325,11 @@
         <button class="chart-tab-btn" type="button" onclick="switchChartMode('fat_seg', this)">部位脂肪 (kg)</button>
         <button class="chart-tab-btn" type="button" onclick="switchChartMode('obesity', this)">肥胖與內臟</button>
       </div>
-      <canvas id="bodyChart" height="230"></canvas>
+      <div class="chart-scroll-wrapper">
+        <div id="bodyChartContainer" class="chart-scroll-inner">
+          <canvas id="bodyChart"></canvas>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -478,6 +492,14 @@
       </div>
     </div>
 
+    <!-- 需求 1：營養攝取不足時的動態建議專區 -->
+    <div class="card" id="nutritionSuggestCard" style="display: none; background: #fffaf0; border: 1px solid #feebc8;">
+      <div class="card-title" style="color: #c05621;">
+        <span>💡 智慧補給：今日缺口與推薦補足食物</span>
+      </div>
+      <div id="suggestContent"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄（支援補填選取日期）</div>
       
@@ -540,13 +562,18 @@
     </div>
   </div>
 
+  <!-- 需求 5：版本指紋識別標籤 -->
+  <div class="version-footer">
+    版本驗證代碼：<strong>MK-80924</strong>
+  </div>
+
 </div>
 
-<script src="sync.js?v=80001"></script>
-<script src="shot.js?v=80001"></script>
-<script src="scale.js?v=80001"></script>
-<script src="body.js?v=80001"></script>
-<script src="diet.js?v=80001"></script>
-<script src="main.js?v=80001"></script>
+<script src="sync.js?v=80924"></script>
+<script src="shot.js?v=80924"></script>
+<script src="scale.js?v=80924"></script>
+<script src="body.js?v=80924"></script>
+<script src="diet.js?v=80924"></script>
+<script src="main.js?v=80924"></script>
 </body>
 </html>
