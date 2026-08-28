@@ -53,19 +53,12 @@ async function analyzeFoodImage() {
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(rawText);
 
-    const foodName = result.food || result.name || userHint || '';
-    const calVal = result.cal ?? result.calories ?? result.energy ?? 0;
-    const proVal = result.pro ?? result.protein ?? 0;
-    const carbsVal = result.carbs ?? result.carbohydrates ?? 0;
-    const fatVal = result.fat ?? result.fats ?? result.total_fat ?? 0;
-    const fiberVal = result.fiber ?? result.fibers ?? result.dietary_fiber ?? 0;
-
-    document.getElementById('dietContent').value = foodName;
-    document.getElementById('dietCal').value = calVal;
-    document.getElementById('dietPro').value = proVal;
-    document.getElementById('dietCarbs').value = carbsVal;
-    document.getElementById('dietFat').value = fatVal;
-    document.getElementById('dietFiber').value = fiberVal;
+    document.getElementById('dietContent').value = result.food || userHint || '';
+    document.getElementById('dietCal').value = result.cal ?? 0;
+    document.getElementById('dietPro').value = result.pro ?? 0;
+    document.getElementById('dietCarbs').value = result.carbs ?? 0;
+    document.getElementById('dietFat').value = result.fat ?? 0;
+    document.getElementById('dietFiber').value = result.fiber ?? 0;
 
     alert('✨ AI 估算完成！已自動填入熱量、蛋白質、碳水、脂肪與纖維。');
   } catch (err) {
@@ -88,9 +81,12 @@ function saveDiet() {
     fiber: parseFloat(document.getElementById('dietFiber').value) || 0
   };
   if(!d.content) return alert('請輸入食物內容');
-  dietLogs.unshift(d);
-  localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+  
+  if (!window.dietLogs) window.dietLogs = [];
+  window.dietLogs.unshift(d);
+  localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
   uploadToCloud('DIET', d);
+
   document.getElementById('dietContent').value = '';
   document.getElementById('dietCal').value = '';
   document.getElementById('dietPro').value = '';
@@ -102,12 +98,13 @@ function saveDiet() {
   document.getElementById('aiHintBox').style.display = 'none';
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('aiBtn').style.display = 'none';
+
   renderDiet();
   alert('餐點已記錄並同步！');
 }
 
 function editDiet(index) {
-  const item = dietLogs[index];
+  const item = (window.dietLogs || [])[index];
   if (!item) return;
 
   const newType = prompt('修改餐別（早餐、午餐、晚餐、點心/補充）：', item.type || '午餐');
@@ -125,52 +122,52 @@ function editDiet(index) {
   const newFiber = prompt('修改膳食纖維 (g)：', item.fiber || 0);
   if (newFiber === null) return;
 
-  dietLogs[index].type = newType.trim();
-  dietLogs[index].content = newContent.trim();
-  dietLogs[index].cal = parseInt(newCal) || 0;
-  dietLogs[index].pro = parseFloat(newPro) || 0;
-  dietLogs[index].carbs = parseFloat(newCarbs) || 0;
-  dietLogs[index].fat = parseFloat(newFat) || 0;
-  dietLogs[index].fiber = parseFloat(newFiber) || 0;
+  window.dietLogs[index].type = newType.trim();
+  window.dietLogs[index].content = newContent.trim();
+  window.dietLogs[index].cal = parseInt(newCal) || 0;
+  window.dietLogs[index].pro = parseFloat(newPro) || 0;
+  window.dietLogs[index].carbs = parseFloat(newCarbs) || 0;
+  window.dietLogs[index].fat = parseFloat(newFat) || 0;
+  window.dietLogs[index].fiber = parseFloat(newFiber) || 0;
 
-  localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
-  uploadToCloud('DIET', dietLogs[index]);
+  localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
+  uploadToCloud('DIET', window.dietLogs[index]);
   renderDiet();
 }
 
 function deleteDiet(index) {
   if (confirm('確定要刪除這筆飲食紀錄嗎？')) {
-    dietLogs.splice(index, 1);
-    localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+    (window.dietLogs || []).splice(index, 1);
+    localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
     renderDiet();
   }
 }
 
 function addWaterRecord(type, amount) {
   const queryDate = document.getElementById('dietDate').value;
-  if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
-  if (!waterLogs[queryDate] || typeof waterLogs[queryDate] !== 'object') {
-    const oldVal = typeof waterLogs[queryDate] === 'number' ? waterLogs[queryDate] : 0;
-    waterLogs[queryDate] = { pure: oldVal, tea: 0 };
+  if (!window.waterLogs) window.waterLogs = {};
+  if (!window.waterLogs[queryDate] || typeof window.waterLogs[queryDate] !== 'object') {
+    const oldVal = typeof window.waterLogs[queryDate] === 'number' ? window.waterLogs[queryDate] : 0;
+    window.waterLogs[queryDate] = { pure: oldVal, tea: 0 };
   }
 
   if (type === 'pure') {
-    waterLogs[queryDate].pure = (Number(waterLogs[queryDate].pure) || 0) + amount;
+    window.waterLogs[queryDate].pure = (Number(window.waterLogs[queryDate].pure) || 0) + amount;
   } else {
-    waterLogs[queryDate].tea = (Number(waterLogs[queryDate].tea) || 0) + amount;
+    window.waterLogs[queryDate].tea = (Number(window.waterLogs[queryDate].tea) || 0) + amount;
   }
 
-  localStorage.setItem('my_water_logs', JSON.stringify(waterLogs));
-  uploadToCloud('WATER', { date: queryDate, data: waterLogs[queryDate] });
+  localStorage.setItem('my_water_logs', JSON.stringify(window.waterLogs));
+  uploadToCloud('WATER', { date: queryDate, data: window.waterLogs[queryDate] });
   renderDiet();
 }
 
 function resetWaterRecord() {
   const queryDate = document.getElementById('dietDate').value;
   if (confirm(`確定要將 ${queryDate} 的純水與茶飲水分紀錄歸零嗎？`)) {
-    if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
-    waterLogs[queryDate] = { pure: 0, tea: 0 };
-    localStorage.setItem('my_water_logs', JSON.stringify(waterLogs));
+    if (!window.waterLogs) window.waterLogs = {};
+    window.waterLogs[queryDate] = { pure: 0, tea: 0 };
+    localStorage.setItem('my_water_logs', JSON.stringify(window.waterLogs));
     uploadToCloud('WATER', { date: queryDate, data: { pure: 0, tea: 0 } });
     renderDiet();
   }
@@ -183,7 +180,9 @@ function renderDiet() {
   const list = document.getElementById('dietLogList');
   
   let totalC = 0, totalP = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0, html = '';
-  dietLogs.forEach((item, originalIndex) => {
+  const curDiets = window.dietLogs || [];
+
+  curDiets.forEach((item, originalIndex) => {
     const itemDate = String(item.date || '').replace(/\//g, '-');
     if (itemDate === queryDate) {
       const c = Number(item.cal) || 0;
@@ -209,11 +208,12 @@ function renderDiet() {
     }
   });
 
+  // 最新體重連動
   let latestWeight = 80;
-  if (scaleLogs && scaleLogs.length > 0) {
-    latestWeight = Number(scaleLogs[scaleLogs.length - 1].weight) || 80;
-  } else if (bodyLogs && bodyLogs.length > 0) {
-    latestWeight = Number(bodyLogs[bodyLogs.length - 1].weight) || 80;
+  if (window.scaleLogs && window.scaleLogs.length > 0) {
+    latestWeight = Number(window.scaleLogs[window.scaleLogs.length - 1].weight) || 80;
+  } else if (window.bodyLogs && window.bodyLogs.length > 0) {
+    latestWeight = Number(window.bodyLogs[window.bodyLogs.length - 1].weight) || 80;
   }
 
   const tdee = Math.round(latestWeight * 28);
@@ -225,6 +225,7 @@ function renderDiet() {
   const targetWater = Math.round(latestWeight * 35);
   const currentDeficit = tdee - totalC;
 
+  // 1. 赤字看板
   const deficitCurEl = document.getElementById('deficitCurrent');
   const tdeeRefEl = document.getElementById('tdeeRef');
   const deficitStatusEl = document.getElementById('deficitStatus');
@@ -248,8 +249,8 @@ function renderDiet() {
     }
   }
 
-  if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
-  let dayWater = waterLogs[queryDate] || { pure: 0, tea: 0 };
+  // 2. 雙軌水分進度
+  let dayWater = (window.waterLogs && window.waterLogs[queryDate]) ? window.waterLogs[queryDate] : { pure: 0, tea: 0 };
   if (typeof dayWater === 'number') dayWater = { pure: dayWater, tea: 0 };
 
   const pureW = Number(dayWater.pure) || 0;
@@ -289,6 +290,7 @@ function renderDiet() {
     }
   }
 
+  // 3. 熱量進度
   const calCurEl = document.getElementById('calCurrent');
   const calTarEl = document.getElementById('calTarget');
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
@@ -307,6 +309,7 @@ function renderDiet() {
     calRemEl.style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
+  // 4. 蛋白質進度
   const proCurEl = document.getElementById('proCurrent');
   const proTarEl = document.getElementById('proTarget');
   if (proCurEl) proCurEl.innerText = totalP.toFixed(1);
@@ -323,6 +326,7 @@ function renderDiet() {
     proRemEl.style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
   }
 
+  // 5. 碳水進度
   const carbsCurEl = document.getElementById('carbsCurrent');
   const carbsTarEl = document.getElementById('carbsTarget');
   if (carbsCurEl) carbsCurEl.innerText = totalCarbs.toFixed(1);
@@ -339,6 +343,7 @@ function renderDiet() {
     carbsRemEl.style.color = carbsDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
+  // 6. 脂肪進度
   const fatCurEl = document.getElementById('fatCurrent');
   const fatTarEl = document.getElementById('fatTarget');
   if (fatCurEl) fatCurEl.innerText = totalFat.toFixed(1);
@@ -355,6 +360,7 @@ function renderDiet() {
     fatRemEl.style.color = fatDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
+  // 7. 膳食纖維進度
   const fiberCurEl = document.getElementById('fiberCurrent');
   const fiberTarEl = document.getElementById('fiberTarget');
   if (fiberCurEl) fiberCurEl.innerText = totalFiber.toFixed(1);
