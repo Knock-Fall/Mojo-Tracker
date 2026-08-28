@@ -1,423 +1,249 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>健體紀錄與猛健樂追蹤</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=9999">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>健康與體態全方位管理系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-4 md:p-8 font-sans">
 
-<header>
-  <h1>個人健體與猛健樂管理</h1>
-</header>
-
-<div class="nav-tabs">
-  <button id="btnTabInbody" class="tab-btn active" type="button">📊 體態與猛健樂</button>
-  <button id="btnTabDiet" class="tab-btn" type="button">🥗 飲食紀錄</button>
-</div>
-
-<div class="container">
-  
-  <div class="card" style="padding: 10px 16px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center;">
-    <span style="font-size: 0.85rem; color: #0369a1;">☁️ Google 試算表同步已就緒</span>
-    <div>
-      <button class="btn-sync" type="button" onclick="syncFromCloud()">從雲端載入</button>
-      <button class="btn-sync" type="button" style="background:#64748b;" onclick="setupSecretToken()">設定金鑰</button>
-    </div>
-  </div>
-  
-  <!-- 體態與猛健樂 TAB -->
-  <div id="tab-inbody" class="tab-content active">
+  <div class="max-w-5xl mx-auto space-y-6">
     
-    <div class="card" style="border-left: 5px solid var(--shot);">
-      <div class="card-title">
-        <span>💉 猛健樂 (Mounjaro) 施打紀錄</span>
+    <!-- 頂部頁頭與分頁切換 -->
+    <header class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-heart-pulse text-emerald-500"></i> 健康管理系統
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">整合飲食營養、雙軌水分分析、猛健樂歷程與 InBody 數據</p>
       </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>施打日期</label>
-          <input type="date" id="shotDate">
-        </div>
-        <div class="form-group">
-          <label>劑量 (mg)</label>
-          <select id="shotDose">
-            <option value="2.5mg">2.5 mg</option>
-            <option value="5.0mg">5.0 mg</option>
-            <option value="7.5mg">7.5 mg</option>
-            <option value="10.0mg">10.0 mg</option>
-            <option value="12.5mg">12.5 mg</option>
-            <option value="15.0mg">15.0 mg</option>
-          </select>
-        </div>
+      <div class="flex border-b border-slate-200">
+        <button type="button" id="tab-btn-diet" onclick="switchTab('diet')" class="px-5 py-2.5 text-sm tab-active transition">
+          <i class="fa-solid fa-utensils mr-1.5"></i> 飲食與水分管理
+        </button>
+        <button type="button" id="tab-btn-body" onclick="switchTab('body')" class="px-5 py-2.5 text-sm text-slate-500 hover:text-slate-700 transition">
+          <i class="fa-solid fa-chart-line mr-1.5"></i> 體態與猛健樂
+        </button>
       </div>
-      <div class="form-group">
-        <label>備註 / 施打部位</label>
-        <input type="text" id="shotNote" placeholder="例：肚臍右側、食慾控制佳">
-      </div>
-      <button class="btn btn-shot" type="button" onclick="saveShot()">記錄本次施打</button>
-    </div>
+    </header>
 
-    <div class="card">
-      <div class="card-title">
-        <span>📝 記錄 InBody 全方位數據</span>
-        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
-      </div>
+    <!-- 分頁一：飲食與水分管理 -->
+    <main id="tab-diet" class="space-y-6">
 
-      <label for="inbodyImage" class="btn-upload">
-        📷 點擊此處拍照／上傳 InBody 報告照片
-      </label>
-      <input type="file" id="inbodyImage" accept="image/*" style="display: none;" onchange="previewAndAnalyzeInBody(this)">
-      <img id="inbodyImagePreview" class="preview-box">
-      <button id="inbodyAiBtn" class="btn" type="button" style="display: none; background: #2563eb; margin-bottom: 15px;" onclick="analyzeInBodyImage()">✨ 開始 AI 辨識 InBody 數據</button>
+      <!-- 水分雙軌打卡卡片 -->
+      <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-5">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-droplet text-cyan-500"></i> 今日補水量追蹤（純水 + 無糖茶）
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">目標：2500 ml / 日</p>
+          </div>
+          <div class="text-2xl font-extrabold text-cyan-600">
+            <span id="currentTotalWater">0</span> <span class="text-sm font-normal text-slate-500">/ 2500 ml</span>
+          </div>
+        </div>
+
+        <div class="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden flex">
+          <div id="pureProgressBar" class="bg-cyan-500 h-full transition-all duration-300" style="width: 0%"></div>
+          <div id="teaProgressBar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          <div class="p-4 rounded-xl bg-cyan-50 border border-cyan-100 flex items-center justify-between">
+            <div>
+              <div class="text-xs font-semibold text-cyan-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-glass-water"></i> 純水攝取
+              </div>
+              <div class="text-xl font-bold text-cyan-900 mt-1">
+                <span id="displayPureWater">0</span> <span class="text-xs font-normal">ml</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" onclick="addWater('pure', 250)" class="px-3 py-1.5 bg-white text-cyan-700 text-xs font-semibold rounded-lg shadow-sm border border-cyan-200 hover:bg-cyan-100/50 transition">+250ml</button>
+              <button type="button" onclick="addWater('pure', 500)" class="px-3 py-1.5 bg-cyan-600 text-white text-xs font-semibold rounded-lg shadow-sm hover:bg-cyan-700 transition">+500ml</button>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between">
+            <div>
+              <div class="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+                <i class="fa-solid fa-mug-hot"></i> 無糖茶類
+              </div>
+              <div class="text-xl font-bold text-emerald-900 mt-1">
+                <span id="displayTeaWater">0</span> <span class="text-xs font-normal">ml</span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" onclick="addWater('tea', 350)" class="px-3 py-1.5 bg-white text-emerald-700 text-xs font-semibold rounded-lg shadow-sm border border-emerald-200 hover:bg-emerald-100/50 transition">+350ml</button>
+              <button type="button" onclick="addWater('tea', 700)" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm hover:bg-emerald-700 transition">+700ml</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 飲食輸入與 AI 解析區 -->
+      <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
+        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> AI 飲食與水分智慧辨識
+        </h2>
+        
+        <textarea id="aiInput" rows="3" class="w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition resize-none text-slate-700" placeholder="輸入今日飲食，例如：午餐吃雞胸肉便當，喝了 500ml 純水與 700ml 無糖綠茶"></textarea>
+
+        <div class="flex justify-end">
+          <button type="button" id="aiBtn" onclick="runAiAnalysis()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+            <span>AI 自動解析並填入</span>
+            <i class="fa-solid fa-bolt text-sm"></i>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 pt-3 border-t border-slate-100">
+          <div>
+            <label class="text-xs font-medium text-slate-500">熱量 (kcal)</label>
+            <input type="number" id="inputCalories" class="w-full mt-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800" value="0">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-500">蛋白質 (g)</label>
+            <input type="number" id="inputProtein" class="w-full mt-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800" value="0">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-500">脂肪 (g)</label>
+            <input type="number" id="inputFat" class="w-full mt-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800" value="0">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-500">碳水 (g)</label>
+            <input type="number" id="inputCarbs" class="w-full mt-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800" value="0">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-500">纖維 (g)</label>
+            <input type="number" id="inputFiber" class="w-full mt-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800" value="0">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-slate-500">解析補水 (ml)</label>
+            <input type="number" id="inputWater" class="w-full mt-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-cyan-600" value="0" readonly>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 分頁二：體態與猛健樂歷程 -->
+    <main id="tab-body" class="space-y-6 hidden">
       
-      <div class="form-group">
-        <label>測量日期</label>
-        <input type="date" id="bodyDate">
-      </div>
+      <!-- 卡片一：猛健樂施打歷程 -->
+      <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-syringe text-indigo-500"></i> 💉 猛健樂 (Mounjaro) 施打歷程
+          </h2>
+          <span class="text-xs text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full font-medium">獨立歷程記錄</span>
+        </div>
 
-      <div class="section-box">
-        <div class="section-subtitle">1. 身體組成分析</div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>總體重 (kg) *</label>
-            <input type="number" step="0.1" id="bodyWeight" placeholder="必填">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div>
+            <label class="text-xs text-slate-500">施打日期</label>
+            <input type="date" id="injDate" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm">
           </div>
-          <div class="form-group">
-            <label>身體總水分 (L/kg)</label>
-            <input type="number" step="0.1" id="bodyTBW" placeholder="0.0">
+          <div>
+            <label class="text-xs text-slate-500">劑量 (mg)</label>
+            <select id="injDose" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm">
+              <option value="2.5">2.5 mg</option>
+              <option value="5.0">5.0 mg</option>
+              <option value="7.5">7.5 mg</option>
+              <option value="10.0">10.0 mg</option>
+            </select>
           </div>
-          <div class="form-group">
-            <label>蛋白質 (kg)</label>
-            <input type="number" step="0.1" id="bodyProtein" placeholder="0.0">
+          <div>
+            <label class="text-xs text-slate-500">施打部位</label>
+            <select id="injSite" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm">
+              <option value="腹部左側">腹部左側</option>
+              <option value="腹部右側">腹部右側</option>
+              <option value="手臂">手臂</option>
+              <option value="大腿">大腿</option>
+            </select>
           </div>
-          <div class="form-group">
-            <label>礦物質 (kg)</label>
-            <input type="number" step="0.1" id="bodyMinerals" placeholder="0.0">
+          <div class="flex items-end">
+            <button type="button" onclick="addInjectionRecord()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium p-2 rounded-lg text-sm transition">
+              記錄施打
+            </button>
           </div>
         </div>
-      </div>
 
-      <div class="section-box">
-        <div class="section-subtitle">2. 肌肉脂肪分析</div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>骨骼肌重 SMM (kg)</label>
-            <input type="number" step="0.1" id="bodySMM" placeholder="0.0">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 text-slate-400 text-xs">
+              <tr>
+                <th class="p-3">日期</th>
+                <th class="p-3">劑量</th>
+                <th class="p-3">施打部位</th>
+                <th class="p-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="injList" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 卡片二：InBody 歷史體態數據 -->
+      <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 space-y-4">
+        <div class="flex justify-between items-center">
+          <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-chart-simple text-emerald-500"></i> 📊 InBody 歷史體態數據
+          </h2>
+          <span class="text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-medium">獨立體態記錄</span>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div>
+            <label class="text-xs text-slate-500">量測日期</label>
+            <input type="date" id="inbodyDate" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm">
           </div>
-          <div class="form-group">
-            <label>體脂肪重 BFM (kg)</label>
-            <input type="number" step="0.1" id="bodyBFM" placeholder="0.0">
+          <div>
+            <label class="text-xs text-slate-500">體重 (kg)</label>
+            <input type="number" step="0.1" id="inbodyWeight" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm" placeholder="70.5">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">骨骼肌重 (kg)</label>
+            <input type="number" step="0.1" id="inbodySmm" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm" placeholder="32.1">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">體脂肪率 (%)</label>
+            <input type="number" step="0.1" id="inbodyBfp" class="w-full mt-1 p-2 bg-white border border-slate-200 rounded-lg text-sm" placeholder="21.0">
+          </div>
+          <div class="flex items-end col-span-2 md:col-span-1">
+            <button type="button" onclick="addInbodyRecord()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium p-2 rounded-lg text-sm transition">
+              儲存數據
+            </button>
           </div>
         </div>
-      </div>
 
-      <div class="section-box">
-        <div class="section-subtitle">3. 肥胖分析</div>
-        <div class="grid-2">
-          <div class="form-group">
-            <label>BMI (kg/m²)</label>
-            <input type="number" step="0.1" id="bodyBMI" placeholder="0.0">
-          </div>
-          <div class="form-group">
-            <label>體脂肪率 PBF (%)</label>
-            <input type="number" step="0.1" id="bodyPBF" placeholder="0.0">
-          </div>
-          <div class="form-group">
-            <label>腰臀圍比 (WHR)</label>
-            <input type="number" step="0.01" id="bodyWHR" placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label>內臟脂肪等級</label>
-            <input type="number" id="bodyVFL" placeholder="0">
-          </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 text-slate-400 text-xs">
+              <tr>
+                <th class="p-3">量測日期</th>
+                <th class="p-3">體重 (kg)</th>
+                <th class="p-3">骨骼肌 (kg)</th>
+                <th class="p-3">體脂率 (%)</th>
+                <th class="p-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="inbodyList" class="divide-y divide-slate-100"></tbody>
+          </table>
         </div>
-      </div>
+      </section>
 
-      <div class="section-box">
-        <div class="section-subtitle">4. 部位肌肉分析 (重量 kg / 比例 %)</div>
-        <div class="grid-3" style="margin-bottom: 8px;">
-          <div class="segment-card">
-            <h4>右上肢</h4>
-            <input type="number" step="0.01" id="m_ra_kg" placeholder="kg">
-            <input type="number" step="0.1" id="m_ra_pct" placeholder="%">
-          </div>
-          <div class="segment-card">
-            <h4>軀幹</h4>
-            <input type="number" step="0.01" id="m_tr_kg" placeholder="kg">
-            <input type="number" step="0.1" id="m_tr_pct" placeholder="%">
-          </div>
-          <div class="segment-card">
-            <h4>左上肢</h4>
-            <input type="number" step="0.01" id="m_la_kg" placeholder="kg">
-            <input type="number" step="0.1" id="m_la_pct" placeholder="%">
-          </div>
-        </div>
-        <div class="grid-2">
-          <div class="segment-card">
-            <h4>右下肢</h4>
-            <input type="number" step="0.01" id="m_rl_kg" placeholder="kg">
-            <input type="number" step="0.1" id="m_rl_pct" placeholder="%">
-          </div>
-          <div class="segment-card">
-            <h4>左下肢</h4>
-            <input type="number" step="0.01" id="m_ll_kg" placeholder="kg">
-            <input type="number" step="0.1" id="m_ll_pct" placeholder="%">
-          </div>
-        </div>
-      </div>
+    </main>
 
-      <div class="section-box">
-        <div class="section-subtitle">5. 部位脂肪分析 (重量 kg / 比例 %)</div>
-        <div class="grid-3" style="margin-bottom: 8px;">
-          <div class="segment-card">
-            <h4>右上肢</h4>
-            <input type="number" step="0.01" id="f_ra_kg" placeholder="kg">
-            <input type="number" step="0.1" id="f_ra_pct" placeholder="%">
-          </div>
-          <div class="segment-card">
-            <h4>軀幹</h4>
-            <input type="number" step="0.01" id="f_tr_kg" placeholder="kg">
-            <input type="number" step="0.1" id="f_tr_pct" placeholder="%">
-          </div>
-          <div class="segment-card">
-            <h4>左上肢</h4>
-            <input type="number" step="0.01" id="f_la_kg" placeholder="kg">
-            <input type="number" step="0.1" id="f_la_pct" placeholder="%">
-          </div>
-        </div>
-        <div class="grid-2">
-          <div class="segment-card">
-            <h4>右下肢</h4>
-            <input type="number" step="0.01" id="f_rl_kg" placeholder="kg">
-            <input type="number" step="0.1" id="f_rl_pct" placeholder="%">
-          </div>
-          <div class="segment-card">
-            <h4>左下肢</h4>
-            <input type="number" step="0.01" id="f_ll_kg" placeholder="kg">
-            <input type="number" step="0.1" id="f_ll_pct" placeholder="%">
-          </div>
-        </div>
-      </div>
-
-      <button class="btn" type="button" onclick="saveBodyData()">儲存完整 InBody 數據</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📈 數據趨勢分析</div>
-      <div class="chart-tabs">
-        <button class="chart-tab-btn active" type="button" onclick="switchChartMode('core', this)">核心體態 (雙軸)</button>
-        <button class="chart-tab-btn" type="button" onclick="switchChartMode('comp', this)">身體組成</button>
-        <button class="chart-tab-btn" type="button" onclick="switchChartMode('muscle_seg', this)">部位肌肉 (kg)</button>
-        <button class="chart-tab-btn" type="button" onclick="switchChartMode('fat_seg', this)">部位脂肪 (kg)</button>
-        <button class="chart-tab-btn" type="button" onclick="switchChartMode('obesity', this)">肥胖與內臟</button>
-      </div>
-      <canvas id="bodyChart" height="230"></canvas>
-    </div>
-
-    <!-- 獨立卡片 1：猛健樂施打紀錄 -->
-    <div class="card">
-      <div class="card-title">💉 猛健樂施打歷程</div>
-      <div id="shotLogList"></div>
-    </div>
-
-    <!-- 獨立卡片 2：InBody 歷史體態數據 -->
-    <div class="card">
-      <div class="card-title">📊 歷史體態紀錄 (InBody)</div>
-      <div id="bodyLogList"></div>
-    </div>
   </div>
 
-  <!-- 飲食紀錄 TAB -->
-  <div id="tab-diet" class="tab-content">
-    
-    <div class="card">
-      <div class="card-title">
-        <span>⚡ 今日營養、水分與赤字進度</span>
-        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
-      </div>
-
-      <!-- 1. 熱量赤字即時看板 -->
-      <div class="nutrition-card" style="border-left: 4px solid #f59e0b; background: #fffbeb;">
-        <div class="nutrition-head">
-          <span style="color: #b45309;">⚖️ 保肌減脂赤字</span>
-          <span><strong id="deficitCurrent" style="color:#b45309;">0</strong> / <span id="deficitTarget" style="color:var(--sub);">-500</span> kcal</span>
-        </div>
-        <div style="font-size: 0.8rem; color: #78350f; margin-top: 4px; display: flex; justify-content: space-between;">
-          <span id="deficitStatus">計算中...</span>
-          <span id="tdeeRef">TDEE: -- kcal</span>
-        </div>
-      </div>
-
-      <!-- 2. 每日飲水追蹤卡 -->
-      <div class="nutrition-card" style="border-left: 4px solid #0284c7; background: #f0f9ff;">
-        <div class="nutrition-head">
-          <span style="color: #0369a1;">💧 每日水分攝取</span>
-          <span><strong id="waterCurrent">0</strong> / <span id="waterTarget" style="color:var(--sub);">2800</span> ml</span>
-        </div>
-        <div class="progress-bg">
-          <div id="waterProgress" class="progress-fill" style="width: 0%; background: #0284c7;"></div>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
-          <span id="waterRemainTxt">剩餘：2800 ml</span>
-          <div style="display: flex; gap: 6px;">
-            <button class="action-btn btn-edit" type="button" style="background:#e0f2fe;" onclick="addWater(250)">+250ml</button>
-            <button class="action-btn btn-edit" type="button" style="background:#bae6fd;" onclick="addWater(500)">+500ml</button>
-            <button class="action-btn btn-del" type="button" onclick="resetWater()">重設</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. 熱量攝取進度條 -->
-      <div class="nutrition-card">
-        <div class="nutrition-head">
-          <span style="color: var(--primary);">🔥 熱量攝取</span>
-          <span><strong id="calCurrent">0</strong> / <span id="calTarget" style="color:var(--sub);">1800</span> kcal</span>
-        </div>
-        <div class="progress-bg">
-          <div id="calProgress" class="progress-fill" style="width: 0%; background: var(--primary);"></div>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
-          <span id="calRemainTxt">剩餘：1800 kcal</span>
-          <span id="inbodyWeightRef">依最新體重連動</span>
-        </div>
-      </div>
-
-      <!-- 4. 蛋白質攝取進度條 -->
-      <div class="nutrition-card">
-        <div class="nutrition-head">
-          <span style="color: var(--accent);">🥩 蛋白質攝取</span>
-          <span><strong id="proCurrent">0</strong> / <span id="proTarget" style="color:var(--sub);">130</span> g</span>
-        </div>
-        <div class="progress-bg">
-          <div id="proProgress" class="progress-fill" style="width: 0%; background: var(--accent);"></div>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
-          <span id="proRemainTxt">剩餘：130 g</span>
-          <span>減重保肌 (1.6g/kg)</span>
-        </div>
-      </div>
-
-      <!-- 5. 碳水化合物攝取進度條 -->
-      <div class="nutrition-card">
-        <div class="nutrition-head">
-          <span style="color: #ea580c;">🍚 碳水化合物攝取</span>
-          <span><strong id="carbsCurrent">0</strong> / <span id="carbsTarget" style="color:var(--sub);">160</span> g</span>
-        </div>
-        <div class="progress-bg">
-          <div id="carbsProgress" class="progress-fill" style="width: 0%; background: #ea580c;"></div>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
-          <span id="carbsRemainTxt">剩餘：160 g</span>
-          <span>控醣減脂 (2.0g/kg)</span>
-        </div>
-      </div>
-
-      <!-- 6. 脂肪攝取進度條 -->
-      <div class="nutrition-card">
-        <div class="nutrition-head">
-          <span style="color: #eab308;">🥑 脂肪攝取</span>
-          <span><strong id="fatCurrent">0</strong> / <span id="fatTarget" style="color:var(--sub);">50</span> g</span>
-        </div>
-        <div class="progress-bg">
-          <div id="fatProgress" class="progress-fill" style="width: 0%; background: #eab308;"></div>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
-          <span id="fatRemainTxt">剩餘：50 g</span>
-          <span>維持荷爾蒙 (0.6g/kg)</span>
-        </div>
-      </div>
-
-      <!-- 7. 膳食纖維攝取進度條 -->
-      <div class="nutrition-card">
-        <div class="nutrition-head">
-          <span style="color: #14b8a6;">🥦 膳食纖維攝取</span>
-          <span><strong id="fiberCurrent">0</strong> / <span id="fiberTarget" style="color:var(--sub);">28</span> g</span>
-        </div>
-        <div class="progress-bg">
-          <div id="fiberProgress" class="progress-fill" style="width: 0%; background: #14b8a6;"></div>
-        </div>
-        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
-          <span id="fiberRemainTxt">剩餘：28 g</span>
-          <span>腸胃蠕動防便秘</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">🍽️ 新增餐點紀錄</div>
-      
-      <label for="foodImage" class="btn-upload">
-        📸 點擊此處拍照／選取餐點照片（AI 自動估算）
-      </label>
-      <input type="file" id="foodImage" accept="image/*" style="display: none;" onchange="previewAndAnalyze(this)">
-      <img id="imagePreview" class="preview-box">
-      
-      <div id="aiHintBox" style="display: none; margin-top: 8px;">
-        <label style="font-size: 0.8rem; color: #7e22ce;">💡 可選填：補充食物名稱或份量（讓 AI 估算更準確）</label>
-        <input type="text" id="aiHintText" placeholder="例：無糖豆漿400ml、便當飯吃一半">
-      </div>
-
-      <button id="aiBtn" class="btn btn-ai" type="button" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與五大營養</button>
-
-      <div class="grid-2" style="margin-top: 10px;">
-        <div class="form-group">
-          <label>餐別</label>
-          <select id="dietType">
-            <option value="早餐">早餐</option>
-            <option value="午餐">午餐</option>
-            <option value="晚餐">晚餐</option>
-            <option value="點心/補充">點心/補充</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>日期</label>
-          <input type="date" id="dietDate" onchange="renderDiet()">
-        </div>
-      </div>
-      <div class="form-group">
-        <label>食物內容</label>
-        <input type="text" id="dietContent" placeholder="例：雞胸肉沙拉、無糖豆漿">
-      </div>
-      <div class="grid-3">
-        <div class="form-group">
-          <label>熱量 (kcal)</label>
-          <input type="number" id="dietCal" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label>蛋白質 (g)</label>
-          <input type="number" step="0.1" id="dietPro" placeholder="0.0">
-        </div>
-        <div class="form-group">
-          <label>碳水 (g)</label>
-          <input type="number" step="0.1" id="dietCarbs" placeholder="0.0">
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>脂肪 (g)</label>
-          <input type="number" step="0.1" id="dietFat" placeholder="0.0">
-        </div>
-        <div class="form-group">
-          <label>纖維 (g)</label>
-          <input type="number" step="0.1" id="dietFiber" placeholder="0.0">
-        </div>
-      </div>
-      <button class="btn" type="button" style="background: var(--accent);" onclick="saveDiet()">加入飲食紀錄</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📖 當日飲食明細</div>
-      <div id="dietLogList"></div>
-    </div>
-  </div>
-
-</div>
-
-<script src="common.js?v=9999"></script>
-<script src="body.js?v=9999"></script>
-<script src="diet.js?v=9999"></script>
-<script src="main.js?v=9999"></script>
+  <!-- 依序載入模組檔案 -->
+  <script src="common.js"></script>
+  <script src="diet.js"></script>
+  <script src="body.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
