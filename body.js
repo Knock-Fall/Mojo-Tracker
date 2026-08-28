@@ -1,5 +1,5 @@
 // Mojo Project
-// 5. body.js
+// 6. body.js
 let currentChartMode = 'core';
 let chartInstance = null;
 let base64InBodyImage = '';
@@ -11,18 +11,46 @@ function switchChartMode(mode, btnEl) {
   renderBodyChart();
 }
 
-function previewAndAnalyzeInBody(input) {
-  const file = input.files[0];
-  if (file) {
+function compressInBodyImage(file, maxWidth = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
-      const preview = document.getElementById('inbodyImagePreview');
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-      base64InBodyImage = e.target.result.split(',')[1];
-      document.getElementById('inbodyAiBtn').style.display = 'block';
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
     };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+async function previewAndAnalyzeInBody(input) {
+  const file = input.files[0];
+  if (file) {
+    try {
+      const compressed = await compressInBodyImage(file, 1600, 0.8);
+      const preview = document.getElementById('inbodyImagePreview');
+      preview.src = compressed.dataUrl;
+      preview.style.display = 'block';
+      base64InBodyImage = compressed.base64;
+      document.getElementById('inbodyAiBtn').style.display = 'block';
+    } catch(err) {
+      console.error(err);
+    }
   }
 }
 
@@ -36,16 +64,23 @@ async function analyzeInBodyImage() {
 
   const aiBtn = document.getElementById('inbodyAiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⏳ AI 辨識 InBody 報告中...';
+  aiBtn.innerText = '⚡ AI 極速辨識 InBody 報告中...';
 
   const promptText = `請分析這張 InBody 報告圖片，精準擷取各項數值。請務必且嚴格僅回傳純 JSON 格式，若某項目找不到請填 0 或 null：
 {"weight":數字,"tbw":數字,"protein":數字,"minerals":數字,"smm":數字,"bfm":數字,"bmi":數字,"pbf":數字,"whr":數字,"vfl":數字,"m_ra_kg":數字,"m_ra_pct":數字,"m_la_kg":數字,"m_la_pct":數字,"m_tr_kg":數字,"m_tr_pct":數字,"m_rl_kg":數字,"m_rl_pct":數字,"m_ll_kg":數字,"m_ll_pct":數字,"f_ra_kg":數字,"f_ra_pct":數字,"f_la_kg":數字,"f_la_pct":數字,"f_tr_kg":數字,"f_tr_pct":數字,"f_rl_kg":數字,"f_rl_pct":數字,"f_ll_kg":數字,"f_ll_pct":數字}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64InBodyImage } }] }] })
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: promptText },
+            { inlineData: { mimeType: "image/jpeg", data: base64InBodyImage } }
+          ]
+        }]
+      })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
@@ -60,58 +95,16 @@ async function analyzeInBodyImage() {
       'f_ra_kg':'f_ra_kg', 'f_ra_pct':'f_ra_pct', 'f_la_kg':'f_la_kg', 'f_la_pct':'f_la_pct', 'f_tr_kg':'f_tr_kg', 'f_tr_pct':'f_tr_pct', 'f_rl_kg':'f_rl_kg', 'f_rl_pct':'f_rl_pct', 'f_ll_kg':'f_ll_kg', 'f_ll_pct':'f_ll_pct'
     };
     for (let id in map) {
-      if (res[map[id]]) document.getElementById(id).value = res[map[id]];
+      if (res[map[id]] !== undefined && res[map[id]] !== null) {
+        document.getElementById(id).value = res[map[id]];
+      }
     }
-    alert('✨ InBody 報告辨識完成！');
+    alert('⚡ InBody 報告極速辨識完成！');
   } catch (err) {
     alert('辨識失敗：' + err.message);
   } finally {
     aiBtn.disabled = false;
     aiBtn.innerText = '✨ 開始 AI 辨識 InBody 數據';
-  }
-}
-
-function saveShot() {
-  const shot = {
-    date: document.getElementById('shotDate').value,
-    dose: document.getElementById('shotDose').value,
-    note: document.getElementById('shotNote').value
-  };
-  const list = window.MojoState.shotLogs || [];
-  list.unshift(shot);
-  window.MojoState.shotLogs = list;
-  localStorage.setItem('my_shot_logs', JSON.stringify(list));
-  uploadToCloud('SHOT', shot);
-  alert('猛健樂紀錄已儲存！');
-  renderBodyList();
-}
-
-function editShotLog(index) {
-  const list = window.MojoState.shotLogs || [];
-  const s = list[index];
-  if (!s) return;
-  const newDate = prompt('修改施打日期 (YYYY-MM-DD)：', s.date || '');
-  if (newDate === null) return;
-  const newDose = prompt('修改施打劑量（如：2.5mg, 5.0mg）：', s.dose || '2.5mg');
-  if (newDose === null) return;
-  const newNote = prompt('修改施打部位/備註：', s.note || '');
-  if (newNote === null) return;
-
-  list[index].date = newDate.trim();
-  list[index].dose = newDose.trim();
-  list[index].note = newNote.trim();
-
-  localStorage.setItem('my_shot_logs', JSON.stringify(list));
-  uploadToCloud('SHOT', list[index]);
-  renderBodyList();
-}
-
-function deleteShotLog(index) {
-  if (confirm('確定要刪除這筆施打紀錄嗎？')) {
-    const list = window.MojoState.shotLogs || [];
-    list.splice(index, 1);
-    localStorage.setItem('my_shot_logs', JSON.stringify(list));
-    renderBodyList();
   }
 }
 
@@ -285,75 +278,22 @@ function renderBodyChart() {
 }
 
 function renderBodyList() {
-  const shotContainer = document.getElementById('shotLogList');
-  const scaleContainer = document.getElementById('scaleLogList');
   const bodyContainer = document.getElementById('bodyLogList');
-
-  // 1. 猛健樂施打紀錄
-  if (shotContainer) {
-    let shotHtml = '';
-    const curShots = window.MojoState.shotLogs || [];
-    curShots.forEach((s, idx) => {
-      shotHtml += `<div class="log-item">
-        <div class="log-info">
-          <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
-          <small>${s.note || '無備註'}</small>
-        </div>
-        <div class="log-actions">
-          <span class="badge badge-shot">${s.dose}</span>
-          <button class="action-btn btn-edit" type="button" onclick="editShotLog(${idx})">編輯</button>
-          <button class="action-btn btn-del" type="button" onclick="deleteShotLog(${idx})">刪除</button>
-        </div>
-      </div>`;
-    });
-    shotContainer.innerHTML = shotHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
-  }
-
-  // 2. 家用體重計紀錄 (Zepp Life：包含時間、分數、水分、內臟脂肪、骨質、蛋白質、體型)
-  if (scaleContainer) {
-    let scaleHtml = '';
-    const curScales = window.MojoState.scaleLogs || [];
-    curScales.slice().reverse().forEach(s => {
-      const timeTag = s.time ? ` <span style="color:#0284c7;font-weight:bold;">${s.time}</span>` : '';
-      const bmiTag = s.bmi ? ` ｜ BMI ${s.bmi}` : '';
-      const waterTag = s.water ? ` ｜ 水分 ${s.water}%` : '';
-      const vflTag = s.vfl ? ` ｜ 內臟 ${s.vfl}` : '';
-      const bmrTag = s.bmr ? ` ｜ 代謝 ${s.bmr}kcal` : '';
-      const scoreTag = s.score ? ` ｜ 評分: ${s.score}分` : '';
-      const bodyTypeTag = s.body_type ? ` [${s.body_type}]` : '';
-      const uniqueId = `${s.date}_${s.time || ''}`;
-
-      scaleHtml += `<div class="log-item">
-        <div class="log-info">
-          <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}${bodyTypeTag}${scoreTag}<br>
-          <small style="color:var(--sub)">${s.date}${timeTag} ｜ 肌肉 ${s.muscle || '--'}kg${bmiTag}${waterTag}${vflTag}${bmrTag}</small>
-        </div>
-        <div class="log-actions">
-          <button class="action-btn btn-edit" type="button" onclick="editScaleLog('${uniqueId}')">編輯</button>
-          <button class="action-btn btn-del" type="button" onclick="deleteScaleLog('${uniqueId}')">刪除</button>
-        </div>
-      </div>`;
-    });
-    scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
-  }
-
-  // 3. InBody 歷史數據
-  if (bodyContainer) {
-    let bodyHtml = '';
-    const curBodies = window.MojoState.bodyLogs || [];
-    curBodies.slice().reverse().forEach(b => {
-      const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
-      bodyHtml += `<div class="log-item">
-        <div class="log-info">
-          <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
-          <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
-        </div>
-        <div class="log-actions">
-          <button class="action-btn btn-edit" type="button" onclick="editBodyLog('${b.date}')">編輯</button>
-          <button class="action-btn btn-del" type="button" onclick="deleteBodyLog('${b.date}')">刪除</button>
-        </div>
-      </div>`;
-    });
-    bodyContainer.innerHTML = bodyHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有 InBody 紀錄</p>';
-  }
+  if (!bodyContainer) return;
+  let bodyHtml = '';
+  const curBodies = window.MojoState.bodyLogs || [];
+  curBodies.slice().reverse().forEach(b => {
+    const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
+    bodyHtml += `<div class="log-item">
+      <div class="log-info">
+        <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
+        <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
+      </div>
+      <div class="log-actions">
+        <button class="action-btn btn-edit" type="button" onclick="editBodyLog('${b.date}')">編輯</button>
+        <button class="action-btn btn-del" type="button" onclick="deleteBodyLog('${b.date}')">刪除</button>
+      </div>
+    </div>`;
+  });
+  bodyContainer.innerHTML = bodyHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有 InBody 紀錄</p>';
 }
