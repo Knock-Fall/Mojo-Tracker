@@ -1,6 +1,33 @@
 // Mojo Project
-// 6. diet.js
+// 7. diet.js
 let base64DietImage = '';
+
+function compressDietImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function changeDietDateBy(offsetDays) {
   const input = document.getElementById('dietDate');
@@ -22,19 +49,20 @@ function resetDietDateToToday() {
   }
 }
 
-function previewAndAnalyze(input) {
+async function previewAndAnalyze(input) {
   const file = input.files[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
+    try {
+      const res = await compressDietImage(file, 1200, 0.8);
       const preview = document.getElementById('imagePreview');
-      preview.src = e.target.result;
+      preview.src = res.dataUrl;
       preview.style.display = 'block';
-      base64DietImage = e.target.result.split(',')[1];
+      base64DietImage = res.base64;
       document.getElementById('aiHintBox').style.display = 'block';
       document.getElementById('aiBtn').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
+    } catch(e) {
+      console.error(e);
+    }
   }
 }
 
@@ -48,7 +76,7 @@ async function analyzeFoodImage() {
 
   const aiBtn = document.getElementById('aiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⏳ AI 分析估算中，請稍候...';
+  aiBtn.innerText = '⚡ AI 分析估算中，請稍候...';
 
   const userHint = document.getElementById('aiHintText').value.trim();
   let hintPrompt = "";
@@ -232,7 +260,6 @@ function renderDiet() {
     }
   });
 
-  // 最新體重連動
   let latestWeight = 80;
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
@@ -251,7 +278,6 @@ function renderDiet() {
   const targetWater = Math.round(latestWeight * 35);
   const currentDeficit = tdee - totalC;
 
-  // 1. 赤字看板
   const deficitCurEl = document.getElementById('deficitCurrent');
   const tdeeRefEl = document.getElementById('tdeeRef');
   const deficitStatusEl = document.getElementById('deficitStatus');
@@ -275,7 +301,6 @@ function renderDiet() {
     }
   }
 
-  // 2. 雙軌水分進度
   const wLogs = window.MojoState.waterLogs || {};
   let dayWater = wLogs[queryDate] || { pure: 0, tea: 0 };
   if (typeof dayWater === 'number') dayWater = { pure: dayWater, tea: 0 };
@@ -317,7 +342,6 @@ function renderDiet() {
     }
   }
 
-  // 3. 熱量進度
   const calCurEl = document.getElementById('calCurrent');
   const calTarEl = document.getElementById('calTarget');
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
@@ -336,7 +360,6 @@ function renderDiet() {
     calRemEl.style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
-  // 4. 蛋白質進度
   const proCurEl = document.getElementById('proCurrent');
   const proTarEl = document.getElementById('proTarget');
   if (proCurEl) proCurEl.innerText = totalP.toFixed(1);
@@ -353,7 +376,6 @@ function renderDiet() {
     proRemEl.style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
   }
 
-  // 5. 碳水進度
   const carbsCurEl = document.getElementById('carbsCurrent');
   const carbsTarEl = document.getElementById('carbsTarget');
   if (carbsCurEl) carbsCurEl.innerText = totalCarbs.toFixed(1);
@@ -370,7 +392,6 @@ function renderDiet() {
     carbsRemEl.style.color = carbsDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
-  // 6. 脂肪進度
   const fatCurEl = document.getElementById('fatCurrent');
   const fatTarEl = document.getElementById('fatTarget');
   if (fatCurEl) fatCurEl.innerText = totalFat.toFixed(1);
@@ -387,7 +408,6 @@ function renderDiet() {
     fatRemEl.style.color = fatDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
-  // 7. 膳食纖維進度
   const fiberCurEl = document.getElementById('fiberCurrent');
   const fiberTarEl = document.getElementById('fiberTarget');
   if (fiberCurEl) fiberCurEl.innerText = totalFiber.toFixed(1);
