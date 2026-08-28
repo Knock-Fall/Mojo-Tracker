@@ -2,6 +2,8 @@
 // 4. scale.js
 let scaleChartInstance = null;
 let currentScaleChartMode = 'core';
+let scaleCurrentPage = 1;
+const SCALE_PAGE_SIZE = 5;
 let base64ScaleImage = '';
 
 function switchScaleChartMode(mode, btnEl) {
@@ -203,6 +205,65 @@ function deleteScaleLog(uniqueId) {
   }
 }
 
+function changeScalePage(delta) {
+  scaleCurrentPage += delta;
+  renderScaleList();
+}
+
+function renderScaleList() {
+  const scaleContainer = document.getElementById('scaleLogList');
+  const paginationContainer = document.getElementById('scalePagination');
+  if (!scaleContainer) return;
+
+  const curScales = (window.MojoState.scaleLogs || []).slice().reverse();
+  const totalCount = curScales.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / SCALE_PAGE_SIZE));
+
+  if (scaleCurrentPage > totalPages) scaleCurrentPage = totalPages;
+  if (scaleCurrentPage < 1) scaleCurrentPage = 1;
+
+  const start = (scaleCurrentPage - 1) * SCALE_PAGE_SIZE;
+  const pageItems = curScales.slice(start, start + SCALE_PAGE_SIZE);
+
+  let scaleHtml = '';
+  pageItems.forEach(s => {
+    const timeTag = s.time ? ` <span style="color:#0284c7;font-weight:bold;">${s.time}</span>` : '';
+    const bmiTag = s.bmi ? ` ｜ BMI ${s.bmi}` : '';
+    const waterTag = s.water ? ` ｜ 水分 ${s.water}%` : '';
+    const vflTag = s.vfl ? ` ｜ 內臟 ${s.vfl}` : '';
+    const bmrTag = s.bmr ? ` ｜ 代謝 ${s.bmr}kcal` : '';
+    const scoreTag = s.score ? ` ｜ 評分: ${s.score}分` : '';
+    const bodyTypeTag = s.body_type ? ` [${s.body_type}]` : '';
+    const uniqueId = `${s.date}_${s.time || ''}`;
+
+    scaleHtml += `<div class="log-item">
+      <div class="log-info">
+        <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}${bodyTypeTag}${scoreTag}<br>
+        <small style="color:var(--sub)">${s.date}${timeTag} ｜ 肌肉 ${s.muscle || '--'}kg${bmiTag}${waterTag}${vflTag}${bmrTag}</small>
+      </div>
+      <div class="log-actions">
+        <button class="action-btn btn-edit" type="button" onclick="editScaleLog('${uniqueId}')">編輯</button>
+        <button class="action-btn btn-del" type="button" onclick="deleteScaleLog('${uniqueId}')">刪除</button>
+      </div>
+    </div>`;
+  });
+
+  scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
+
+  if (paginationContainer) {
+    if (totalCount > SCALE_PAGE_SIZE) {
+      paginationContainer.style.display = 'flex';
+      paginationContainer.innerHTML = `
+        <button class="pagination-btn" type="button" ${scaleCurrentPage === 1 ? 'disabled' : ''} onclick="changeScalePage(-1)">◀ 上一頁</button>
+        <span style="font-size:0.8rem;color:var(--sub);">第 ${scaleCurrentPage} / ${totalPages} 頁 (共 ${totalCount} 筆)</span>
+        <button class="pagination-btn" type="button" ${scaleCurrentPage === totalPages ? 'disabled' : ''} onclick="changeScalePage(1)">下一頁 ▶</button>
+      `;
+    } else {
+      paginationContainer.style.display = 'none';
+    }
+  }
+}
+
 function renderScaleChart() {
   const canvas = document.getElementById('scaleChart');
   const container = document.getElementById('scaleChartContainer');
@@ -215,7 +276,6 @@ function renderScaleChart() {
     return;
   }
 
-  // 橫向滑動自適應寬度
   const minWidthPerPoint = 55;
   const parentWidth = container.parentElement.clientWidth || 340;
   const totalWidth = Math.max(parentWidth, list.length * minWidthPerPoint);
@@ -331,7 +391,11 @@ function renderScaleChart() {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold' } } },
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { boxWidth: 12, font: { weight: 'bold', size: 12 }, color: '#334155' }
+        },
         tooltip: {
           padding: 10,
           backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -346,35 +410,6 @@ function renderScaleChart() {
   setTimeout(() => {
     container.parentElement.scrollLeft = container.parentElement.scrollWidth;
   }, 50);
-}
-
-function renderScaleList() {
-  const scaleContainer = document.getElementById('scaleLogList');
-  if (!scaleContainer) return;
-  let scaleHtml = '';
-  const curScales = window.MojoState.scaleLogs || [];
-  curScales.slice().reverse().forEach(s => {
-    const timeTag = s.time ? ` <span style="color:#0284c7;font-weight:bold;">${s.time}</span>` : '';
-    const bmiTag = s.bmi ? ` ｜ BMI ${s.bmi}` : '';
-    const waterTag = s.water ? ` ｜ 水分 ${s.water}%` : '';
-    const vflTag = s.vfl ? ` ｜ 內臟 ${s.vfl}` : '';
-    const bmrTag = s.bmr ? ` ｜ 代謝 ${s.bmr}kcal` : '';
-    const scoreTag = s.score ? ` ｜ 評分: ${s.score}分` : '';
-    const bodyTypeTag = s.body_type ? ` [${s.body_type}]` : '';
-    const uniqueId = `${s.date}_${s.time || ''}`;
-
-    scaleHtml += `<div class="log-item">
-      <div class="log-info">
-        <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}${bodyTypeTag}${scoreTag}<br>
-        <small style="color:var(--sub)">${s.date}${timeTag} ｜ 肌肉 ${s.muscle || '--'}kg${bmiTag}${waterTag}${vflTag}${bmrTag}</small>
-      </div>
-      <div class="log-actions">
-        <button class="action-btn btn-edit" type="button" onclick="editScaleLog('${uniqueId}')">編輯</button>
-        <button class="action-btn btn-del" type="button" onclick="deleteScaleLog('${uniqueId}')">刪除</button>
-      </div>
-    </div>`;
-  });
-  scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
 }
 
 function renderComparisonAnalysis() {
