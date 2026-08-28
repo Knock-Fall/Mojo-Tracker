@@ -266,37 +266,44 @@ function renderBodyChart() {
 }
 
 function renderBodyList() {
-  const container = document.getElementById('bodyLogList');
-  if (!container) return;
-  let html = '';
-  
-  shotLogs.forEach((s, idx) => {
-    html += `<div class="log-item">
-      <div class="log-info">
-        <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
-        <small>${s.note || ''}</small>
-      </div>
-      <div class="log-actions">
-        <span class="badge badge-shot">${s.dose}</span>
-        <button class="action-btn btn-edit" onclick="editShotLog(${idx})">編輯</button>
-        <button class="action-btn btn-del" onclick="deleteShotLog(${idx})">刪除</button>
-      </div>
-    </div>`;
-  });
+  const shotContainer = document.getElementById('shotLogList');
+  const bodyContainer = document.getElementById('bodyLogList');
 
-  bodyLogs.slice().reverse().forEach(b => {
-    const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
-    html += `<div class="log-item">
-      <div class="log-info">
-        <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
-        <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
-      </div>
-      <div class="log-actions">
-        <button class="action-btn btn-edit" onclick="editBodyLog('${b.date}')">編輯</button>
-        <button class="action-btn btn-del" onclick="deleteBodyLog('${b.date}')">刪除</button>
-      </div>
-    </div>`;
-  });
+  // 1. 獨立渲染：猛健樂施打紀錄
+  if (shotContainer) {
+    let shotHtml = '';
+    shotLogs.forEach((s, idx) => {
+      shotHtml += `<div class="log-item">
+        <div class="log-info">
+          <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
+          <small>${s.note || '無備註'}</small>
+        </div>
+        <div class="log-actions">
+          <span class="badge badge-shot">${s.dose}</span>
+          <button class="action-btn btn-edit" type="button" onclick="editShotLog(${idx})">編輯</button>
+          <button class="action-btn btn-del" type="button" onclick="deleteShotLog(${idx})">刪除</button>
+        </div>
+      </div>`;
+    });
+    shotContainer.innerHTML = shotHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
+  }
 
-  container.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有體態或施打紀錄</p>';
+  // 2. 獨立渲染：InBody 歷史體態數據
+  if (bodyContainer) {
+    let bodyHtml = '';
+    bodyLogs.slice().reverse().forEach(b => {
+      const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
+      bodyHtml += `<div class="log-item">
+        <div class="log-info">
+          <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
+          <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
+        </div>
+        <div class="log-actions">
+          <button class="action-btn btn-edit" type="button" onclick="editBodyLog('${b.date}')">編輯</button>
+          <button class="action-btn btn-del" type="button" onclick="deleteBodyLog('${b.date}')">刪除</button>
+        </div>
+      </div>`;
+    });
+    bodyContainer.innerHTML = bodyHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有體態紀錄</p>';
+  }
 }
