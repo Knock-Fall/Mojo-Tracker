@@ -155,7 +155,6 @@ input:focus, select:focus { border-color: var(--primary); }
   transition: width 0.3s ease;
 }
 
-/* 列表與操作按鈕彈性排版 */
 .log-item {
   display: flex;
   justify-content: space-between;
