@@ -1,4 +1,5 @@
 // Mojo Project
+// 8. main.js
 function getLocalTodayStr() {
   const now = new Date();
   const year = now.getFullYear();
@@ -46,6 +47,8 @@ function switchTab(tab) {
       if (typeof renderBodyChart === 'function') renderBodyChart();
       if (typeof renderScaleChart === 'function') renderScaleChart();
       if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
+      if (typeof renderShotList === 'function') renderShotList();
+      if (typeof renderScaleList === 'function') renderScaleList();
       if (typeof renderBodyList === 'function') renderBodyList();
     }, 50);
   } else {
@@ -68,6 +71,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if (typeof renderBodyChart === 'function') renderBodyChart();
   if (typeof renderScaleChart === 'function') renderScaleChart();
   if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
+  if (typeof renderShotList === 'function') renderShotList();
+  if (typeof renderScaleList === 'function') renderScaleList();
   if (typeof renderBodyList === 'function') renderBodyList();
   if (typeof renderDiet === 'function') renderDiet();
 });
