@@ -32,6 +32,7 @@
   <!-- 體態與猛健樂 TAB -->
   <div id="tab-inbody" class="tab-content active">
     
+    <!-- 猛健樂施打紀錄 -->
     <div class="card" style="border-left: 5px solid var(--shot);">
       <div class="card-title">
         <span>💉 猛健樂 (Mounjaro) 施打紀錄</span>
@@ -60,6 +61,49 @@
       <button class="btn btn-shot" type="button" onclick="saveShot()">記錄本次施打</button>
     </div>
 
+    <!-- 家用體重計 (Zepp Life / 小米) 快速打卡 -->
+    <div class="card" style="border-left: 5px solid #0284c7;">
+      <div class="card-title">
+        <span>📱 家用體重計日常記錄 (Zepp Life)</span>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>測量日期</label>
+          <input type="date" id="scaleDate">
+        </div>
+        <div class="form-group">
+          <label>體重 (kg) *</label>
+          <input type="number" step="0.1" id="scaleWeight" placeholder="例：81.3">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>骨骼肌 / 肌肉量 (kg)</label>
+          <input type="number" step="0.1" id="scaleMuscle" placeholder="選填">
+        </div>
+        <div class="form-group">
+          <label>體脂率 (%)</label>
+          <input type="number" step="0.1" id="scaleFat" placeholder="例：21.0">
+        </div>
+      </div>
+      <button class="btn" type="button" style="background:#0284c7;" onclick="saveScaleData()">記錄家用體重數據</button>
+    </div>
+
+    <!-- 家用體重計專屬趨勢圖 (還原 App 視覺) -->
+    <div class="card">
+      <div class="card-title">📈 家用日常體重趨勢 (Zepp Life)</div>
+      <canvas id="scaleChart" height="210"></canvas>
+    </div>
+
+    <!-- InBody vs 家用體重計 差異分析卡片 -->
+    <div class="card" style="background:#f8fafc; border: 1px solid #e2e8f0;">
+      <div class="card-title">⚖️ InBody vs 家用體重計 偏差比對</div>
+      <div id="scaleDiffReport" style="font-size:0.85rem; line-height: 1.6; color:#334155;">
+        計算比對中...
+      </div>
+    </div>
+
+    <!-- InBody 全方位數據輸入 -->
     <div class="card">
       <div class="card-title">
         <span>📝 記錄 InBody 全方位數據</span>
@@ -205,8 +249,9 @@
       <button class="btn" type="button" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
+    <!-- InBody 趨勢分析 -->
     <div class="card">
-      <div class="card-title">📈 數據趨勢分析</div>
+      <div class="card-title">📈 InBody 數據趨勢分析</div>
       <div class="chart-tabs">
         <button class="chart-tab-btn active" type="button" onclick="switchChartMode('core', this)">核心體態 (雙軸)</button>
         <button class="chart-tab-btn" type="button" onclick="switchChartMode('comp', this)">身體組成</button>
@@ -223,9 +268,15 @@
       <div id="shotLogList"></div>
     </div>
 
-    <!-- 獨立卡片 2：InBody 歷史體態數據 -->
+    <!-- 獨立卡片 2：家用體重計歷史數據 -->
     <div class="card">
-      <div class="card-title">📊 歷史體態紀錄 (InBody)</div>
+      <div class="card-title">📱 家用體重計歷史紀錄 (Zepp Life)</div>
+      <div id="scaleLogList"></div>
+    </div>
+
+    <!-- 獨立卡片 3：InBody 歷史體態數據 -->
+    <div class="card">
+      <div class="card-title">📊 InBody 歷史體態紀錄</div>
       <div id="bodyLogList"></div>
     </div>
   </div>
@@ -251,7 +302,7 @@
         </div>
       </div>
 
-      <!-- 2. 雙軌水分追蹤卡（純水 + 無糖茶/咖啡） -->
+      <!-- 2. 雙軌水分追蹤卡 -->
       <div class="nutrition-card" style="border-left: 4px solid #0284c7; background: #f0f9ff;">
         <div class="nutrition-head">
           <span style="color: #0369a1;">💧 總水分攝取</span>
