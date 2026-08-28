@@ -18,15 +18,10 @@ function previewAndAnalyzeScale(input) {
   }
 }
 
-// 具備自動切換備援模型的呼叫函式
 async function callGeminiVision(promptText, base64Image, apiKey) {
-  const models = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-1.5-flash'
-  ];
-
+  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
   let lastError = null;
+
   for (const model of models) {
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -43,7 +38,6 @@ async function callGeminiVision(promptText, base64Image, apiKey) {
       });
       const data = await response.json();
       if (data.error) {
-        // 若遇到 High demand 或 503，換下一個備援模型重試
         lastError = new Error(data.error.message);
         continue;
       }
@@ -52,7 +46,7 @@ async function callGeminiVision(promptText, base64Image, apiKey) {
       lastError = err;
     }
   }
-  throw lastError || new Error('所有備援模型皆忙碌中，請稍後再試');
+  throw lastError || new Error('辨識模型忙碌中，請稍後重試');
 }
 
 async function analyzeScaleImage() {
@@ -65,26 +59,26 @@ async function analyzeScaleImage() {
 
   const aiBtn = document.getElementById('scaleAiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⏳ AI 正在深度辨識 Zepp Life 所有數據...';
+  aiBtn.innerText = '⏳ AI 正在深度辨識 10 大項目與測量時間...';
 
-  const promptText = `請精確分析這張 Zepp Life / 小米運動健康 截圖：
-1. 頂部測量時間（例如 "8月28日 06:55"）：
-   - date: 請輸出西元格式 "YYYY-MM-DD"（年份預設 2026，如 "2026-08-28"）
-   - time: 請輸出24小時制 "HH:mm"（必須補零，如 "06:55"）
-2. 畫面中的指標數據：
-   - weight: 體重數值 (如 81.35)
-   - muscle: 肌肉數值 (如 57.22)
-   - fat: 體脂百分比 (如 25.8)
-   - bmi: BMI 數值 (如 26.3)
-   - water: 水分百分比 (如 50.8)
-   - vfl: 內臟脂肪數值 (如 12)
-   - bmr: 基礎代謝大卡數值 (如 1622)
-   - bone: 骨質數值 (如 3.07)
-   - protein: 蛋白質百分比 (如 19.4)
-   - score: 最上方大字身體評分 (如 58)
-   - body_type: 體型判定文字 (如 "偏胖型")
+  const promptText = `請仔細辨識這張 Zepp Life (小米運動健康) 體脂計截圖中的每一項數據：
+1. 【時間與日期】：請特別注意圖片頂部（大數字評分下方）的測量日期時間，例如「8月28日 06:55」
+   - date: 請輸出西元格式 "YYYY-MM-DD"（若無年份請填 "2026-08-28"）
+   - time: 請輸出 24 小時制 "HH:mm"（如 "06:55"）
+2. 【核心數據】：
+   - weight: 體重數字（如 81.35）
+   - muscle: 肌肉數字（如 57.22）
+   - fat: 體脂數字（如 25.8）
+   - bmi: BMI 數字（如 26.3）
+   - water: 水分數字（如 50.8）
+   - vfl: 內臟脂肪等級（如 12）
+   - bmr: 基礎代謝大卡（如 1622）
+   - bone: 骨質重量（如 3.07）
+   - protein: 蛋白質百分比（如 19.4）
+   - score: 頂部大字分數（如 58）
+   - body_type: 體型字樣（如 "偏胖型"）
 
-請嚴格僅回傳如下純 JSON，找不到填 null 或 0：
+請絕對且嚴格僅回傳如下 JSON，不要有任何 Markdown 或多餘文字：
 {"date":"2026-08-28","time":"06:55","weight":81.35,"muscle":57.22,"fat":25.8,"bmi":26.3,"water":50.8,"vfl":12,"bmr":1622,"bone":3.07,"protein":19.4,"score":58,"body_type":"偏胖型"}`;
 
   try {
@@ -92,27 +86,37 @@ async function analyzeScaleImage() {
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const res = JSON.parse(rawText);
 
-    if (res.date) document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
-    if (res.time) {
-      let t = String(res.time).trim();
-      if (t.length === 4 && t.indexOf(':') === 1) t = '0' + t;
-      document.getElementById('scaleTime').value = t;
+    // 1. 日期回填
+    if (res.date) {
+      document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
     }
-    if (res.weight !== undefined && res.weight !== null) document.getElementById('scaleWeight').value = res.weight;
-    if (res.muscle !== undefined && res.muscle !== null) document.getElementById('scaleMuscle').value = res.muscle;
-    if (res.fat !== undefined && res.fat !== null) document.getElementById('scaleFat').value = res.fat;
-    if (res.bmi !== undefined && res.bmi !== null) document.getElementById('scaleBMI').value = res.bmi;
-    if (res.water !== undefined && res.water !== null) document.getElementById('scaleWater').value = res.water;
-    if (res.vfl !== undefined && res.vfl !== null) document.getElementById('scaleVFL').value = res.vfl;
-    if (res.bmr !== undefined && res.bmr !== null) document.getElementById('scaleBMR').value = res.bmr;
-    if (res.bone !== undefined && res.bone !== null) document.getElementById('scaleBone').value = res.bone;
-    if (res.protein !== undefined && res.protein !== null) document.getElementById('scaleProtein').value = res.protein;
-    if (res.score !== undefined && res.score !== null) document.getElementById('scaleScore').value = res.score;
-    if (res.body_type) document.getElementById('scaleBodyType').value = res.body_type;
+    // 2. 時間回填 (強制補齊 HH:mm)
+    if (res.time) {
+      let tStr = String(res.time).trim();
+      if (tStr.length === 4 && tStr.indexOf(':') === 1) tStr = '0' + tStr;
+      document.getElementById('scaleTime').value = tStr;
+    }
+    // 3. 所有 10 大數值欄位回填
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== null && val !== '') el.value = val;
+    };
 
-    alert(`✨ 辨識成功！\n日期：${res.date || '已帶入'}\n時間：${res.time || '已帶入'}\n10 大指標已全部自動填妥！`);
+    setVal('scaleWeight', res.weight);
+    setVal('scaleMuscle', res.muscle);
+    setVal('scaleFat', res.fat);
+    setVal('scaleBMI', res.bmi);
+    setVal('scaleWater', res.water);
+    setVal('scaleVFL', res.vfl);
+    setVal('scaleBMR', res.bmr);
+    setVal('scaleBone', res.bone);
+    setVal('scaleProtein', res.protein);
+    setVal('scaleScore', res.score);
+    setVal('scaleBodyType', res.body_type);
+
+    alert(`✨ 辨識完成！\n測量時間：${res.date || ''} ${res.time || ''}\n體重：${res.weight || 0}kg ｜ 體脂：${res.fat || 0}%\n內臟脂肪：${res.vfl || 0} ｜ 評分：${res.score || 0}分`);
   } catch (err) {
-    alert('辨識失敗：' + err.message + '\n請稍候 10 秒後再試一次！');
+    alert('辨識失敗：' + err.message + '\n請重新點擊一次按鈕重試。');
   } finally {
     aiBtn.disabled = false;
     aiBtn.innerText = '✨ 開始 AI 辨識 Zepp Life 數據';
