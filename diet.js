@@ -31,11 +31,13 @@ async function analyzeFoodImage() {
   const userHint = document.getElementById('aiHintText').value.trim();
   let hintPrompt = "";
   if (userHint) {
-    hintPrompt = `\n使用者補充說明此食物為：「${userHint}」，請務必參考此線索並結合照片進行更精確的估算。`;
+    hintPrompt = `\n使用者特別提示食物名稱與份量為：「${userHint}」，請務必依此作為主要依據並結合照片估算。`;
   }
 
-  const promptText = `請辨識此照片中的食物，以繁體中文簡要列出食物名稱，並預估其總熱量(kcal)、蛋白質(g)、碳水化合物(g)、脂肪(g)與膳食纖維(g)。${hintPrompt}
-請務必且嚴格僅回傳如下純 JSON 格式，不要加入額外 markdown：{\"food\": \"食物名稱摘要\", \"cal\": 450, \"pro\": 25.5, \"carbs\": 35.0, \"fat\": 12.0, \"fiber\": 4.5}`;
+  const promptText = `你是一位專業營養師。請分析這張食物照片，繁體中文命名食物，並嚴格預估五大營養素：熱量(kcal)、蛋白質(g)、碳水化合物(g)、脂肪(g)、膳食纖維(g)。${hintPrompt}
+請注意：所有欄位都必須給予合理預估數值（數字型態），絕不可缺漏 fat 或 fiber。
+嚴格僅回傳如下 JSON 格式，切勿加上額外文字：
+{"food": "食物名稱與份量", "cal": 450, "pro": 25.5, "carbs": 35.0, "fat": 15.0, "fiber": 3.5}`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -49,13 +51,22 @@ async function analyzeFoodImage() {
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(rawText);
 
-    document.getElementById('dietContent').value = result.food || userHint || '';
-    document.getElementById('dietCal').value = result.cal || '';
-    document.getElementById('dietPro').value = result.pro || '';
-    document.getElementById('dietCarbs').value = result.carbs || 0;
-    document.getElementById('dietFat').value = result.fat || 0;
-    document.getElementById('dietFiber').value = result.fiber || 0;
-    alert('✨ AI 估算完成！已自動帶入食物名稱、熱量、蛋白質、碳水、脂肪與纖維。');
+    // 智能容錯解析
+    const foodName = result.food || result.name || userHint || '';
+    const calVal = result.cal ?? result.calories ?? result.energy ?? '';
+    const proVal = result.pro ?? result.protein ?? '';
+    const carbsVal = result.carbs ?? result.carbohydrates ?? 0;
+    const fatVal = result.fat ?? result.fats ?? result.total_fat ?? 0;
+    const fiberVal = result.fiber ?? result.fibers ?? result.dietary_fiber ?? 0;
+
+    document.getElementById('dietContent').value = foodName;
+    document.getElementById('dietCal').value = calVal;
+    document.getElementById('dietPro').value = proVal;
+    document.getElementById('dietCarbs').value = carbsVal;
+    document.getElementById('dietFat').value = fatVal;
+    document.getElementById('dietFiber').value = fiberVal;
+
+    alert('✨ AI 估算完成！已自動填入熱量、蛋白質、碳水、脂肪與纖維。');
   } catch (err) {
     alert('分析失敗：' + err.message);
   } finally {
@@ -134,10 +145,10 @@ function deleteDiet(index) {
   }
 }
 
-// 飲水打卡功能
 function addWater(amount) {
   const queryDate = document.getElementById('dietDate').value;
-  waterLogs[queryDate] = (waterLogs[queryDate] || 0) + amount;
+  if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
+  waterLogs[queryDate] = (Number(waterLogs[queryDate]) || 0) + amount;
   localStorage.setItem('my_water_logs', JSON.stringify(waterLogs));
   uploadToCloud('WATER', { date: queryDate, amount: waterLogs[queryDate] });
   renderDiet();
@@ -145,7 +156,8 @@ function addWater(amount) {
 
 function resetWater() {
   const queryDate = document.getElementById('dietDate').value;
-  if (confirm(`確定要重設 ${queryDate} 的飲水紀錄為 0 嗎？`)) {
+  if (confirm(`確定要將 ${queryDate} 的飲水紀錄歸零嗎？`)) {
+    if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
     waterLogs[queryDate] = 0;
     localStorage.setItem('my_water_logs', JSON.stringify(waterLogs));
     uploadToCloud('WATER', { date: queryDate, amount: 0 });
@@ -179,8 +191,8 @@ function renderDiet() {
           <small style="color:var(--sub);">${c} kcal ｜ 蛋 ${p.toFixed(1)}g ｜ 碳 ${carbs.toFixed(1)}g ｜ 脂 ${fat.toFixed(1)}g ｜ 纖 ${fiber.toFixed(1)}g</small>
         </div>
         <div class="log-actions">
-          <button class="action-btn btn-edit" onclick="editDiet(${originalIndex})">編輯</button>
-          <button class="action-btn btn-del" onclick="deleteDiet(${originalIndex})">刪除</button>
+          <button class="action-btn btn-edit" type="button" onclick="editDiet(${originalIndex})">編輯</button>
+          <button class="action-btn btn-del" type="button" onclick="deleteDiet(${originalIndex})">刪除</button>
         </div>
       </div>`;
     }
@@ -195,9 +207,9 @@ function renderDiet() {
   const targetCalories = tdee - 500;
   const targetProtein = Math.round(latestWeight * 1.6);
   const targetCarbs = Math.round(latestWeight * 2.0);
-  const targetFat = Math.round(latestWeight * 0.6); // 減脂建議脂肪：體重 * 0.6g
-  const targetFiber = 28; // 成人每日膳食纖維基準
-  const targetWater = Math.round(latestWeight * 35); // 每日飲水：體重 * 35ml
+  const targetFat = Math.round(latestWeight * 0.6);
+  const targetFiber = 28;
+  const targetWater = Math.round(latestWeight * 35);
   const currentDeficit = tdee - totalC;
 
   // 1. 赤字看板
@@ -224,8 +236,9 @@ function renderDiet() {
     }
   }
 
-  // 2. 飲水量進度
-  const curWater = waterLogs[queryDate] || 0;
+  // 2. 飲水進度
+  if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
+  const curWater = Number(waterLogs[queryDate]) || 0;
   const waterCurEl = document.getElementById('waterCurrent');
   const waterTarEl = document.getElementById('waterTarget');
   if (waterCurEl) waterCurEl.innerText = curWater;
