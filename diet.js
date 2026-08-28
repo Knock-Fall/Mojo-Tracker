@@ -2,7 +2,7 @@
 // 7. diet.js
 let base64DietImage = '';
 
-function compressDietImage(file, maxWidth = 1200, quality = 0.8) {
+function compressDietImage(file, maxWidth = 1000, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -53,7 +53,7 @@ async function previewAndAnalyze(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const res = await compressDietImage(file, 1200, 0.8);
+      const res = await compressDietImage(file, 1000, 0.75);
       const preview = document.getElementById('imagePreview');
       preview.src = res.dataUrl;
       preview.style.display = 'block';
@@ -76,29 +76,34 @@ async function analyzeFoodImage() {
 
   const aiBtn = document.getElementById('aiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⚡ AI 分析估算中，請稍候...';
+  aiBtn.innerText = '⚡ AI 估算中 (約1~3秒)...';
 
   const userHint = document.getElementById('aiHintText').value.trim();
   let hintPrompt = "";
   if (userHint) {
-    hintPrompt = `\n使用者特別提示食物名稱與份量為：「${userHint}」，請務必依此作為主要依據並結合照片估算。`;
+    hintPrompt = `\n提示：「${userHint}」`;
   }
 
-  const promptText = `你是一位專業營養師。請分析這張食物照片，繁體中文命名食物，並嚴格預估五大營養素：熱量(kcal)、蛋白質(g)、碳水化合物(g)、脂肪(g)、膳食纖維(g)。${hintPrompt}
-請注意：所有欄位都必須給予合理預估數值（數字型態），絕不可缺漏 fat 或 fiber。
-嚴格僅回傳如下 JSON 格式，切勿加上額外文字：
-{"food": "食物名稱與份量", "cal": 450, "pro": 25.5, "carbs": 35.0, "fat": 15.0, "fiber": 3.5}`;
+  const promptText = `你是專業營養師。分析照片並繁中命名食物，嚴格預估五大營養素：${hintPrompt}
+{"food": "食物名稱與份量", "cal": 數字, "pro": 數字, "carbs": 數字, "fat": 數字, "fiber": 數字}`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }] })
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 } // 關鍵加速：強制關閉思考
+        }
+      })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
-    let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
+    let rawText = resData.candidates[0].content.parts[0].text.trim();
     const result = JSON.parse(rawText);
 
     document.getElementById('dietContent').value = result.food || userHint || '';
@@ -108,7 +113,7 @@ async function analyzeFoodImage() {
     document.getElementById('dietFat').value = result.fat ?? 0;
     document.getElementById('dietFiber').value = result.fiber ?? 0;
 
-    alert('✨ AI 估算完成！已自動填入熱量、蛋白質、碳水、脂肪與纖維。');
+    alert('⚡ AI 估算完成！已自動填入熱量與五大營養素。');
   } catch (err) {
     alert('分析失敗：' + err.message);
   } finally {
