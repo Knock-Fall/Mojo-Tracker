@@ -1,5 +1,4 @@
 /* Mojo Project */
-/* 2. style.css */
 :root {
   --primary: #3b82f6;
   --accent: #10b981;
@@ -68,7 +67,7 @@ input:focus, select:focus { border-color: var(--primary); }
 }
 .btn-ai { background: #8b5cf6; margin-top: 6px; }
 .btn-ai:disabled { background: #cbd5e1; cursor: not-allowed; }
-.btn-sync { background: #0284c7; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; color: #fff; border: none; cursor: pointer; }
+.btn-sync { background: #0284c7; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; color: #fff; border: none; cursor: pointer; white-space: nowrap; }
 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
