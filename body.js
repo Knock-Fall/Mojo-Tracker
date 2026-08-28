@@ -1,7 +1,7 @@
 // Mojo Project
+// 5. body.js
 let currentChartMode = 'core';
 let chartInstance = null;
-let scaleChartInstance = null;
 let base64InBodyImage = '';
 
 function switchChartMode(mode, btnEl) {
@@ -71,13 +71,13 @@ async function analyzeInBodyImage() {
   }
 }
 
-// 猛健樂施打紀錄
 function saveShot() {
   const shot = {
     date: document.getElementById('shotDate').value,
     dose: document.getElementById('shotDose').value,
     note: document.getElementById('shotNote').value
   };
+  if (!window.shotLogs) window.shotLogs = [];
   shotLogs.unshift(shot);
   localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
   uploadToCloud('SHOT', shot);
@@ -112,72 +112,6 @@ function deleteShotLog(index) {
   }
 }
 
-// 家用體重計 (Zepp Life) 相關操作
-function saveScaleData() {
-  const dateVal = document.getElementById('scaleDate').value;
-  const weightVal = parseFloat(document.getElementById('scaleWeight').value);
-  if (!weightVal) return alert('請輸入家用體重計的「體重」數值！');
-
-  const muscleVal = parseFloat(document.getElementById('scaleMuscle').value) || 0;
-  const fatVal = parseFloat(document.getElementById('scaleFat').value) || 0;
-
-  const item = {
-    date: dateVal,
-    weight: weightVal,
-    muscle: muscleVal,
-    fat: fatVal
-  };
-
-  scaleLogs = scaleLogs.filter(s => s.date !== dateVal);
-  scaleLogs.push(item);
-  scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
-
-  localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
-  uploadToCloud('SCALE', item);
-  alert('家用體重計數據已儲存！');
-  
-  renderScaleChart();
-  renderBodyList();
-  renderComparisonAnalysis();
-  if (typeof renderDiet === 'function') renderDiet();
-}
-
-function editScaleLog(date) {
-  const idx = scaleLogs.findIndex(s => s.date === date);
-  if (idx === -1) return;
-  const s = scaleLogs[idx];
-
-  const newW = prompt(`修改 ${date} 家用體重 (kg)：`, s.weight || '');
-  if (newW === null) return;
-  const newM = prompt(`修改 ${date} 肌肉量 (kg)：`, s.muscle || 0);
-  if (newM === null) return;
-  const newF = prompt(`修改 ${date} 體脂率 (%)：`, s.fat || 0);
-  if (newF === null) return;
-
-  scaleLogs[idx].weight = parseFloat(newW) || s.weight;
-  scaleLogs[idx].muscle = parseFloat(newM) || 0;
-  scaleLogs[idx].fat = parseFloat(newF) || 0;
-
-  localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
-  uploadToCloud('SCALE', scaleLogs[idx]);
-  renderScaleChart();
-  renderBodyList();
-  renderComparisonAnalysis();
-  if (typeof renderDiet === 'function') renderDiet();
-}
-
-function deleteScaleLog(date) {
-  if (confirm(`確定要刪除 ${date} 的家用體重計紀錄嗎？`)) {
-    scaleLogs = scaleLogs.filter(s => s.date !== date);
-    localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
-    renderScaleChart();
-    renderBodyList();
-    renderComparisonAnalysis();
-    if (typeof renderDiet === 'function') renderDiet();
-  }
-}
-
-// InBody 數據操作
 function saveBodyData() {
   const weightVal = parseFloat(document.getElementById('bodyWeight').value);
   if (!weightVal) return alert('請至少輸入總體重！');
@@ -216,6 +150,7 @@ function saveBodyData() {
     f_ll_pct: parseFloat(document.getElementById('f_ll_pct').value) || 0
   };
 
+  if (!window.bodyLogs) window.bodyLogs = [];
   bodyLogs = bodyLogs.filter(item => item.date !== b.date);
   bodyLogs.push(b);
   bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -224,7 +159,7 @@ function saveBodyData() {
   alert('全方位 InBody 數據已儲存！');
   renderBodyChart();
   renderBodyList();
-  renderComparisonAnalysis();
+  if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
   if (typeof renderDiet === 'function') renderDiet();
 }
 
@@ -251,7 +186,7 @@ function editBodyLog(date) {
   uploadToCloud('BODY', bodyLogs[index]);
   renderBodyChart();
   renderBodyList();
-  renderComparisonAnalysis();
+  if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
   if (typeof renderDiet === 'function') renderDiet();
 }
 
@@ -261,162 +196,19 @@ function deleteBodyLog(date) {
     localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
     renderBodyChart();
     renderBodyList();
-    renderComparisonAnalysis();
+    if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
     if (typeof renderDiet === 'function') renderDiet();
   }
 }
 
-// 繪製 Zepp Life 家用體重計趨勢圖（樣式對標 App 截圖）
-function renderScaleChart() {
-  const canvas = document.getElementById('scaleChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  if (!scaleLogs || scaleLogs.length === 0) {
-    if (scaleChartInstance) scaleChartInstance.destroy();
-    return;
-  }
-
-  const labels = scaleLogs.map(l => String(l.date || '').slice(5));
-  const weights = scaleLogs.map(l => Number(l.weight) || null);
-  const muscles = scaleLogs.map(l => Number(l.muscle) || null);
-  const fats = scaleLogs.map(l => Number(l.fat) || null);
-
-  if (scaleChartInstance) scaleChartInstance.destroy();
-
-  scaleChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: '體重 (kg)',
-          data: weights,
-          borderColor: '#1e5188',
-          backgroundColor: '#1e5188',
-          borderWidth: 3,
-          pointRadius: 6,
-          pointHoverRadius: 8,
-          tension: 0.2,
-          yAxisID: 'yWeight'
-        },
-        {
-          label: '骨骼肌 (kg)',
-          data: muscles,
-          borderColor: '#884444',
-          backgroundColor: '#884444',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          pointRadius: 5,
-          tension: 0.2,
-          yAxisID: 'yOther'
-        },
-        {
-          label: '體脂 (%)',
-          data: fats,
-          borderColor: '#b58933',
-          backgroundColor: '#b58933',
-          borderWidth: 2,
-          borderDash: [2, 3],
-          pointRadius: 5,
-          tension: 0.2,
-          yAxisID: 'yOther'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
-        tooltip: {
-          padding: 10,
-          callbacks: {
-            label: function(c) {
-              return `${c.dataset.label}: ${c.raw}`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { grid: { color: '#f1f5f9' } },
-        yWeight: {
-          type: 'linear',
-          position: 'left',
-          title: { display: true, text: '體重 (kg)', color: '#1e5188' },
-          grid: { color: '#f1f5f9' }
-        },
-        yOther: {
-          type: 'linear',
-          position: 'right',
-          title: { display: true, text: '肌肉 (kg) / 體脂 (%)', color: '#64748b' },
-          grid: { drawOnChartArea: false }
-        }
-      }
-    }
-  });
-}
-
-// InBody vs 家用體重計 差異分析
-function renderComparisonAnalysis() {
-  const el = document.getElementById('scaleDiffReport');
-  if (!el) return;
-
-  if (!scaleLogs.length || !bodyLogs.length) {
-    el.innerHTML = '💡 累積至少 1 筆 InBody 與 1 筆家用體重計數據後，將在此自動產出偏差校正與對比分析。';
-    return;
-  }
-
-  // 尋找同日配對數據
-  let pairs = [];
-  scaleLogs.forEach(s => {
-    const matchedBody = bodyLogs.find(b => b.date === s.date);
-    if (matchedBody) {
-      pairs.push({ date: s.date, scale: s, inbody: matchedBody });
-    }
-  });
-
-  let html = '';
-  if (pairs.length > 0) {
-    let diffWTotal = 0, diffFatTotal = 0, countFat = 0;
-    pairs.forEach(p => {
-      diffWTotal += (p.scale.weight - p.inbody.weight);
-      if (p.scale.fat && p.inbody.pbf) {
-        diffFatTotal += (p.scale.fat - p.inbody.pbf);
-        countFat++;
-      }
-    });
-    const avgDiffW = (diffWTotal / pairs.length).toFixed(2);
-    const avgDiffFat = countFat > 0 ? (diffFatTotal / countFat).toFixed(2) : null;
-
-    html += `<strong>🎯 找到 ${pairs.length} 組同日測量對比數據：</strong><br>`;
-    html += `• <strong>體重偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffW >= 0 ? '+' + avgDiffW : avgDiffW} kg</strong><br>`;
-    if (avgDiffFat !== null) {
-      html += `• <strong>體脂率偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffFat >= 0 ? '+' + avgDiffFat : avgDiffFat} %</strong><br>`;
-    }
-    html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與晨間水分影響較大，日常看「下降趨勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
-  } else {
-    // 若無同日，抓取兩者最新一筆比對
-    const latestScale = scaleLogs[scaleLogs.length - 1];
-    const latestBody = bodyLogs[bodyLogs.length - 1];
-    const wDiff = (latestScale.weight - latestBody.weight).toFixed(1);
-    const fDiff = (latestScale.fat && latestBody.pbf) ? (latestScale.fat - latestBody.pbf).toFixed(1) : null;
-
-    html += `<strong>🔍 最新數據橫向比較：</strong><br>`;
-    html += `• 家用最新 (${latestScale.date})：${latestScale.weight} kg ｜ 體脂 ${latestScale.fat || '--'}%<br>`;
-    html += `• InBody最新 (${latestBody.date})：${latestBody.weight} kg ｜ 體脂 ${latestBody.pbf}%<br>`;
-    html += `• 體重落差：<strong>${wDiff >= 0 ? '+' + wDiff : wDiff} kg</strong>` + (fDiff ? ` ｜ 體脂落差：<strong>${fDiff >= 0 ? '+' + fDiff : fDiff} %</strong>` : '') + `<br>`;
-    html += `<small style="color:var(--sub);">若同一天兩邊都有測量，將自動進行長期平均誤差校準分析。</small>`;
-  }
-
-  el.innerHTML = html;
-}
-
-// InBody 趨勢圖
 function renderBodyChart() {
   const canvas = document.getElementById('bodyChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  if (bodyLogs.length === 0) return;
+  if (!bodyLogs || bodyLogs.length === 0) {
+    if (chartInstance) chartInstance.destroy();
+    return;
+  }
 
   const labels = bodyLogs.map(l => String(l.date || '').slice(5));
   if (chartInstance) chartInstance.destroy();
@@ -489,10 +281,11 @@ function renderBodyList() {
   const scaleContainer = document.getElementById('scaleLogList');
   const bodyContainer = document.getElementById('bodyLogList');
 
-  // 1. 猛健樂施打紀錄
+  // 1. 猛健樂施打紀錄安全渲染
   if (shotContainer) {
     let shotHtml = '';
-    shotLogs.forEach((s, idx) => {
+    const curShots = window.shotLogs || [];
+    curShots.forEach((s, idx) => {
       shotHtml += `<div class="log-item">
         <div class="log-info">
           <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
@@ -508,10 +301,11 @@ function renderBodyList() {
     shotContainer.innerHTML = shotHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
   }
 
-  // 2. 家用體重計紀錄 (Zepp Life)
+  // 2. 家用體重計紀錄安全渲染
   if (scaleContainer) {
     let scaleHtml = '';
-    scaleLogs.slice().reverse().forEach(s => {
+    const curScales = window.scaleLogs || [];
+    curScales.slice().reverse().forEach(s => {
       scaleHtml += `<div class="log-item">
         <div class="log-info">
           <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}<br>
@@ -526,10 +320,11 @@ function renderBodyList() {
     scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
   }
 
-  // 3. InBody 歷史體態數據
+  // 3. InBody 歷史數據安全渲染
   if (bodyContainer) {
     let bodyHtml = '';
-    bodyLogs.slice().reverse().forEach(b => {
+    const curBodies = window.bodyLogs || [];
+    curBodies.slice().reverse().forEach(b => {
       const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
       bodyHtml += `<div class="log-item">
         <div class="log-info">
