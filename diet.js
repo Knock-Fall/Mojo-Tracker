@@ -1,4 +1,5 @@
 // Mojo Project
+// 6. diet.js
 let base64DietImage = '';
 
 function previewAndAnalyze(input) {
@@ -208,7 +209,6 @@ function renderDiet() {
     }
   });
 
-  // 最新體重優先連動：有家用看家用最新，無則看 InBody
   let latestWeight = 80;
   if (scaleLogs && scaleLogs.length > 0) {
     latestWeight = Number(scaleLogs[scaleLogs.length - 1].weight) || 80;
@@ -225,7 +225,6 @@ function renderDiet() {
   const targetWater = Math.round(latestWeight * 35);
   const currentDeficit = tdee - totalC;
 
-  // 1. 赤字看板
   const deficitCurEl = document.getElementById('deficitCurrent');
   const tdeeRefEl = document.getElementById('tdeeRef');
   const deficitStatusEl = document.getElementById('deficitStatus');
@@ -249,7 +248,6 @@ function renderDiet() {
     }
   }
 
-  // 2. 雙軌水分進度與比例
   if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
   let dayWater = waterLogs[queryDate] || { pure: 0, tea: 0 };
   if (typeof dayWater === 'number') dayWater = { pure: dayWater, tea: 0 };
@@ -291,7 +289,6 @@ function renderDiet() {
     }
   }
 
-  // 3. 熱量進度
   const calCurEl = document.getElementById('calCurrent');
   const calTarEl = document.getElementById('calTarget');
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
@@ -310,7 +307,6 @@ function renderDiet() {
     calRemEl.style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
-  // 4. 蛋白質進度
   const proCurEl = document.getElementById('proCurrent');
   const proTarEl = document.getElementById('proTarget');
   if (proCurEl) proCurEl.innerText = totalP.toFixed(1);
@@ -327,7 +323,6 @@ function renderDiet() {
     proRemEl.style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
   }
 
-  // 5. 碳水進度
   const carbsCurEl = document.getElementById('carbsCurrent');
   const carbsTarEl = document.getElementById('carbsTarget');
   if (carbsCurEl) carbsCurEl.innerText = totalCarbs.toFixed(1);
@@ -344,7 +339,6 @@ function renderDiet() {
     carbsRemEl.style.color = carbsDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
-  // 6. 脂肪進度
   const fatCurEl = document.getElementById('fatCurrent');
   const fatTarEl = document.getElementById('fatTarget');
   if (fatCurEl) fatCurEl.innerText = totalFat.toFixed(1);
@@ -361,7 +355,6 @@ function renderDiet() {
     fatRemEl.style.color = fatDiff >= 0 ? 'var(--sub)' : '#ef4444';
   }
 
-  // 7. 膳食纖維進度
   const fiberCurEl = document.getElementById('fiberCurrent');
   const fiberTarEl = document.getElementById('fiberTarget');
   if (fiberCurEl) fiberCurEl.innerText = totalFiber.toFixed(1);
