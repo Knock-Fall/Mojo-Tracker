@@ -161,6 +161,7 @@ input:focus, select:focus { border-color: var(--primary); }
   border-radius: 6px;
   height: 10px;
   overflow: hidden;
+  position: relative;
 }
 .progress-fill {
   height: 100%;
