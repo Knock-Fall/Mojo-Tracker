@@ -1,4 +1,5 @@
 // Mojo Project
+// 5. body.js
 let currentChartMode = 'core';
 let chartInstance = null;
 let base64InBodyImage = '';
@@ -288,6 +289,7 @@ function renderBodyList() {
   const scaleContainer = document.getElementById('scaleLogList');
   const bodyContainer = document.getElementById('bodyLogList');
 
+  // 1. 猛健樂施打紀錄
   if (shotContainer) {
     let shotHtml = '';
     const curShots = window.MojoState.shotLogs || [];
@@ -307,24 +309,35 @@ function renderBodyList() {
     shotContainer.innerHTML = shotHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
   }
 
+  // 2. 家用體重計紀錄 (Zepp Life：包含時間、分數、水分、內臟脂肪、骨質、蛋白質、體型)
   if (scaleContainer) {
     let scaleHtml = '';
     const curScales = window.MojoState.scaleLogs || [];
     curScales.slice().reverse().forEach(s => {
+      const timeTag = s.time ? ` <span style="color:#0284c7;font-weight:bold;">${s.time}</span>` : '';
+      const bmiTag = s.bmi ? ` ｜ BMI ${s.bmi}` : '';
+      const waterTag = s.water ? ` ｜ 水分 ${s.water}%` : '';
+      const vflTag = s.vfl ? ` ｜ 內臟 ${s.vfl}` : '';
+      const bmrTag = s.bmr ? ` ｜ 代謝 ${s.bmr}kcal` : '';
+      const scoreTag = s.score ? ` ｜ 評分: ${s.score}分` : '';
+      const bodyTypeTag = s.body_type ? ` [${s.body_type}]` : '';
+      const uniqueId = `${s.date}_${s.time || ''}`;
+
       scaleHtml += `<div class="log-item">
         <div class="log-info">
-          <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}<br>
-          <small style="color:var(--sub)">${s.date} ${s.muscle ? `｜ 肌肉 ${s.muscle}kg` : ''}</small>
+          <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}${bodyTypeTag}${scoreTag}<br>
+          <small style="color:var(--sub)">${s.date}${timeTag} ｜ 肌肉 ${s.muscle || '--'}kg${bmiTag}${waterTag}${vflTag}${bmrTag}</small>
         </div>
         <div class="log-actions">
-          <button class="action-btn btn-edit" type="button" onclick="editScaleLog('${s.date}')">編輯</button>
-          <button class="action-btn btn-del" type="button" onclick="deleteScaleLog('${s.date}')">刪除</button>
+          <button class="action-btn btn-edit" type="button" onclick="editScaleLog('${uniqueId}')">編輯</button>
+          <button class="action-btn btn-del" type="button" onclick="deleteScaleLog('${uniqueId}')">刪除</button>
         </div>
       </div>`;
     });
     scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
   }
 
+  // 3. InBody 歷史數據
   if (bodyContainer) {
     let bodyHtml = '';
     const curBodies = window.MojoState.bodyLogs || [];
