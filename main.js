@@ -8,6 +8,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   resetDatesToToday();
   if (typeof renderBodyChart === 'function') renderBodyChart();
+  if (typeof renderScaleChart === 'function') renderScaleChart();
+  if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
   if (typeof renderBodyList === 'function') renderBodyList();
   if (typeof renderDiet === 'function') renderDiet();
 });
