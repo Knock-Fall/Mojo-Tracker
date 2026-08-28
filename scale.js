@@ -1,20 +1,47 @@
 // Mojo Project
-// 4. scale.js
 let scaleChartInstance = null;
 let base64ScaleImage = '';
 
-function previewAndAnalyzeScale(input) {
-  const file = input.files[0];
-  if (file) {
+function compressScaleImage(file, maxWidth = 1200, quality = 0.8) {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
-      const preview = document.getElementById('scaleImagePreview');
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-      base64ScaleImage = e.target.result.split(',')[1];
-      document.getElementById('scaleAiBtn').style.display = 'block';
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
     };
+    reader.onerror = reject;
     reader.readAsDataURL(file);
+  });
+}
+
+async function previewAndAnalyzeScale(input) {
+  const file = input.files[0];
+  if (file) {
+    try {
+      const res = await compressScaleImage(file, 1200, 0.8);
+      const preview = document.getElementById('scaleImagePreview');
+      preview.src = res.dataUrl;
+      preview.style.display = 'block';
+      base64ScaleImage = res.base64;
+      document.getElementById('scaleAiBtn').style.display = 'block';
+    } catch(e) {
+      console.error(e);
+    }
   }
 }
 
@@ -28,7 +55,7 @@ async function analyzeScaleImage() {
 
   const aiBtn = document.getElementById('scaleAiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⏳ AI 正在深度辨識 10 大項目與測量時間...';
+  aiBtn.innerText = '⚡ AI 正在深度秒讀 10 大指標與時間...';
 
   const promptText = `請仔細辨識這張 Zepp Life (小米運動健康) 體脂計截圖中的每一項數據：
 1. 【時間與日期】：請特別注意圖片頂部（大數字評分下方）的測量日期時間，例如「8月28日 06:55」
@@ -47,7 +74,7 @@ async function analyzeScaleImage() {
    - score: 頂部大字分數（如 58）
    - body_type: 體型字樣（如 "偏胖型"）
 
-請絕對且嚴格僅回傳如下 JSON，不要有任何 Markdown 或多餘文字：
+請絕對且嚴格僅回傳如下純 JSON，不要有任何 Markdown 或多餘文字：
 {"date":"2026-08-28","time":"06:55","weight":81.35,"muscle":57.22,"fat":25.8,"bmi":26.3,"water":50.8,"vfl":12,"bmr":1622,"bone":3.07,"protein":19.4,"score":58,"body_type":"偏胖型"}`;
 
   try {
@@ -69,17 +96,13 @@ async function analyzeScaleImage() {
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const res = JSON.parse(rawText);
 
-    // 1. 日期回填
-    if (res.date) {
-      document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
-    }
-    // 2. 時間回填 (強制補齊 HH:mm)
+    if (res.date) document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
     if (res.time) {
       let tStr = String(res.time).trim();
       if (tStr.length === 4 && tStr.indexOf(':') === 1) tStr = '0' + tStr;
       document.getElementById('scaleTime').value = tStr;
     }
-    // 3. 所有 10 大數值欄位回填
+
     const setVal = (id, val) => {
       const el = document.getElementById(id);
       if (el && val !== undefined && val !== null && val !== '') el.value = val;
@@ -97,9 +120,9 @@ async function analyzeScaleImage() {
     setVal('scaleScore', res.score);
     setVal('scaleBodyType', res.body_type);
 
-    alert(`✨ 辨識完成！\n測量時間：${res.date || ''} ${res.time || ''}\n體重：${res.weight || 0}kg ｜ 體脂：${res.fat || 0}%\n內臟脂肪：${res.vfl || 0} ｜ 評分：${res.score || 0}分`);
+    alert(`✨ 辨識成功！\n測量時間：${res.date || ''} ${res.time || ''}\n體重：${res.weight || 0}kg ｜ 體脂：${res.fat || 0}%\n內臟脂肪：${res.vfl || 0} ｜ 評分：${res.score || 0}分`);
   } catch (err) {
-    alert('辨識失敗：' + err.message + '\n若遇尖峰排隊，請稍候 10 秒再試一次！');
+    alert('辨識失敗：' + err.message + '\n請稍候 10 秒後重試一次！');
   } finally {
     aiBtn.disabled = false;
     aiBtn.innerText = '✨ 開始 AI 辨識 Zepp Life 數據';
@@ -128,10 +151,7 @@ function saveScaleData() {
     body_type: document.getElementById('scaleBodyType').value || ''
   };
 
-  if (!window.MojoState) window.MojoState = {};
-  if (!window.MojoState.scaleLogs) window.MojoState.scaleLogs = [];
-  
-  const list = window.MojoState.scaleLogs;
+  const list = window.MojoState.scaleLogs || [];
   window.MojoState.scaleLogs = list.filter(s => !(s.date === dateVal && (s.time || '') === timeVal));
   window.MojoState.scaleLogs.push(item);
   window.MojoState.scaleLogs.sort((a,b) => new Date(`${a.date} ${a.time || '00:00'}`) - new Date(`${b.date} ${b.time || '00:00'}`));
@@ -146,7 +166,7 @@ function saveScaleData() {
   alert(`家用數據 (${dateVal} ${timeVal}) 已儲存！`);
   
   renderScaleChart();
-  renderBodyList();
+  renderScaleList();
   renderComparisonAnalysis();
   if (typeof renderDiet === 'function') renderDiet();
 }
@@ -171,7 +191,7 @@ function editScaleLog(uniqueId) {
   localStorage.setItem('my_scale_logs', JSON.stringify(list));
   uploadToCloud('SCALE', list[idx]);
   renderScaleChart();
-  renderBodyList();
+  renderScaleList();
   renderComparisonAnalysis();
   if (typeof renderDiet === 'function') renderDiet();
 }
@@ -182,7 +202,7 @@ function deleteScaleLog(uniqueId) {
     window.MojoState.scaleLogs = list.filter(s => `${s.date}_${s.time || ''}` !== uniqueId);
     localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
     renderScaleChart();
-    renderBodyList();
+    renderScaleList();
     renderComparisonAnalysis();
     if (typeof renderDiet === 'function') renderDiet();
   }
@@ -273,6 +293,35 @@ function renderScaleChart() {
   });
 }
 
+function renderScaleList() {
+  const scaleContainer = document.getElementById('scaleLogList');
+  if (!scaleContainer) return;
+  let scaleHtml = '';
+  const curScales = window.MojoState.scaleLogs || [];
+  curScales.slice().reverse().forEach(s => {
+    const timeTag = s.time ? ` <span style="color:#0284c7;font-weight:bold;">${s.time}</span>` : '';
+    const bmiTag = s.bmi ? ` ｜ BMI ${s.bmi}` : '';
+    const waterTag = s.water ? ` ｜ 水分 ${s.water}%` : '';
+    const vflTag = s.vfl ? ` ｜ 內臟 ${s.vfl}` : '';
+    const bmrTag = s.bmr ? ` ｜ 代謝 ${s.bmr}kcal` : '';
+    const scoreTag = s.score ? ` ｜ 評分: ${s.score}分` : '';
+    const bodyTypeTag = s.body_type ? ` [${s.body_type}]` : '';
+    const uniqueId = `${s.date}_${s.time || ''}`;
+
+    scaleHtml += `<div class="log-item">
+      <div class="log-info">
+        <strong>體重 ${s.weight} kg</strong> ${s.fat ? `(體脂 ${s.fat}%)` : ''}${bodyTypeTag}${scoreTag}<br>
+        <small style="color:var(--sub)">${s.date}${timeTag} ｜ 肌肉 ${s.muscle || '--'}kg${bmiTag}${waterTag}${vflTag}${bmrTag}</small>
+      </div>
+      <div class="log-actions">
+        <button class="action-btn btn-edit" type="button" onclick="editScaleLog('${uniqueId}')">編輯</button>
+        <button class="action-btn btn-del" type="button" onclick="deleteScaleLog('${uniqueId}')">刪除</button>
+      </div>
+    </div>`;
+  });
+  scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
+}
+
 function renderComparisonAnalysis() {
   const el = document.getElementById('scaleDiffReport');
   if (!el) return;
@@ -311,7 +360,7 @@ function renderComparisonAnalysis() {
     if (avgDiffFat !== null) {
       html += `• <strong>體脂率偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffFat >= 0 ? '+' + avgDiffFat : avgDiffFat} %</strong><br>`;
     }
-    html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與水分影響較大，日常看「下降勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
+    html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與水分影響較大，日常看「下降趨勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
   } else {
     const latestScale = scales[scales.length - 1];
     const latestBody = bodies[bodies.length - 1];
