@@ -214,6 +214,15 @@ function addWaterRecord(type, amount) {
   renderDiet();
 }
 
+function addCustomWater(type) {
+  const input = document.getElementById('customWaterPure');
+  if (!input) return;
+  const val = parseInt(input.value);
+  if (!val || val <= 0) return alert('請輸入有效的水量數值 (ml)');
+  addWaterRecord(type, val);
+  input.value = '';
+}
+
 function resetWaterRecord() {
   const queryDate = document.getElementById('dietDate').value;
   if (confirm(`確定要將 ${queryDate} 的純水與茶飲水分紀錄歸零嗎？`)) {
@@ -228,7 +237,6 @@ function resetWaterRecord() {
 function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, diffWater) {
   let suggestions = [];
 
-  // 1. 蛋白質不足
   if (diffPro > 5) {
     const eggQty = Math.max(1, Math.round(diffPro / 7));
     const chickenQty = Math.max(1, Math.round(diffPro / 23));
@@ -250,7 +258,6 @@ function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, di
     });
   }
 
-  // 2. 膳食纖維不足
   if (diffFiber > 3) {
     const vegQty = Math.max(1, Math.round(diffFiber / 3));
     const appleQty = Math.max(1, Math.round(diffFiber / 4));
@@ -266,7 +273,6 @@ function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, di
     });
   }
 
-  // 3. 水分或純水比例不足
   if (diffWater > 200 || (pureRatio < 50 && diffWater >= 0)) {
     suggestions.push({
       emoji: '💧',
@@ -275,7 +281,6 @@ function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, di
     });
   }
 
-  // 4. 赤字過大 (熱量吃太少，剩餘熱量 > 600kcal)
   if (diffCal > 600) {
     suggestions.push({
       emoji: '🥑',
@@ -322,7 +327,6 @@ function renderDiet() {
     }
   });
 
-  // 嚴格抓取「小於等於當天日期 (<= queryDate)」的最新 InBody 體重
   let latestWeight = 80;
   const bodies = window.MojoState.bodyLogs || [];
   const validBodiesBeforeOrOnDate = bodies.filter(b => b.date <= queryDate);
@@ -503,7 +507,6 @@ function renderDiet() {
     fiberRemEl.style.color = fiberDiff <= 0 ? '#14b8a6' : 'var(--sub)';
   }
 
-  // 渲染營養智能建議卡片
   const suggestCard = document.getElementById('nutritionSuggestCard');
   const suggestBox = document.getElementById('suggestContent');
   if (suggestCard && suggestBox) {
