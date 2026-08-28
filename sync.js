@@ -1,5 +1,4 @@
 // Mojo Project
-// 3. sync.js
 const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
 // 全域狀態中央管理庫
@@ -11,7 +10,6 @@ window.MojoState = {
   waterLogs: JSON.parse(localStorage.getItem('my_water_logs') || '{}')
 };
 
-// 取得手機本地台灣時間戳記字串 (YYYY-MM-DD HH:mm:ss)
 function getLocalTimestampStr() {
   const now = new Date();
   const year = now.getFullYear();
@@ -36,7 +34,6 @@ function setupSecretToken() {
   }
 }
 
-// 帶入本地手機產生之精確時間戳記
 function uploadToCloud(type, payload) {
   const token = getSecretToken();
   const localTime = getLocalTimestampStr();
@@ -53,7 +50,6 @@ function uploadToCloud(type, payload) {
   }).catch(err => console.log('Cloud sync pending:', err));
 }
 
-// 強效標準化去重演算法
 function robustDeduplicate(list, keyFn) {
   const seen = new Set();
   const res = [];
@@ -92,17 +88,16 @@ async function syncFromCloud() {
       } catch(e){}
     });
 
-    // 標準化去重
+    // 標準化去重：家用體重計依 日期+時間 去重
     window.MojoState.bodyLogs = robustDeduplicate(newBody, b => String(b.date));
-    window.MojoState.scaleLogs = robustDeduplicate(newScale, s => String(s.date));
+    window.MojoState.scaleLogs = robustDeduplicate(newScale, s => `${s.date}_${s.time || ''}`);
     window.MojoState.shotLogs = robustDeduplicate(newShot, s => `${s.date}_${s.dose}`);
     window.MojoState.dietLogs = robustDeduplicate(newDiet, d => `${d.date}_${d.type}_${d.content}_${d.cal}`);
     window.MojoState.waterLogs = newWater;
 
     window.MojoState.bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
-    window.MojoState.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+    window.MojoState.scaleLogs.sort((a,b) => new Date(`${a.date} ${a.time || '00:00'}`) - new Date(`${b.date} ${b.time || '00:00'}`));
 
-    // 儲存至本地快取
     localStorage.setItem('my_body_logs', JSON.stringify(window.MojoState.bodyLogs));
     localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
     localStorage.setItem('my_diet_logs', JSON.stringify(window.MojoState.dietLogs));
