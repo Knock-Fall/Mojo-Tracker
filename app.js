@@ -384,6 +384,53 @@ function saveDiet() {
   alert('餐點已記錄並同步至試算表！');
 }
 
+// 飲食編輯與刪除功能
+function editDiet(index) {
+  const item = dietLogs[index];
+  if (!item) return;
+  const newContent = prompt('修改食物名稱：', item.content);
+  if (newContent === null) return;
+  const newCal = prompt('修改熱量 (kcal)：', item.cal);
+  if (newCal === null) return;
+  const newPro = prompt('修改蛋白質 (g)：', item.pro);
+  if (newPro === null) return;
+
+  dietLogs[index].content = newContent.trim();
+  dietLogs[index].cal = parseInt(newCal) || 0;
+  dietLogs[index].pro = parseFloat(newPro) || 0;
+
+  localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+  uploadToCloud('DIET', dietLogs[index]);
+  renderDiet();
+}
+
+function deleteDiet(index) {
+  if (confirm('確定要刪除這筆飲食紀錄嗎？')) {
+    dietLogs.splice(index, 1);
+    localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
+    renderDiet();
+  }
+}
+
+// 體態與打卡刪除功能
+function deleteBodyLog(date) {
+  if (confirm(`確定要刪除 ${date} 的體態紀錄嗎？`)) {
+    bodyLogs = bodyLogs.filter(b => b.date !== date);
+    localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+    renderBodyChart();
+    renderBodyList();
+    renderDiet();
+  }
+}
+
+function deleteShotLog(index) {
+  if (confirm('確定要刪除這筆施打紀錄嗎？')) {
+    shotLogs.splice(index, 1);
+    localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+    renderBodyList();
+  }
+}
+
 let chartInstance = null;
 function renderBodyChart() {
   const canvas = document.getElementById('bodyChart');
@@ -514,10 +561,16 @@ function renderBodyList() {
   const container = document.getElementById('bodyLogList');
   if (!container) return;
   let html = '';
-  shotLogs.forEach(s => {
+  shotLogs.forEach((s, idx) => {
     html += `<div class="log-item">
-      <div><strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br><small>${s.note || ''}</small></div>
-      <span class="badge badge-shot">${s.dose}</span>
+      <div>
+        <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
+        <small>${s.note || ''}</small>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="badge badge-shot">${s.dose}</span>
+        <button class="action-btn btn-del" onclick="deleteShotLog(${idx})">刪除</button>
+      </div>
     </div>`;
   });
   bodyLogs.slice().reverse().forEach(b => {
@@ -526,6 +579,9 @@ function renderBodyList() {
       <div>
         <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
         <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
+      </div>
+      <div>
+        <button class="action-btn btn-del" onclick="deleteBodyLog('${b.date}')">刪除</button>
       </div>
     </div>`;
   });
@@ -537,60 +593,67 @@ function renderDiet() {
   if (!dietDateInput) return;
   const queryDate = dietDateInput.value;
   const list = document.getElementById('dietLogList');
-  const dayItems = dietLogs.filter(d => String(d.date || '').replace(/\//g, '-') === queryDate);
   
   let totalC = 0, totalP = 0, html = '';
-  dayItems.forEach(item => {
-    const c = Number(item.cal) || 0;
-    const p = Number(item.pro) || 0;
-    totalC += c;
-    totalP += p;
-    html += `<div class="log-item">
-      <div><strong>[${item.type || '餐點'}] ${item.content || ''}</strong></div>
-      <div style="text-align:right;"><strong>${c} kcal</strong><br><small style="color:var(--accent);">${p.toFixed(1)}g 蛋白</small></div>
-    </div>`;
+  dietLogs.forEach((item, originalIndex) => {
+    const itemDate = String(item.date || '').replace(/\//g, '-');
+    if (itemDate === queryDate) {
+      const c = Number(item.cal) || 0;
+      const p = Number(item.pro) || 0;
+      totalC += c;
+      totalP += p;
+      html += `<div class="log-item">
+        <div>
+          <strong>[${item.type || '餐點'}] ${item.content || ''}</strong><br>
+          <small style="color:var(--sub);">${c} kcal ｜ ${p.toFixed(1)}g 蛋白</small>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="action-btn btn-edit" onclick="editDiet(${originalIndex})">編輯</button>
+          <button class="action-btn btn-del" onclick="deleteDiet(${originalIndex})">刪除</button>
+        </div>
+      </div>`;
+    }
   });
 
-  // 最新 InBody 數據連動
+  // 最新 InBody 數據連動與 TDEE 估算
   let latestWeight = 80;
-  let latestSMM = 35;
   if (bodyLogs && bodyLogs.length > 0) {
     latestWeight = Number(bodyLogs[bodyLogs.length - 1].weight) || 80;
-    latestSMM = Number(bodyLogs[bodyLogs.length - 1].smm) || (latestWeight * 0.4);
   }
 
-  // TDEE 估算與保肌赤字目標
   const tdee = Math.round(latestWeight * 28);
   const targetCalories = tdee - 500;
   const targetProtein = Math.round(latestWeight * 1.6);
-
-  // 當前赤字
   const currentDeficit = tdee - totalC;
 
-  // 1. 赤字看板
-  document.getElementById('deficitCurrent').innerText = (currentDeficit > 0 ? `-${currentDeficit}` : `+${Math.abs(currentDeficit)}`);
-  document.getElementById('deficitTarget').innerText = `-500`;
-  document.getElementById('tdeeRef').innerText = `TDEE 消耗: ${tdee} kcal`;
-
+  // 1. 赤字看板更新 (修復計算中)
+  const deficitCurEl = document.getElementById('deficitCurrent');
+  const tdeeRefEl = document.getElementById('tdeeRef');
   const deficitStatusEl = document.getElementById('deficitStatus');
-  if (currentDeficit >= 400 && currentDeficit <= 600) {
-    deficitStatusEl.innerText = '🎯 完美保肌燃脂赤字 (300~500kcal)';
-    deficitStatusEl.style.color = '#059669';
-  } else if (currentDeficit > 600) {
-    deficitStatusEl.innerText = '⚠️ 赤字過大，注意補充蛋白質防掉肌';
-    deficitStatusEl.style.color = '#d97706';
-  } else if (currentDeficit > 0) {
-    deficitStatusEl.innerText = '🌱 溫和減脂中 (可再少吃或多動)';
-    deficitStatusEl.style.color = '#2563eb';
-  } else {
-    deficitStatusEl.innerText = '⛔ 熱量盈餘 (超過今日消耗)';
-    deficitStatusEl.style.color = '#dc2626';
+
+  if (deficitCurEl) deficitCurEl.innerText = (currentDeficit > 0 ? `-${currentDeficit}` : `+${Math.abs(currentDeficit)}`);
+  if (tdeeRefEl) tdeeRefEl.innerText = `TDEE 消耗: ${tdee} kcal`;
+
+  if (deficitStatusEl) {
+    if (currentDeficit >= 400 && currentDeficit <= 600) {
+      deficitStatusEl.innerText = '🎯 完美保肌燃脂赤字 (300~500kcal)';
+      deficitStatusEl.style.color = '#059669';
+    } else if (currentDeficit > 600) {
+      deficitStatusEl.innerText = '⚠️ 赤字過大，注意補充足夠蛋白質';
+      deficitStatusEl.style.color = '#d97706';
+    } else if (currentDeficit > 0) {
+      deficitStatusEl.innerText = '🌱 溫和赤字中 (進度良好)';
+      deficitStatusEl.style.color = '#2563eb';
+    } else {
+      deficitStatusEl.innerText = '⛔ 熱量盈餘 (已超過今日消耗)';
+      deficitStatusEl.style.color = '#dc2626';
+    }
   }
 
   // 2. 熱量進度
   document.getElementById('calCurrent').innerText = totalC;
   document.getElementById('calTarget').innerText = targetCalories;
-  document.getElementById('inbodyWeightRef').innerText = `依體重 ${latestWeight}kg 連動`;
+  document.getElementById('inbodyWeightRef').innerText = `依最新體重 ${latestWeight}kg 連動`;
 
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
   document.getElementById('calProgress').style.width = calPct + '%';
