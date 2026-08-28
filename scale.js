@@ -412,7 +412,6 @@ function renderScaleChart() {
   }, 50);
 }
 
-// 演算法：結合線性回歸斜率與 InBody 偏差預測 7 天後數值
 function calculateLinearSlope(dataPoints) {
   const n = dataPoints.length;
   if (n < 2) return 0;
@@ -441,7 +440,6 @@ function renderComparisonAnalysis() {
     return;
   }
 
-  // 1. 計算同日歷史偏差平均值
   let pairs = [];
   scales.forEach(s => {
     const matchedBody = bodies.find(b => b.date === s.date);
@@ -480,10 +478,14 @@ function renderComparisonAnalysis() {
     html += `• 當前落差：<strong>${wDiff >= 0 ? '+' + wDiff : wDiff} kg</strong><br>`;
   }
 
-  // 2. 猛健樂 7 天週期預測計算
+  // 猛健樂 7 天週期預測計算（精準抓取日期最大值作為最新施打日）
   if (shots.length > 0 && scales.length >= 2) {
-    const latestShot = shots[shots.length - 1];
+    // 取得真正的最新施打紀錄
+    const sortedShots = shots.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const latestShot = sortedShots[0];
     const shotDateObj = new Date(latestShot.date);
+    
+    // 計算下一次施打日（加 7 天）
     const nextShotDateObj = new Date(shotDateObj);
     nextShotDateObj.setDate(nextShotDateObj.getDate() + 7);
     
@@ -492,7 +494,7 @@ function renderComparisonAnalysis() {
     const dNext = String(nextShotDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    // 抓取施打日之後的家用數據
+    // 抓取最新施打日當天及之後的家用數據進行趨勢運算
     const scalesInCycle = scales.filter(s => s.date >= latestShot.date);
     const targetScales = scalesInCycle.length >= 2 ? scalesInCycle : scales.slice(-5);
 
@@ -500,11 +502,10 @@ function renderComparisonAnalysis() {
     const fList = targetScales.map(s => s.fat).filter(f => f > 0);
     const mList = targetScales.map(s => s.muscle).filter(m => m > 0);
 
-    const slopeW = calculateLinearSlope(wList); // 每日體重斜率
-    const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0; // 每日體脂斜率
-    const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0; // 每日肌肉斜率
+    const slopeW = calculateLinearSlope(wList);
+    const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
+    const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
 
-    // 計算剩餘天數並投射至第 7 天
     const lastScale = scales[scales.length - 1];
     const lastScaleDateObj = new Date(lastScale.date);
     const remainingDays = Math.max(1, Math.round((nextShotDateObj - lastScaleDateObj) / (1000 * 60 * 60 * 24)));
@@ -513,10 +514,10 @@ function renderComparisonAnalysis() {
     const projScaleFat = (lastScale.fat || 25) + (slopeF * remainingDays);
     const projScaleMuscle = (lastScale.muscle || 55) + (slopeM * remainingDays);
 
-    // 偏差補償回 InBody 數值
+    // 偏差補償校正
     const predInbodyWeight = (projScaleWeight - avgDiffW).toFixed(1);
     const predInbodyFat = avgDiffFat !== null ? (projScaleFat - avgDiffFat).toFixed(1) : (projScaleFat - 1.3).toFixed(1);
-    const predInbodySMM = (projScaleMuscle * 0.96).toFixed(1); // 家用肌肉量與 SMM 比例校準
+    const predInbodySMM = (projScaleMuscle * 0.96).toFixed(1);
 
     const weeklyLossRate = (Math.abs(slopeW) * 7).toFixed(2);
     let statusTip = '🌱 溫和穩健減脂中';
