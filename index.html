@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=20001">
+  <link rel="stylesheet" href="style.css?v=20002">
 </head>
 <body>
 
@@ -61,7 +61,7 @@
       <button class="btn btn-shot" type="button" onclick="saveShot()">記錄本次施打</button>
     </div>
 
-    <!-- 家用體重計 (Zepp Life / 小米) 快速打卡 + AI 截圖辨識 -->
+    <!-- 家用體重計 (Zepp Life) 完整全數據版 -->
     <div class="card" style="border-left: 5px solid #0284c7;">
       <div class="card-title">
         <span>📱 家用體重計日常記錄 (Zepp Life)</span>
@@ -69,7 +69,7 @@
       </div>
 
       <label for="scaleImage" class="btn-upload" style="border-color: #0284c7; color: #0284c7; background: #f0f9ff;">
-        📷 點擊此處上傳 Zepp Life 截圖（AI 自動辨識）
+        📷 點擊此處上傳 Zepp Life 截圖（AI 自動秒辨識全部 10 項目）
       </label>
       <input type="file" id="scaleImage" accept="image/*" style="display: none;" onchange="previewAndAnalyzeScale(this)">
       <img id="scaleImagePreview" class="preview-box">
@@ -81,20 +81,67 @@
           <input type="date" id="scaleDate">
         </div>
         <div class="form-group">
+          <label>測量時間 (支援單日多次)</label>
+          <input type="time" id="scaleTime">
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="form-group">
           <label>體重 (kg) *</label>
-          <input type="number" step="0.1" id="scaleWeight" placeholder="例：81.3">
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="form-group">
-          <label>骨骼肌 / 肌肉量 (kg)</label>
-          <input type="number" step="0.1" id="scaleMuscle" placeholder="選填">
+          <input type="number" step="0.01" id="scaleWeight" placeholder="例：81.35">
         </div>
         <div class="form-group">
-          <label>體脂率 (%)</label>
-          <input type="number" step="0.1" id="scaleFat" placeholder="例：21.0">
+          <label>肌肉 (kg)</label>
+          <input type="number" step="0.01" id="scaleMuscle" placeholder="例：57.22">
+        </div>
+        <div class="form-group">
+          <label>體脂 (%)</label>
+          <input type="number" step="0.1" id="scaleFat" placeholder="例：25.8">
         </div>
       </div>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label>BMI</label>
+          <input type="number" step="0.1" id="scaleBMI" placeholder="例：26.3">
+        </div>
+        <div class="form-group">
+          <label>水分 (%)</label>
+          <input type="number" step="0.1" id="scaleWater" placeholder="例：50.8">
+        </div>
+        <div class="form-group">
+          <label>內臟脂肪</label>
+          <input type="number" id="scaleVFL" placeholder="例：12">
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label>基礎代謝 (kcal)</label>
+          <input type="number" id="scaleBMR" placeholder="例：1622">
+        </div>
+        <div class="form-group">
+          <label>骨質 (kg)</label>
+          <input type="number" step="0.01" id="scaleBone" placeholder="例：3.07">
+        </div>
+        <div class="form-group">
+          <label>蛋白質 (%)</label>
+          <input type="number" step="0.1" id="scaleProtein" placeholder="例：19.4">
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 8px;">
+        <div class="form-group">
+          <label>身體評分</label>
+          <input type="number" id="scaleScore" placeholder="例：58">
+        </div>
+        <div class="form-group">
+          <label>體型判定</label>
+          <input type="text" id="scaleBodyType" placeholder="例：偏胖型">
+        </div>
+      </div>
+
       <button class="btn" type="button" style="background:#0284c7;" onclick="saveScaleData()">記錄家用體重數據</button>
     </div>
 
@@ -500,10 +547,10 @@
 </div>
 
 <!-- 模組化 JS 檔案 -->
-<script src="sync.js?v=20001"></script>
-<script src="scale.js?v=20001"></script>
-<script src="body.js?v=20001"></script>
-<script src="diet.js?v=20001"></script>
-<script src="main.js?v=20001"></script>
+<script src="sync.js?v=20002"></script>
+<script src="scale.js?v=20002"></script>
+<script src="body.js?v=20002"></script>
+<script src="diet.js?v=20002"></script>
+<script src="main.js?v=20002"></script>
 </body>
 </html>
