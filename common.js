@@ -12,14 +12,17 @@ function getLocalTodayStr() {
 function resetDatesToToday() {
   const today = getLocalTodayStr();
   const shotDateEl = document.getElementById('shotDate');
+  const scaleDateEl = document.getElementById('scaleDate');
   const bodyDateEl = document.getElementById('bodyDate');
   const dietDateEl = document.getElementById('dietDate');
   if (shotDateEl) shotDateEl.value = today;
+  if (scaleDateEl) scaleDateEl.value = today;
   if (bodyDateEl) bodyDateEl.value = today;
   if (dietDateEl) dietDateEl.value = today;
 }
 
 let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
+let scaleLogs = JSON.parse(localStorage.getItem('my_scale_logs') || '[]');
 let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
 let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
 let waterLogs = JSON.parse(localStorage.getItem('my_water_logs') || '{}');
@@ -35,7 +38,11 @@ function switchTab(tab) {
     btnDiet.classList.remove('active');
     tabInbody.classList.add('active');
     tabDiet.classList.remove('active');
-    setTimeout(() => { if (typeof renderBodyChart === 'function') renderBodyChart(); }, 50);
+    setTimeout(() => {
+      if (typeof renderBodyChart === 'function') renderBodyChart();
+      if (typeof renderScaleChart === 'function') renderScaleChart();
+      if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
+    }, 50);
   } else {
     btnDiet.classList.add('active');
     btnInbody.classList.remove('active');
@@ -75,7 +82,7 @@ async function syncFromCloud() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || '驗證失敗');
 
-    let newBody = [], newDiet = [], newShot = [], newWater = {};
+    let newBody = [], newScale = [], newDiet = [], newShot = [], newWater = {};
     data.rows.forEach(r => {
       const type = String(r[1] || '').trim().toUpperCase();
       try {
@@ -84,6 +91,7 @@ async function syncFromCloud() {
           payload.date = String(payload.date).replace(/\//g, '-').slice(0, 10);
         }
         if (type === 'BODY') newBody.push(payload);
+        else if (type === 'SCALE') newScale.push(payload);
         else if (type === 'DIET') newDiet.push(payload);
         else if (type === 'SHOT') newShot.push(payload);
         else if (type === 'WATER' && payload.date) {
@@ -92,16 +100,21 @@ async function syncFromCloud() {
       } catch(e){}
     });
 
-    if (newBody.length || newDiet.length || newShot.length || Object.keys(newWater).length) {
+    if (newBody.length || newScale.length || newDiet.length || newShot.length || Object.keys(newWater).length) {
       bodyLogs = newBody;
+      scaleLogs = newScale;
       dietLogs = newDiet;
       shotLogs = newShot;
       waterLogs = newWater;
       localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+      localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
       localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
       localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
       localStorage.setItem('my_water_logs', JSON.stringify(waterLogs));
+      
       if (typeof renderBodyChart === 'function') renderBodyChart();
+      if (typeof renderScaleChart === 'function') renderScaleChart();
+      if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
       if (typeof renderBodyList === 'function') renderBodyList();
       if (typeof renderDiet === 'function') renderDiet();
       alert('✅ 已成功從 Google 試算表載入最新資料！');
