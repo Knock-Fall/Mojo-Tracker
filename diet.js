@@ -76,7 +76,7 @@ async function analyzeFoodImage() {
 
   const aiBtn = document.getElementById('aiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⚡ AI 估算中 (約1~3秒)...';
+  aiBtn.innerText = '⚡ AI 估算中...';
 
   const userHint = document.getElementById('aiHintText').value.trim();
   let hintPrompt = "";
@@ -92,18 +92,13 @@ async function analyzeFoodImage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingBudget: 0 } // 關鍵加速：強制關閉思考
-        }
+        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }]
       })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
-    let rawText = resData.candidates[0].content.parts[0].text.trim();
+    let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(rawText);
 
     document.getElementById('dietContent').value = result.food || userHint || '';
