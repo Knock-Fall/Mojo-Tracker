@@ -83,12 +83,19 @@ async function analyzeScaleImage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: promptText },
-            { inlineData: { mimeType: "image/jpeg", data: base64ScaleImage } }
-          ]
-        }]
+        contents: [
+          {
+            parts: [
+              { text: promptText },
+              {
+                inlineData: {
+                  mimeType: "image/jpeg",
+                  data: base64ScaleImage
+                }
+              }
+            ]
+          }
+        ]
       })
     });
     const resData = await response.json();
