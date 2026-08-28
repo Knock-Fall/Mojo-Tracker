@@ -2,7 +2,7 @@
 // 7. diet.js
 let base64DietImage = '';
 
-function compressDietImage(file, maxWidth = 1000, quality = 0.75) {
+function compressDietImage(file, maxWidth = 800, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -53,7 +53,7 @@ async function previewAndAnalyze(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const res = await compressDietImage(file, 1000, 0.75);
+      const res = await compressDietImage(file, 800, 0.7);
       const preview = document.getElementById('imagePreview');
       preview.src = res.dataUrl;
       preview.style.display = 'block';
