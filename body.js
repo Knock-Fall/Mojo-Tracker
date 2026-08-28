@@ -11,7 +11,7 @@ function switchChartMode(mode, btnEl) {
   renderBodyChart();
 }
 
-function compressInBodyImage(file, maxWidth = 1400, quality = 0.75) {
+function compressInBodyImage(file, maxWidth = 900, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -42,7 +42,7 @@ async function previewAndAnalyzeInBody(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const compressed = await compressInBodyImage(file, 1400, 0.75);
+      const compressed = await compressInBodyImage(file, 900, 0.7);
       const preview = document.getElementById('inbodyImagePreview');
       preview.src = compressed.dataUrl;
       preview.style.display = 'block';
@@ -66,7 +66,7 @@ async function analyzeInBodyImage() {
   aiBtn.disabled = true;
   aiBtn.innerText = '⚡ AI 辨識分析中...';
 
-  const promptText = `請精確分析這張 InBody 報告圖片，擷取下列 JSON 數值：
+  const promptText = `請分析 InBody 報告圖片，僅回傳純 JSON：
 {"weight":數字,"tbw":數字,"protein":數字,"minerals":數字,"smm":數字,"bfm":數字,"bmi":數字,"pbf":數字,"whr":數字,"vfl":數字,"m_ra_kg":數字,"m_ra_pct":數字,"m_la_kg":數字,"m_la_pct":數字,"m_tr_kg":數字,"m_tr_pct":數字,"m_rl_kg":數字,"m_rl_pct":數字,"m_ll_kg":數字,"m_ll_pct":數字,"f_ra_kg":數字,"f_ra_pct":數字,"f_la_kg":數字,"f_la_pct":數字,"f_tr_kg":數字,"f_tr_pct":數字,"f_rl_kg":數字,"f_rl_pct":數字,"f_ll_kg":數字,"f_ll_pct":數字}`;
 
   try {
@@ -99,7 +99,7 @@ async function analyzeInBodyImage() {
         document.getElementById(id).value = res[map[id]];
       }
     }
-    alert('⚡ InBody 報告極速辨識完成！');
+    alert('⚡ InBody 報告辨識完成！');
   } catch (err) {
     alert('辨識失敗：' + err.message);
   } finally {
