@@ -1,5 +1,5 @@
 // Mojo Project
-// 6-2. body-chart.js (InBody 多維度趨勢圖專屬模組)
+// 6-2. body-chart.js
 let currentChartMode = 'core';
 let chartInstance = null;
 
@@ -25,10 +25,10 @@ function renderBodyChart() {
     return;
   }
 
-  // 橫向滑動長度動態調整
+  // 橫向滑動自適應寬度
   const minWidthPerPoint = 65;
-  const wrapperWidth = container.parentElement.clientWidth || 340;
-  const totalWidth = Math.max(wrapperWidth, list.length * minWidthPerPoint);
+  const parentWidth = container.parentElement.clientWidth || 340;
+  const totalWidth = Math.max(parentWidth, list.length * minWidthPerPoint);
   container.style.width = `${totalWidth}px`;
 
   const labels = list.map(l => String(l.date || '').slice(5));
@@ -110,7 +110,7 @@ function renderBodyChart() {
       { label: '礦物質 (kg)', data: list.map(l => Number(l.minerals) || 0), borderColor: '#f59e0b', borderWidth: 2.5, tension: 0.3 },
       { label: '體脂肪 (kg)', data: list.map(l => Number(l.bfm) || 0), borderColor: '#ef4444', borderWidth: 2.5, tension: 0.3 }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '數值 (kg / L)' }, grid: { color: '#f1f5f9' } };
+    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '數值 (kg / L)', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   } else if (currentChartMode === 'muscle_seg') {
     datasets = [
       { label: '右上肢', data: list.map(l => Number(l.m_ra_kg) || 0), borderColor: '#3b82f6', tension: 0.3 },
@@ -119,7 +119,7 @@ function renderBodyChart() {
       { label: '右下肢', data: list.map(l => Number(l.m_rl_kg) || 0), borderColor: '#f59e0b', tension: 0.3 },
       { label: '左下肢', data: list.map(l => Number(l.m_ll_kg) || 0), borderColor: '#fbbf24', tension: 0.3 }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '部位肌肉重 (kg)' }, grid: { color: '#f1f5f9' } };
+    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '肌肉重 (kg)', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   } else if (currentChartMode === 'fat_seg') {
     datasets = [
       { label: '右上肢', data: list.map(l => Number(l.f_ra_kg) || 0), borderColor: '#f87171', tension: 0.3 },
@@ -128,14 +128,14 @@ function renderBodyChart() {
       { label: '右下肢', data: list.map(l => Number(l.f_rl_kg) || 0), borderColor: '#c084fc', tension: 0.3 },
       { label: '左下肢', data: list.map(l => Number(l.f_ll_kg) || 0), borderColor: '#e879f9', tension: 0.3 }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '部位脂肪重 (kg)' }, grid: { color: '#f1f5f9' } };
+    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '脂肪重 (kg)', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   } else if (currentChartMode === 'obesity') {
     datasets = [
       { label: 'BMI', data: list.map(l => Number(l.bmi) || 0), borderColor: '#8b5cf6', tension: 0.3 },
       { label: '內臟脂肪級別', data: list.map(l => Number(l.vfl) || 0), borderColor: '#ea580c', tension: 0.3 },
       { label: '腰臀比 (WHR*10)', data: list.map(l => (Number(l.whr) ? Number(l.whr) * 10 : 0)), borderColor: '#ec4899', tension: 0.3 }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '等級 / 指標' }, grid: { color: '#f1f5f9' } };
+    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '等級 / 指標', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   }
 
   chartInstance = new Chart(ctx, {
@@ -160,5 +160,5 @@ function renderBodyChart() {
 
   setTimeout(() => {
     container.parentElement.scrollLeft = container.parentElement.scrollWidth;
-  }, 100);
+  }, 50);
 }
