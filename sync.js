@@ -2,11 +2,18 @@
 // 3. sync.js
 const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
-let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
-let scaleLogs = JSON.parse(localStorage.getItem('my_scale_logs') || '[]');
-let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
-let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
-let waterLogs = JSON.parse(localStorage.getItem('my_water_logs') || '{}');
+// 全域安全變數初始化（同時掛載 window，保證跨模組存取順暢）
+window.bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
+window.scaleLogs = JSON.parse(localStorage.getItem('my_scale_logs') || '[]');
+window.dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
+window.shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
+window.waterLogs = JSON.parse(localStorage.getItem('my_water_logs') || '{}');
+
+var bodyLogs = window.bodyLogs;
+var scaleLogs = window.scaleLogs;
+var dietLogs = window.dietLogs;
+var shotLogs = window.shotLogs;
+var waterLogs = window.waterLogs;
 
 function getSecretToken() {
   return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
@@ -57,11 +64,12 @@ async function syncFromCloud() {
     });
 
     if (newBody.length || newScale.length || newDiet.length || newShot.length || Object.keys(newWater).length) {
-      bodyLogs = newBody;
-      scaleLogs = newScale;
-      dietLogs = newDiet;
-      shotLogs = newShot;
-      waterLogs = newWater;
+      window.bodyLogs = bodyLogs = newBody;
+      window.scaleLogs = scaleLogs = newScale;
+      window.dietLogs = dietLogs = newDiet;
+      window.shotLogs = shotLogs = newShot;
+      window.waterLogs = waterLogs = newWater;
+      
       localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
       localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
       localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
