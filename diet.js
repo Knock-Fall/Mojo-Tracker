@@ -225,68 +225,62 @@ function resetWaterRecord() {
   }
 }
 
-// 需求 1 核心演算法：根據缺口動態生成食物與份數建議
 function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, diffWater) {
   let suggestions = [];
 
   // 1. 蛋白質不足
-  if (diffPro > 15) {
+  if (diffPro > 5) {
     const eggQty = Math.max(1, Math.round(diffPro / 7));
     const chickenQty = Math.max(1, Math.round(diffPro / 23));
     const soyQty = Math.max(1, Math.round(diffPro / 14));
     suggestions.push({
       emoji: '🍗',
       title: '即食雞胸肉',
-      desc: `約需 ${chickenQty} 包（提供 ~${chickenQty * 23}g 蛋白）`
+      desc: `約需 ${chickenQty} 份 (補 ~${chickenQty * 23}g 蛋白)`
     });
     suggestions.push({
       emoji: '🥚',
       title: '茶葉蛋 / 水煮蛋',
-      desc: `約需 ${eggQty} 顆（提供 ~${eggQty * 7}g 蛋白）`
+      desc: `約需 ${eggQty} 顆 (補 ~${eggQty * 7}g 蛋白)`
     });
     suggestions.push({
       emoji: '🥛',
       title: '無糖高纖豆漿',
-      desc: `約需 ${soyQty} 瓶（400ml/瓶，~${soyQty * 14}g 蛋白）`
+      desc: `約需 ${soyQty} 瓶 (400ml/瓶)`
     });
   }
 
   // 2. 膳食纖維不足
-  if (diffFiber > 8) {
+  if (diffFiber > 3) {
     const vegQty = Math.max(1, Math.round(diffFiber / 3));
     const appleQty = Math.max(1, Math.round(diffFiber / 4));
     suggestions.push({
       emoji: '🥦',
-      title: '燙綠花椰菜/菠菜',
-      desc: `約需 ${vegQty} 碗（提供 ~${vegQty * 3}g 纖維）`
+      title: '燙青菜 / 綠花椰',
+      desc: `約需 ${vegQty} 份 (補 ~${vegQty * 3}g 纖維)`
     });
     suggestions.push({
       emoji: '🍎',
       title: '帶皮蘋果 / 奇異果',
-      desc: `約需 ${appleQty} 顆（提供 ~${appleQty * 4}g 纖維）`
-    });
-    suggestions.push({
-      emoji: '🌽',
-      title: '生菜沙拉盒',
-      desc: `超商沙拉 1 盒（約可補 3~4g 纖維）`
+      desc: `約需 ${appleQty} 顆 (補 ~${appleQty * 4}g 纖維)`
     });
   }
 
   // 3. 水分或純水比例不足
-  if (diffWater > 400 || (pureRatio < 50 && diffWater >= 0)) {
+  if (diffWater > 200 || (pureRatio < 50 && diffWater >= 0)) {
     suggestions.push({
       emoji: '💧',
       title: '溫純白開水',
-      desc: `尚缺 ${Math.max(500, diffWater)} ml，多補純水提高代謝`
+      desc: `尚缺 ${Math.max(300, Math.round(diffWater))} ml，請多喝白開水`
     });
   }
 
-  // 4. 赤字過大 (熱量吃太少)
-  if (diffCal > 500 && diffPro <= 15) {
+  // 4. 赤字過大 (熱量吃太少，剩餘熱量 > 600kcal)
+  if (diffCal > 600) {
     suggestions.push({
       emoji: '🥑',
       title: '綜合堅果 / 酪梨',
-      desc: `補 1 小把堅果（~160kcal 良好油脂）`
+      desc: `補 1 小把堅果 (~160kcal 良好油脂)`
     });
   }
 
@@ -328,12 +322,10 @@ function renderDiet() {
     }
   });
 
+  // 需求 4：嚴格只抓 InBody 體重，排除家用體重計干擾
   let latestWeight = 80;
-  const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
-  if (scales.length > 0) {
-    latestWeight = Number(scales[scales.length - 1].weight) || 80;
-  } else if (bodies.length > 0) {
+  if (bodies.length > 0) {
     latestWeight = Number(bodies[bodies.length - 1].weight) || 80;
   }
 
@@ -415,7 +407,7 @@ function renderDiet() {
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
   if (calCurEl) calCurEl.innerText = totalC;
   if (calTarEl) calTarEl.innerText = targetCalories;
-  if (inbodyRefEl) inbodyRefEl.innerText = `依最新體重 ${latestWeight}kg 連動`;
+  if (inbodyRefEl) inbodyRefEl.innerText = `依 InBody 最新體重 ${latestWeight}kg 連動`;
 
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
   const calProgEl = document.getElementById('calProgress');
@@ -492,7 +484,7 @@ function renderDiet() {
     fiberRemEl.style.color = fiberDiff <= 0 ? '#14b8a6' : 'var(--sub)';
   }
 
-  // 渲染需求 1 建議卡片
+  // 渲染營養智能建議
   const suggestCard = document.getElementById('nutritionSuggestCard');
   const suggestBox = document.getElementById('suggestContent');
   if (suggestCard && suggestBox) {
