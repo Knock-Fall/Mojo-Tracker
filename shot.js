@@ -1,65 +1,93 @@
 // Mojo Project
+// 3. shot.js
+
 function saveShot() {
-  const shot = {
-    date: document.getElementById('shotDate').value,
-    dose: document.getElementById('shotDose').value,
-    note: document.getElementById('shotNote').value
+  const dateVal = document.getElementById('shotDate').value;
+  const doseVal = document.getElementById('shotDose').value;
+  const noteVal = document.getElementById('shotNote').value.trim();
+
+  if (!dateVal) return alert('請選擇施打日期');
+
+  const item = {
+    date: dateVal,
+    dose: doseVal,
+    note: noteVal
   };
-  const list = window.MojoState.shotLogs || [];
-  list.unshift(shot);
+
+  let list = window.MojoState.shotLogs || [];
+  // 避免同日重複新增覆蓋
+  list = list.filter(s => s.date !== dateVal);
+  list.push(item);
+  
+  // 嚴格依照日期降序（最新的在最前面）
+  list.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
   window.MojoState.shotLogs = list;
   localStorage.setItem('my_shot_logs', JSON.stringify(list));
-  uploadToCloud('SHOT', shot);
-  alert('猛健樂紀錄已儲存！');
+  uploadToCloud('SHOT', item);
+
+  document.getElementById('shotNote').value = '';
   renderShotList();
+  if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
+  alert(`猛健樂施打紀錄 (${dateVal} - ${doseVal}) 已儲存！`);
 }
 
-function editShotLog(index) {
+function editShot(date) {
   const list = window.MojoState.shotLogs || [];
-  const s = list[index];
-  if (!s) return;
-  const newDate = prompt('修改施打日期 (YYYY-MM-DD)：', s.date || '');
-  if (newDate === null) return;
-  const newDose = prompt('修改施打劑量（如：2.5mg, 5.0mg）：', s.dose || '2.5mg');
+  const idx = list.findIndex(s => s.date === date);
+  if (idx === -1) return;
+  const s = list[idx];
+
+  const newDose = prompt('修改劑量 (例: 2.5mg, 5.0mg)：', s.dose || '2.5mg');
   if (newDose === null) return;
-  const newNote = prompt('修改施打部位/備註：', s.note || '');
+  const newNote = prompt('修改備註 / 部位：', s.note || '');
   if (newNote === null) return;
 
-  list[index].date = newDate.trim();
-  list[index].dose = newDose.trim();
-  list[index].note = newNote.trim();
+  list[idx].dose = newDose.trim();
+  list[idx].note = newNote.trim();
+  list.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  window.MojoState.shotLogs = list;
   localStorage.setItem('my_shot_logs', JSON.stringify(list));
-  uploadToCloud('SHOT', list[index]);
+  uploadToCloud('SHOT', list[idx]);
   renderShotList();
+  if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
 }
 
-function deleteShotLog(index) {
-  if (confirm('確定要刪除這筆施打紀錄嗎？')) {
-    const list = window.MojoState.shotLogs || [];
-    list.splice(index, 1);
+function deleteShot(date) {
+  if (confirm(`確定要刪除 ${date} 的猛健樂施打紀錄嗎？`)) {
+    let list = window.MojoState.shotLogs || [];
+    list = list.filter(s => s.date !== date);
+    list.sort((a, b) => new Date(b.date) - new Date(a.date));
+    window.MojoState.shotLogs = list;
     localStorage.setItem('my_shot_logs', JSON.stringify(list));
     renderShotList();
+    if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
   }
 }
 
 function renderShotList() {
-  const shotContainer = document.getElementById('shotLogList');
-  if (!shotContainer) return;
-  let shotHtml = '';
-  const curShots = window.MojoState.shotLogs || [];
-  curShots.forEach((s, idx) => {
-    shotHtml += `<div class="log-item">
+  const container = document.getElementById('shotLogList');
+  if (!container) return;
+
+  let list = window.MojoState.shotLogs || [];
+  // 渲染前確保最新日期在最上方
+  list.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  let html = '';
+  list.forEach(s => {
+    html += `<div class="log-item">
       <div class="log-info">
-        <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
-        <small>${s.note || '無備註'}</small>
+        <strong>💉 猛健樂施打 ${s.date}</strong><br>
+        <small style="color:var(--sub);">${s.note ? s.note : '無備註'}</small>
       </div>
       <div class="log-actions">
         <span class="badge badge-shot">${s.dose}</span>
-        <button class="action-btn btn-edit" type="button" onclick="editShotLog(${idx})">編輯</button>
-        <button class="action-btn btn-del" type="button" onclick="deleteShotLog(${idx})">刪除</button>
+        <button class="action-btn btn-edit" type="button" onclick="editShot('${s.date}')">編輯</button>
+        <button class="action-btn btn-del" type="button" onclick="deleteShot('${s.date}')">刪除</button>
       </div>
     </div>`;
   });
-  shotContainer.innerHTML = shotHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
+
+  container.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
 }
