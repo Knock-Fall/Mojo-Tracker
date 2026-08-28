@@ -1,4 +1,3 @@
-// 5. diet.js
 let base64DietImage = '';
 
 function previewAndAnalyze(input) {
@@ -10,6 +9,7 @@ function previewAndAnalyze(input) {
       preview.src = e.target.result;
       preview.style.display = 'block';
       base64DietImage = e.target.result.split(',')[1];
+      document.getElementById('aiHintBox').style.display = 'block';
       document.getElementById('aiBtn').style.display = 'block';
     };
     reader.readAsDataURL(file);
@@ -28,7 +28,14 @@ async function analyzeFoodImage() {
   aiBtn.disabled = true;
   aiBtn.innerText = '⏳ AI 分析估算中，請稍候...';
 
-  const promptText = "請辨識此照片中的食物，以繁體中文簡要列出食物名稱，並預估其總熱量(kcal)、蛋白質(g)與碳水化合物(g)。請務必且嚴格僅回傳如下純 JSON 格式：{\"food\": \"食物名稱摘要\", \"cal\": 450, \"pro\": 25.5, \"carbs\": 35.0}";
+  const userHint = document.getElementById('aiHintText').value.trim();
+  let hintPrompt = "";
+  if (userHint) {
+    hintPrompt = `\n使用者補充說明此食物為：「${userHint}」，請務必參考此線索並結合照片進行更精確的估算。`;
+  }
+
+  const promptText = `請辨識此照片中的食物，以繁體中文簡要列出食物名稱，並預估其總熱量(kcal)、蛋白質(g)與碳水化合物(g)。${hintPrompt}
+請務必且嚴格僅回傳如下純 JSON 格式，不要加入額外 markdown：{\"food\": \"食物名稱摘要\", \"cal\": 450, \"pro\": 25.5, \"carbs\": 35.0}`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -42,11 +49,11 @@ async function analyzeFoodImage() {
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(rawText);
 
-    document.getElementById('dietContent').value = result.food || '';
+    document.getElementById('dietContent').value = result.food || userHint || '';
     document.getElementById('dietCal').value = result.cal || '';
     document.getElementById('dietPro').value = result.pro || '';
     document.getElementById('dietCarbs').value = result.carbs || 0;
-    alert('✨ AI 估算完成！請確認熱量、蛋白質與碳水後按「加入飲食紀錄」。');
+    alert('✨ AI 估算完成！已自動帶入食物名稱、熱量、蛋白質與碳水。');
   } catch (err) {
     alert('分析失敗：' + err.message);
   } finally {
@@ -73,15 +80,21 @@ function saveDiet() {
   document.getElementById('dietPro').value = '';
   document.getElementById('dietCarbs').value = '';
   document.getElementById('foodImage').value = '';
+  document.getElementById('aiHintText').value = '';
+  document.getElementById('aiHintBox').style.display = 'none';
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('aiBtn').style.display = 'none';
   renderDiet();
   alert('餐點已記錄並同步！');
 }
 
+// 支援所有欄位完整編輯
 function editDiet(index) {
   const item = dietLogs[index];
   if (!item) return;
+
+  const newType = prompt('修改餐別（早餐、午餐、晚餐、點心/補充）：', item.type || '午餐');
+  if (newType === null) return;
   const newContent = prompt('修改食物名稱：', item.content || '');
   if (newContent === null) return;
   const newCal = prompt('修改熱量 (kcal)：', item.cal || 0);
@@ -91,6 +104,7 @@ function editDiet(index) {
   const newCarbs = prompt('修改碳水化合物 (g)：', item.carbs || 0);
   if (newCarbs === null) return;
 
+  dietLogs[index].type = newType.trim();
   dietLogs[index].content = newContent.trim();
   dietLogs[index].cal = parseInt(newCal) || 0;
   dietLogs[index].pro = parseFloat(newPro) || 0;
@@ -126,11 +140,11 @@ function renderDiet() {
       totalP += p;
       totalCarbs += carbs;
       html += `<div class="log-item">
-        <div>
+        <div class="log-info">
           <strong>[${item.type || '餐點'}] ${item.content || ''}</strong><br>
           <small style="color:var(--sub);">${c} kcal ｜ 蛋 ${p.toFixed(1)}g ｜ 碳 ${carbs.toFixed(1)}g</small>
         </div>
-        <div style="display:flex; gap:6px;">
+        <div class="log-actions">
           <button class="action-btn btn-edit" onclick="editDiet(${originalIndex})">編輯</button>
           <button class="action-btn btn-del" onclick="deleteDiet(${originalIndex})">刪除</button>
         </div>
