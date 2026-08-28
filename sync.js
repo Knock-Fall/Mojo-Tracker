@@ -2,6 +2,7 @@
 // 3. sync.js
 const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
+// 全域狀態中央管理庫
 window.MojoState = {
   bodyLogs: JSON.parse(localStorage.getItem('my_body_logs') || '[]'),
   scaleLogs: JSON.parse(localStorage.getItem('my_scale_logs') || '[]'),
@@ -9,6 +10,18 @@ window.MojoState = {
   shotLogs: JSON.parse(localStorage.getItem('my_shot_logs') || '[]'),
   waterLogs: JSON.parse(localStorage.getItem('my_water_logs') || '{}')
 };
+
+// 取得手機本地台灣時間戳記字串 (YYYY-MM-DD HH:mm:ss)
+function getLocalTimestampStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
 
 function getSecretToken() {
   return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
@@ -23,17 +36,24 @@ function setupSecretToken() {
   }
 }
 
+// 帶入本地手機產生之精確時間戳記
 function uploadToCloud(type, payload) {
   const token = getSecretToken();
+  const localTime = getLocalTimestampStr();
   fetch(GAS_URL, {
     method: 'POST',
     mode: 'no-cors',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: token, type: type, payload: payload })
+    body: JSON.stringify({
+      token: token,
+      timestamp: localTime,
+      type: type,
+      payload: payload
+    })
   }).catch(err => console.log('Cloud sync pending:', err));
 }
 
-// 強效標準化去重
+// 強效標準化去重演算法
 function robustDeduplicate(list, keyFn) {
   const seen = new Set();
   const res = [];
@@ -72,7 +92,7 @@ async function syncFromCloud() {
       } catch(e){}
     });
 
-    // 標準化去重（忽略未定義欄位的空值差異）
+    // 標準化去重
     window.MojoState.bodyLogs = robustDeduplicate(newBody, b => String(b.date));
     window.MojoState.scaleLogs = robustDeduplicate(newScale, s => String(s.date));
     window.MojoState.shotLogs = robustDeduplicate(newShot, s => `${s.date}_${s.dose}`);
@@ -82,7 +102,7 @@ async function syncFromCloud() {
     window.MojoState.bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
     window.MojoState.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-    // 覆寫本地快取
+    // 儲存至本地快取
     localStorage.setItem('my_body_logs', JSON.stringify(window.MojoState.bodyLogs));
     localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
     localStorage.setItem('my_diet_logs', JSON.stringify(window.MojoState.dietLogs));
