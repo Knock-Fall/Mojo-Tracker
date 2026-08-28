@@ -1,4 +1,3 @@
-// 4. body.js
 let currentChartMode = 'core';
 let chartInstance = null;
 let base64InBodyImage = '';
@@ -83,6 +82,30 @@ function saveShot() {
   renderBodyList();
 }
 
+function editShotLog(index) {
+  const s = shotLogs[index];
+  if (!s) return;
+  const newDose = prompt('修改施打劑量（如：2.5mg, 5.0mg）：', s.dose || '2.5mg');
+  if (newDose === null) return;
+  const newNote = prompt('修改施打部位/備註：', s.note || '');
+  if (newNote === null) return;
+
+  shotLogs[index].dose = newDose.trim();
+  shotLogs[index].note = newNote.trim();
+
+  localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+  uploadToCloud('SHOT', shotLogs[index]);
+  renderBodyList();
+}
+
+function deleteShotLog(index) {
+  if (confirm('確定要刪除這筆施打紀錄嗎？')) {
+    shotLogs.splice(index, 1);
+    localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+    renderBodyList();
+  }
+}
+
 function saveBodyData() {
   const weightVal = parseFloat(document.getElementById('bodyWeight').value);
   if (!weightVal) return alert('請至少輸入總體重！');
@@ -131,6 +154,32 @@ function saveBodyData() {
   if (typeof renderDiet === 'function') renderDiet();
 }
 
+function editBodyLog(date) {
+  const index = bodyLogs.findIndex(b => b.date === date);
+  if (index === -1) return;
+  const b = bodyLogs[index];
+
+  const newWeight = prompt(`修改 ${date} 體重 (kg)：`, b.weight || '');
+  if (newWeight === null) return;
+  const newSMM = prompt(`修改 ${date} 骨骼肌重 (kg)：`, b.smm || '');
+  if (newSMM === null) return;
+  const newPBF = prompt(`修改 ${date} 體脂率 (%)：`, b.pbf || '');
+  if (newPBF === null) return;
+  const newVFL = prompt(`修改 ${date} 內臟脂肪等級：`, b.vfl || '');
+  if (newVFL === null) return;
+
+  bodyLogs[index].weight = parseFloat(newWeight) || b.weight;
+  bodyLogs[index].smm = parseFloat(newSMM) || b.smm;
+  bodyLogs[index].pbf = parseFloat(newPBF) || b.pbf;
+  bodyLogs[index].vfl = parseInt(newVFL) || b.vfl;
+
+  localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+  uploadToCloud('BODY', bodyLogs[index]);
+  renderBodyChart();
+  renderBodyList();
+  if (typeof renderDiet === 'function') renderDiet();
+}
+
 function deleteBodyLog(date) {
   if (confirm(`確定要刪除 ${date} 的體態紀錄嗎？`)) {
     bodyLogs = bodyLogs.filter(b => b.date !== date);
@@ -138,14 +187,6 @@ function deleteBodyLog(date) {
     renderBodyChart();
     renderBodyList();
     if (typeof renderDiet === 'function') renderDiet();
-  }
-}
-
-function deleteShotLog(index) {
-  if (confirm('確定要刪除這筆施打紀錄嗎？')) {
-    shotLogs.splice(index, 1);
-    localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
-    renderBodyList();
   }
 }
 
@@ -225,26 +266,34 @@ function renderBodyList() {
   const container = document.getElementById('bodyLogList');
   if (!container) return;
   let html = '';
+  
   shotLogs.forEach((s, idx) => {
     html += `<div class="log-item">
-      <div><strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br><small>${s.note || ''}</small></div>
-      <div style="display:flex; align-items:center; gap:8px;">
+      <div class="log-info">
+        <strong>💉 猛健樂施打</strong> <small style="color:var(--sub)">${s.date}</small><br>
+        <small>${s.note || ''}</small>
+      </div>
+      <div class="log-actions">
         <span class="badge badge-shot">${s.dose}</span>
+        <button class="action-btn btn-edit" onclick="editShotLog(${idx})">編輯</button>
         <button class="action-btn btn-del" onclick="deleteShotLog(${idx})">刪除</button>
       </div>
     </div>`;
   });
+
   bodyLogs.slice().reverse().forEach(b => {
     const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
     html += `<div class="log-item">
-      <div>
+      <div class="log-info">
         <strong>體重 ${b.weight} kg</strong> (體脂 ${b.pbf}%)<br>
         <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
       </div>
-      <div>
+      <div class="log-actions">
+        <button class="action-btn btn-edit" onclick="editBodyLog('${b.date}')">編輯</button>
         <button class="action-btn btn-del" onclick="deleteBodyLog('${b.date}')">刪除</button>
       </div>
     </div>`;
   });
+
   container.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有體態或施打紀錄</p>';
 }
