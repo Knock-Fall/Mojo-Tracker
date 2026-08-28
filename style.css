@@ -130,15 +130,14 @@ input:focus, select:focus { border-color: var(--primary); }
   border-color: var(--primary);
 }
 
-/* 橫向滑動圖表容器 */
 .chart-scroll-wrapper {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 8px;
+  padding-bottom: 4px;
 }
 .chart-scroll-inner {
-  min-width: 100%;
+  width: 100%;
   height: 230px;
   position: relative;
 }
@@ -169,7 +168,6 @@ input:focus, select:focus { border-color: var(--primary); }
   transition: width 0.3s ease;
 }
 
-/* 營養不足建議食物卡片 */
 .suggest-box {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -178,11 +176,11 @@ input:focus, select:focus { border-color: var(--primary); }
 }
 .suggest-item {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
   padding: 10px 8px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+  box-shadow: 0 2px 4px rgba(251, 146, 60, 0.05);
 }
 .suggest-emoji {
   font-size: 1.8rem;
@@ -191,11 +189,11 @@ input:focus, select:focus { border-color: var(--primary); }
 .suggest-title {
   font-size: 0.85rem;
   font-weight: bold;
-  color: var(--text);
+  color: #9a3412;
 }
 .suggest-desc {
   font-size: 0.75rem;
-  color: var(--sub);
+  color: #c2410c;
   margin-top: 2px;
 }
 
@@ -237,7 +235,7 @@ input:focus, select:focus { border-color: var(--primary); }
 
 .version-footer {
   text-align: center;
-  padding: 20px 0 10px 0;
+  padding: 24px 0 12px 0;
   font-size: 0.75rem;
   color: #94a3b8;
   letter-spacing: 0.5px;
