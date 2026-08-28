@@ -1,7 +1,18 @@
 // Mojo Project
 // 4. scale.js
 let scaleChartInstance = null;
+let currentScaleChartMode = 'core';
 let base64ScaleImage = '';
+
+function switchScaleChartMode(mode, btnEl) {
+  currentScaleChartMode = mode;
+  const tabContainer = document.getElementById('scaleChartTabs');
+  if (tabContainer) {
+    tabContainer.querySelectorAll('.chart-tab-btn').forEach(btn => btn.classList.remove('active'));
+  }
+  if (btnEl) btnEl.classList.add('active');
+  renderScaleChart();
+}
 
 function compressScaleImage(file) {
   return new Promise((resolve, reject) => {
@@ -58,7 +69,6 @@ async function analyzeScaleImage() {
   aiBtn.disabled = true;
   aiBtn.innerText = '⚡ AI 辨識分析中...';
 
-  // 精簡 prompt，節省輸出與輸入 Token
   const promptText = `請分析 Zepp Life 截圖並回傳純 JSON：
 {"date":"YYYY-MM-DD(預設2026)","time":"HH:mm","weight":數字,"muscle":數字,"fat":數字,"bmi":數字,"water":數字,"vfl":數字,"bmr":數字,"bone":數字,"protein":數字,"score":數字,"body_type":"文字"}`;
 
@@ -195,7 +205,8 @@ function deleteScaleLog(uniqueId) {
 
 function renderScaleChart() {
   const canvas = document.getElementById('scaleChart');
-  if (!canvas) return;
+  const container = document.getElementById('scaleChartContainer');
+  if (!canvas || !container) return;
   const ctx = canvas.getContext('2d');
   const list = window.MojoState.scaleLogs || [];
   
@@ -204,78 +215,138 @@ function renderScaleChart() {
     return;
   }
 
+  // 橫向滑動長度動態調整，每點至少 55px
+  const minWidthPerPoint = 55;
+  const wrapperWidth = container.parentElement.clientWidth || 340;
+  const totalWidth = Math.max(wrapperWidth, list.length * minWidthPerPoint);
+  container.style.width = `${totalWidth}px`;
+
   const labels = list.map(l => {
     const dStr = String(l.date || '').slice(5);
     return l.time ? `${dStr} ${l.time}` : dStr;
   });
-  const weights = list.map(l => Number(l.weight) || null);
-  const muscles = list.map(l => Number(l.muscle) || null);
-  const fats = list.map(l => Number(l.fat) || null);
 
   if (scaleChartInstance) scaleChartInstance.destroy();
 
+  let datasets = [];
+  let scales = {
+    x: {
+      grid: { display: true, color: 'rgba(226, 232, 240, 0.6)', drawBorder: false },
+      ticks: { font: { size: 11, weight: '500' }, color: '#64748b' }
+    }
+  };
+
+  if (currentScaleChartMode === 'core') {
+    const weights = list.map(l => Number(l.weight) || null);
+    const muscles = list.map(l => Number(l.muscle) || null);
+    const fats = list.map(l => Number(l.fat) || null);
+
+    const minW = Math.min(...weights.filter(v => v !== null));
+    const maxW = Math.max(...weights.filter(v => v !== null));
+    const validOthers = muscles.concat(fats).filter(v => v !== null && v > 0);
+    const minOther = validOthers.length ? Math.min(...validOthers) : 0;
+    const maxOther = validOthers.length ? Math.max(...validOthers) : 60;
+
+    datasets = [
+      {
+        label: '體重 (kg)',
+        data: weights,
+        borderColor: '#1e3a8a',
+        backgroundColor: 'rgba(30, 58, 138, 0.06)',
+        borderWidth: 3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.3,
+        fill: true,
+        yAxisID: 'yWeight'
+      },
+      {
+        label: '肌肉 (kg)',
+        data: muscles,
+        borderColor: '#059669',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        pointRadius: 4,
+        tension: 0.3,
+        yAxisID: 'yOther'
+      },
+      {
+        label: '體脂 (%)',
+        data: fats,
+        borderColor: '#d97706',
+        backgroundColor: 'transparent',
+        borderWidth: 2.5,
+        borderDash: [3, 3],
+        pointRadius: 4,
+        tension: 0.3,
+        yAxisID: 'yOther'
+      }
+    ];
+
+    scales.yWeight = {
+      type: 'linear',
+      position: 'left',
+      min: Math.floor(minW - 1),
+      max: Math.ceil(maxW + 1),
+      title: { display: true, text: '體重 (kg)', color: '#1e3a8a', font: { weight: 'bold' } },
+      grid: { color: '#f1f5f9' },
+      ticks: { color: '#1e3a8a' }
+    };
+    scales.yOther = {
+      type: 'linear',
+      position: 'right',
+      min: Math.floor(minOther - 2),
+      max: Math.ceil(maxOther + 2),
+      title: { display: true, text: '肌肉 / 體脂', color: '#64748b', font: { weight: 'bold' } },
+      grid: { drawOnChartArea: false },
+      ticks: { color: '#64748b' }
+    };
+  } else if (currentScaleChartMode === 'water_bmr') {
+    datasets = [
+      { label: '水分 (%)', data: list.map(l => Number(l.water) || null), borderColor: '#0284c7', backgroundColor: 'rgba(2, 132, 199, 0.08)', borderWidth: 3, tension: 0.3, yAxisID: 'yWater', fill: true },
+      { label: '基礎代謝 (kcal)', data: list.map(l => Number(l.bmr) || null), borderColor: '#7c3aed', borderWidth: 2.5, tension: 0.3, yAxisID: 'yBMR' }
+    ];
+    scales.yWater = { type: 'linear', position: 'left', title: { display: true, text: '水分 (%)', color: '#0284c7' }, grid: { color: '#f1f5f9' } };
+    scales.yBMR = { type: 'linear', position: 'right', title: { display: true, text: '基礎代謝 (kcal)', color: '#7c3aed' }, grid: { drawOnChartArea: false } };
+  } else if (currentScaleChartMode === 'bone_protein') {
+    datasets = [
+      { label: '蛋白質 (%)', data: list.map(l => Number(l.protein) || null), borderColor: '#10b981', borderWidth: 3, tension: 0.3, yAxisID: 'yPro' },
+      { label: '骨質 (kg)', data: list.map(l => Number(l.bone) || null), borderColor: '#f59e0b', borderWidth: 2.5, tension: 0.3, yAxisID: 'yBone' }
+    ];
+    scales.yPro = { type: 'linear', position: 'left', title: { display: true, text: '蛋白質 (%)', color: '#10b981' }, grid: { color: '#f1f5f9' } };
+    scales.yBone = { type: 'linear', position: 'right', title: { display: true, text: '骨質 (kg)', color: '#f59e0b' }, grid: { drawOnChartArea: false } };
+  } else if (currentScaleChartMode === 'vfl_score') {
+    datasets = [
+      { label: '身體評分', data: list.map(l => Number(l.score) || null), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderWidth: 3, tension: 0.3, yAxisID: 'yScore', fill: true },
+      { label: '內臟脂肪級別', data: list.map(l => Number(l.vfl) || null), borderColor: '#ef4444', borderWidth: 2.5, tension: 0.3, yAxisID: 'yVFL' }
+    ];
+    scales.yScore = { type: 'linear', position: 'left', title: { display: true, text: '評分 (分)', color: '#3b82f6' }, grid: { color: '#f1f5f9' } };
+    scales.yVFL = { type: 'linear', position: 'right', title: { display: true, text: '內臟脂肪等級', color: '#ef4444' }, grid: { drawOnChartArea: false } };
+  }
+
   scaleChartInstance = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: '體重 (kg)',
-          data: weights,
-          borderColor: '#1e5188',
-          backgroundColor: '#1e5188',
-          borderWidth: 3,
-          pointRadius: 5,
-          tension: 0.2,
-          yAxisID: 'yWeight'
-        },
-        {
-          label: '骨骼肌 (kg)',
-          data: muscles,
-          borderColor: '#884444',
-          backgroundColor: '#884444',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          pointRadius: 4,
-          tension: 0.2,
-          yAxisID: 'yOther'
-        },
-        {
-          label: '體脂 (%)',
-          data: fats,
-          borderColor: '#b58933',
-          backgroundColor: '#b58933',
-          borderWidth: 2,
-          borderDash: [2, 3],
-          pointRadius: 4,
-          tension: 0.2,
-          yAxisID: 'yOther'
-        }
-      ]
-    },
+    data: { labels: labels, datasets: datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12 } }
-      },
-      scales: {
-        x: { grid: { color: '#f1f5f9' } },
-        yWeight: {
-          type: 'linear',
-          position: 'left',
-          title: { display: true, text: '體重 (kg)', color: '#1e5188' },
-          grid: { color: '#f1f5f9' }
-        },
-        yOther: {
-          type: 'linear',
-          position: 'right',
-          title: { display: true, text: '肌肉 (kg) / 體脂 (%)', color: '#64748b' },
-          grid: { drawOnChartArea: false }
+        legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold' } } },
+        tooltip: {
+          padding: 10,
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          titleFont: { weight: 'bold' },
+          cornerRadius: 8
         }
-      }
+      },
+      scales: scales
     }
   });
+
+  setTimeout(() => {
+    container.parentElement.scrollLeft = container.parentElement.scrollWidth;
+  }, 100);
 }
 
 function renderScaleList() {
