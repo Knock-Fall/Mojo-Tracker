@@ -1,7 +1,7 @@
 // Mojo Project
 const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
-// 全域狀態中央管理庫
+// 全域中央資料庫
 window.MojoState = {
   bodyLogs: JSON.parse(localStorage.getItem('my_body_logs') || '[]'),
   scaleLogs: JSON.parse(localStorage.getItem('my_scale_logs') || '[]'),
@@ -88,7 +88,6 @@ async function syncFromCloud() {
       } catch(e){}
     });
 
-    // 標準化去重：家用體重計依 日期+時間 去重
     window.MojoState.bodyLogs = robustDeduplicate(newBody, b => String(b.date));
     window.MojoState.scaleLogs = robustDeduplicate(newScale, s => `${s.date}_${s.time || ''}`);
     window.MojoState.shotLogs = robustDeduplicate(newShot, s => `${s.date}_${s.dose}`);
@@ -108,6 +107,8 @@ async function syncFromCloud() {
     if (typeof renderScaleChart === 'function') renderScaleChart();
     if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
     if (typeof renderBodyList === 'function') renderBodyList();
+    if (typeof renderShotList === 'function') renderShotList();
+    if (typeof renderScaleList === 'function') renderScaleList();
     if (typeof renderDiet === 'function') renderDiet();
     alert('✅ 雲端同步完成！已清理重複與無效紀錄。');
   } catch(err) {
