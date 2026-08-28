@@ -1,6 +1,26 @@
 // Mojo Project
-// 6. diet.js
 let base64DietImage = '';
+
+// 日期快速切換助手
+function changeDietDateBy(offsetDays) {
+  const input = document.getElementById('dietDate');
+  if (!input) return;
+  const cur = input.value ? new Date(input.value) : new Date();
+  cur.setDate(cur.getDate() + offsetDays);
+  const y = cur.getFullYear();
+  const m = String(cur.getMonth() + 1).padStart(2, '0');
+  const d = String(cur.getDate()).padStart(2, '0');
+  input.value = `${y}-${m}-${d}`;
+  renderDiet();
+}
+
+function resetDietDateToToday() {
+  const input = document.getElementById('dietDate');
+  if (input) {
+    input.value = getLocalTodayStr();
+    renderDiet();
+  }
+}
 
 function previewAndAnalyze(input) {
   const file = input.files[0];
@@ -70,8 +90,9 @@ async function analyzeFoodImage() {
 }
 
 function saveDiet() {
+  const queryDate = document.getElementById('dietDate').value;
   const d = {
-    date: document.getElementById('dietDate').value,
+    date: queryDate,
     type: document.getElementById('dietType').value,
     content: document.getElementById('dietContent').value,
     cal: parseInt(document.getElementById('dietCal').value) || 0,
@@ -82,9 +103,10 @@ function saveDiet() {
   };
   if(!d.content) return alert('請輸入食物內容');
   
-  if (!window.dietLogs) window.dietLogs = [];
-  window.dietLogs.unshift(d);
-  localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
+  const list = window.MojoState.dietLogs || [];
+  list.unshift(d);
+  window.MojoState.dietLogs = list;
+  localStorage.setItem('my_diet_logs', JSON.stringify(list));
   uploadToCloud('DIET', d);
 
   document.getElementById('dietContent').value = '';
@@ -100,11 +122,12 @@ function saveDiet() {
   document.getElementById('aiBtn').style.display = 'none';
 
   renderDiet();
-  alert('餐點已記錄並同步！');
+  alert(`餐點已成功加入 ${queryDate} 的紀錄！`);
 }
 
 function editDiet(index) {
-  const item = (window.dietLogs || [])[index];
+  const list = window.MojoState.dietLogs || [];
+  const item = list[index];
   if (!item) return;
 
   const newType = prompt('修改餐別（早餐、午餐、晚餐、點心/補充）：', item.type || '午餐');
@@ -122,52 +145,53 @@ function editDiet(index) {
   const newFiber = prompt('修改膳食纖維 (g)：', item.fiber || 0);
   if (newFiber === null) return;
 
-  window.dietLogs[index].type = newType.trim();
-  window.dietLogs[index].content = newContent.trim();
-  window.dietLogs[index].cal = parseInt(newCal) || 0;
-  window.dietLogs[index].pro = parseFloat(newPro) || 0;
-  window.dietLogs[index].carbs = parseFloat(newCarbs) || 0;
-  window.dietLogs[index].fat = parseFloat(newFat) || 0;
-  window.dietLogs[index].fiber = parseFloat(newFiber) || 0;
+  list[index].type = newType.trim();
+  list[index].content = newContent.trim();
+  list[index].cal = parseInt(newCal) || 0;
+  list[index].pro = parseFloat(newPro) || 0;
+  list[index].carbs = parseFloat(newCarbs) || 0;
+  list[index].fat = parseFloat(newFat) || 0;
+  list[index].fiber = parseFloat(newFiber) || 0;
 
-  localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
-  uploadToCloud('DIET', window.dietLogs[index]);
+  localStorage.setItem('my_diet_logs', JSON.stringify(list));
+  uploadToCloud('DIET', list[index]);
   renderDiet();
 }
 
 function deleteDiet(index) {
   if (confirm('確定要刪除這筆飲食紀錄嗎？')) {
-    (window.dietLogs || []).splice(index, 1);
-    localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
+    const list = window.MojoState.dietLogs || [];
+    list.splice(index, 1);
+    localStorage.setItem('my_diet_logs', JSON.stringify(list));
     renderDiet();
   }
 }
 
 function addWaterRecord(type, amount) {
   const queryDate = document.getElementById('dietDate').value;
-  if (!window.waterLogs) window.waterLogs = {};
-  if (!window.waterLogs[queryDate] || typeof window.waterLogs[queryDate] !== 'object') {
-    const oldVal = typeof window.waterLogs[queryDate] === 'number' ? window.waterLogs[queryDate] : 0;
-    window.waterLogs[queryDate] = { pure: oldVal, tea: 0 };
+  if (!window.MojoState.waterLogs) window.MojoState.waterLogs = {};
+  if (!window.MojoState.waterLogs[queryDate] || typeof window.MojoState.waterLogs[queryDate] !== 'object') {
+    const oldVal = typeof window.MojoState.waterLogs[queryDate] === 'number' ? window.MojoState.waterLogs[queryDate] : 0;
+    window.MojoState.waterLogs[queryDate] = { pure: oldVal, tea: 0 };
   }
 
   if (type === 'pure') {
-    window.waterLogs[queryDate].pure = (Number(window.waterLogs[queryDate].pure) || 0) + amount;
+    window.MojoState.waterLogs[queryDate].pure = (Number(window.MojoState.waterLogs[queryDate].pure) || 0) + amount;
   } else {
-    window.waterLogs[queryDate].tea = (Number(window.waterLogs[queryDate].tea) || 0) + amount;
+    window.MojoState.waterLogs[queryDate].tea = (Number(window.MojoState.waterLogs[queryDate].tea) || 0) + amount;
   }
 
-  localStorage.setItem('my_water_logs', JSON.stringify(window.waterLogs));
-  uploadToCloud('WATER', { date: queryDate, data: window.waterLogs[queryDate] });
+  localStorage.setItem('my_water_logs', JSON.stringify(window.MojoState.waterLogs));
+  uploadToCloud('WATER', { date: queryDate, data: window.MojoState.waterLogs[queryDate] });
   renderDiet();
 }
 
 function resetWaterRecord() {
   const queryDate = document.getElementById('dietDate').value;
   if (confirm(`確定要將 ${queryDate} 的純水與茶飲水分紀錄歸零嗎？`)) {
-    if (!window.waterLogs) window.waterLogs = {};
-    window.waterLogs[queryDate] = { pure: 0, tea: 0 };
-    localStorage.setItem('my_water_logs', JSON.stringify(window.waterLogs));
+    if (!window.MojoState.waterLogs) window.MojoState.waterLogs = {};
+    window.MojoState.waterLogs[queryDate] = { pure: 0, tea: 0 };
+    localStorage.setItem('my_water_logs', JSON.stringify(window.MojoState.waterLogs));
     uploadToCloud('WATER', { date: queryDate, data: { pure: 0, tea: 0 } });
     renderDiet();
   }
@@ -180,7 +204,7 @@ function renderDiet() {
   const list = document.getElementById('dietLogList');
   
   let totalC = 0, totalP = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0, html = '';
-  const curDiets = window.dietLogs || [];
+  const curDiets = window.MojoState.dietLogs || [];
 
   curDiets.forEach((item, originalIndex) => {
     const itemDate = String(item.date || '').replace(/\//g, '-');
@@ -210,10 +234,12 @@ function renderDiet() {
 
   // 最新體重連動
   let latestWeight = 80;
-  if (window.scaleLogs && window.scaleLogs.length > 0) {
-    latestWeight = Number(window.scaleLogs[window.scaleLogs.length - 1].weight) || 80;
-  } else if (window.bodyLogs && window.bodyLogs.length > 0) {
-    latestWeight = Number(window.bodyLogs[window.bodyLogs.length - 1].weight) || 80;
+  const scales = window.MojoState.scaleLogs || [];
+  const bodies = window.MojoState.bodyLogs || [];
+  if (scales.length > 0) {
+    latestWeight = Number(scales[scales.length - 1].weight) || 80;
+  } else if (bodies.length > 0) {
+    latestWeight = Number(bodies[bodies.length - 1].weight) || 80;
   }
 
   const tdee = Math.round(latestWeight * 28);
@@ -250,7 +276,8 @@ function renderDiet() {
   }
 
   // 2. 雙軌水分進度
-  let dayWater = (window.waterLogs && window.waterLogs[queryDate]) ? window.waterLogs[queryDate] : { pure: 0, tea: 0 };
+  const wLogs = window.MojoState.waterLogs || {};
+  let dayWater = wLogs[queryDate] || { pure: 0, tea: 0 };
   if (typeof dayWater === 'number') dayWater = { pure: dayWater, tea: 0 };
 
   const pureW = Number(dayWater.pure) || 0;
