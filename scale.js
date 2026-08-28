@@ -412,18 +412,36 @@ function renderScaleChart() {
   }, 50);
 }
 
+// 演算法：結合線性回歸斜率與 InBody 偏差預測 7 天後數值
+function calculateLinearSlope(dataPoints) {
+  const n = dataPoints.length;
+  if (n < 2) return 0;
+  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += i;
+    sumY += dataPoints[i];
+    sumXY += i * dataPoints[i];
+    sumXX += i * i;
+  }
+  const denominator = (n * sumXX - sumX * sumX);
+  if (denominator === 0) return 0;
+  return (n * sumXY - sumX * sumY) / denominator;
+}
+
 function renderComparisonAnalysis() {
   const el = document.getElementById('scaleDiffReport');
   if (!el) return;
 
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
+  const shots = window.MojoState.shotLogs || [];
 
   if (!scales.length || !bodies.length) {
     el.innerHTML = '💡 累積至少 1 筆 InBody 與 1 筆家用體重計數據後，將在此自動產出偏差校正與對比分析。';
     return;
   }
 
+  // 1. 計算同日歷史偏差平均值
   let pairs = [];
   scales.forEach(s => {
     const matchedBody = bodies.find(b => b.date === s.date);
@@ -432,7 +450,7 @@ function renderComparisonAnalysis() {
     }
   });
 
-  let html = '';
+  let avgDiffW = 0, avgDiffFat = null;
   if (pairs.length > 0) {
     let diffWTotal = 0, diffFatTotal = 0, countFat = 0;
     pairs.forEach(p => {
@@ -442,26 +460,84 @@ function renderComparisonAnalysis() {
         countFat++;
       }
     });
-    const avgDiffW = (diffWTotal / pairs.length).toFixed(2);
-    const avgDiffFat = countFat > 0 ? (diffFatTotal / countFat).toFixed(2) : null;
+    avgDiffW = parseFloat((diffWTotal / pairs.length).toFixed(2));
+    if (countFat > 0) avgDiffFat = parseFloat((diffFatTotal / countFat).toFixed(2));
+  }
 
+  let html = '';
+  if (pairs.length > 0) {
     html += `<strong>🎯 找到 ${pairs.length} 組同日測量對比數據：</strong><br>`;
     html += `• <strong>體重偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffW >= 0 ? '+' + avgDiffW : avgDiffW} kg</strong><br>`;
     if (avgDiffFat !== null) {
       html += `• <strong>體脂率偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffFat >= 0 ? '+' + avgDiffFat : avgDiffFat} %</strong><br>`;
     }
-    html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與水分影響較大，日常看「下降趨勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
   } else {
     const latestScale = scales[scales.length - 1];
     const latestBody = bodies[bodies.length - 1];
     const wDiff = (latestScale.weight - latestBody.weight).toFixed(1);
-    const fDiff = (latestScale.fat && latestBody.pbf) ? (latestScale.fat - latestBody.pbf).toFixed(1) : null;
-
     html += `<strong>🔍 最新數據橫向比較：</strong><br>`;
-    html += `• 家用最新 (${latestScale.date} ${latestScale.time || ''})：${latestScale.weight} kg ｜ 體脂 ${latestScale.fat || '--'}%<br>`;
-    html += `• InBody最新 (${latestBody.date})：${latestBody.weight} kg ｜ 體脂 ${latestBody.pbf}%<br>`;
-    html += `• 體重落差：<strong>${wDiff >= 0 ? '+' + wDiff : wDiff} kg</strong>` + (fDiff ? ` ｜ 體脂落差：<strong>${fDiff >= 0 ? '+' + fDiff : fDiff} %</strong>` : '') + `<br>`;
-    html += `<small style="color:var(--sub);">若同一天兩邊都有測量，將自動進行長期平均誤差校準分析。</small>`;
+    html += `• 家用最新 (${latestScale.date})：${latestScale.weight} kg ｜ InBody最新：${latestBody.weight} kg<br>`;
+    html += `• 當前落差：<strong>${wDiff >= 0 ? '+' + wDiff : wDiff} kg</strong><br>`;
+  }
+
+  // 2. 猛健樂 7 天週期預測計算
+  if (shots.length > 0 && scales.length >= 2) {
+    const latestShot = shots[shots.length - 1];
+    const shotDateObj = new Date(latestShot.date);
+    const nextShotDateObj = new Date(shotDateObj);
+    nextShotDateObj.setDate(nextShotDateObj.getDate() + 7);
+    
+    const yNext = nextShotDateObj.getFullYear();
+    const mNext = String(nextShotDateObj.getMonth() + 1).padStart(2, '0');
+    const dNext = String(nextShotDateObj.getDate()).padStart(2, '0');
+    const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
+
+    // 抓取施打日之後的家用數據
+    const scalesInCycle = scales.filter(s => s.date >= latestShot.date);
+    const targetScales = scalesInCycle.length >= 2 ? scalesInCycle : scales.slice(-5);
+
+    const wList = targetScales.map(s => s.weight);
+    const fList = targetScales.map(s => s.fat).filter(f => f > 0);
+    const mList = targetScales.map(s => s.muscle).filter(m => m > 0);
+
+    const slopeW = calculateLinearSlope(wList); // 每日體重斜率
+    const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0; // 每日體脂斜率
+    const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0; // 每日肌肉斜率
+
+    // 計算剩餘天數並投射至第 7 天
+    const lastScale = scales[scales.length - 1];
+    const lastScaleDateObj = new Date(lastScale.date);
+    const remainingDays = Math.max(1, Math.round((nextShotDateObj - lastScaleDateObj) / (1000 * 60 * 60 * 24)));
+
+    const projScaleWeight = lastScale.weight + (slopeW * remainingDays);
+    const projScaleFat = (lastScale.fat || 25) + (slopeF * remainingDays);
+    const projScaleMuscle = (lastScale.muscle || 55) + (slopeM * remainingDays);
+
+    // 偏差補償回 InBody 數值
+    const predInbodyWeight = (projScaleWeight - avgDiffW).toFixed(1);
+    const predInbodyFat = avgDiffFat !== null ? (projScaleFat - avgDiffFat).toFixed(1) : (projScaleFat - 1.3).toFixed(1);
+    const predInbodySMM = (projScaleMuscle * 0.96).toFixed(1); // 家用肌肉量與 SMM 比例校準
+
+    const weeklyLossRate = (Math.abs(slopeW) * 7).toFixed(2);
+    let statusTip = '🌱 溫和穩健減脂中';
+    if (slopeW < -0.15 && slopeM >= -0.02) {
+      statusTip = '🔥 高效燃脂且肌肉維持極佳';
+    } else if (slopeM < -0.05) {
+      statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
+    }
+
+    html += `<div style="margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
+      <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:4px;">
+        🔮 猛健樂週期預測 (${latestShot.date} ~ ${nextShotDateStr})
+      </div>
+      <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.6;">
+        • 下次施打預測 InBody 體重：<strong>${predInbodyWeight} kg</strong><br>
+        • 下次施打預測 InBody 體脂：<strong>${predInbodyFat} %</strong><br>
+        • 下次施打預測 骨骼肌重：<strong>${predInbodySMM} kg</strong><br>
+        • 週期變化率：每週預估 <strong>${slopeW <= 0 ? '-' + weeklyLossRate : '+' + weeklyLossRate} kg</strong><br>
+        <span style="display:inline-block; margin-top:3px; color:#0369a1; font-weight:600;">評估：${statusTip}</span>
+      </div>
+    </div>`;
   }
 
   el.innerHTML = html;
