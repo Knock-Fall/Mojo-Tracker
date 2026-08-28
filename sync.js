@@ -2,18 +2,12 @@
 // 3. sync.js
 const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
-// 全域安全變數初始化（同時掛載 window，保證跨模組存取順暢）
+// 全域掛載
 window.bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
 window.scaleLogs = JSON.parse(localStorage.getItem('my_scale_logs') || '[]');
 window.dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
 window.shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
 window.waterLogs = JSON.parse(localStorage.getItem('my_water_logs') || '{}');
-
-var bodyLogs = window.bodyLogs;
-var scaleLogs = window.scaleLogs;
-var dietLogs = window.dietLogs;
-var shotLogs = window.shotLogs;
-var waterLogs = window.waterLogs;
 
 function getSecretToken() {
   return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
@@ -36,6 +30,20 @@ function uploadToCloud(type, payload) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: token, type: type, payload: payload })
   }).catch(err => console.log('Cloud sync pending:', err));
+}
+
+// 唯一鍵去重函式
+function deduplicateLogs(list, keyFn) {
+  const seen = new Set();
+  const result = [];
+  for (let i = list.length - 1; i >= 0; i--) {
+    const key = keyFn(list[i]);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.unshift(list[i]);
+    }
+  }
+  return result;
 }
 
 async function syncFromCloud() {
@@ -63,30 +71,33 @@ async function syncFromCloud() {
       } catch(e){}
     });
 
-    if (newBody.length || newScale.length || newDiet.length || newShot.length || Object.keys(newWater).length) {
-      window.bodyLogs = bodyLogs = newBody;
-      window.scaleLogs = scaleLogs = newScale;
-      window.dietLogs = dietLogs = newDiet;
-      window.shotLogs = shotLogs = newShot;
-      window.waterLogs = waterLogs = newWater;
-      
-      localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
-      localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
-      localStorage.setItem('my_diet_logs', JSON.stringify(dietLogs));
-      localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
-      localStorage.setItem('my_water_logs', JSON.stringify(waterLogs));
-      
-      if (typeof renderBodyChart === 'function') renderBodyChart();
-      if (typeof renderScaleChart === 'function') renderScaleChart();
-      if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
-      if (typeof renderBodyList === 'function') renderBodyList();
-      if (typeof renderDiet === 'function') renderDiet();
-      alert('✅ 已成功從 Google 試算表載入最新資料！');
-    } else {
-      alert('雲端試算表目前尚無資料。');
-    }
+    // 執行嚴格去重：避免試算表中歷史重複資料污染
+    window.bodyLogs = deduplicateLogs(newBody, item => item.date);
+    window.scaleLogs = deduplicateLogs(newScale, item => item.date);
+    window.shotLogs = deduplicateLogs(newShot, item => `${item.date}_${item.dose}_${item.note}`);
+    window.dietLogs = deduplicateLogs(newDiet, item => `${item.date}_${item.type}_${item.content}_${item.cal}`);
+    window.waterLogs = newWater;
+
+    // 排序
+    window.bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+    window.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    // 儲存至本地
+    localStorage.setItem('my_body_logs', JSON.stringify(window.bodyLogs));
+    localStorage.setItem('my_scale_logs', JSON.stringify(window.scaleLogs));
+    localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
+    localStorage.setItem('my_shot_logs', JSON.stringify(window.shotLogs));
+    localStorage.setItem('my_water_logs', JSON.stringify(window.waterLogs));
+    
+    // 觸發全模組渲染
+    if (typeof renderBodyChart === 'function') renderBodyChart();
+    if (typeof renderScaleChart === 'function') renderScaleChart();
+    if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
+    if (typeof renderBodyList === 'function') renderBodyList();
+    if (typeof renderDiet === 'function') renderDiet();
+    alert('✅ 同步完成，已自動過濾重複數據！');
   } catch(err) {
-    alert('同步失敗：' + err.message + '\n請確認 Secret Token 是否與 Apps Script 一致。');
+    alert('同步失敗：' + err.message + '\n請確認 Secret Token 是否正確。');
   }
 }
 
