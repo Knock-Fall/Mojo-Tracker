@@ -1,4 +1,3 @@
-<!-- 1. index.html -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -298,6 +297,13 @@
       </label>
       <input type="file" id="foodImage" accept="image/*" style="display: none;" onchange="previewAndAnalyze(this)">
       <img id="imagePreview" class="preview-box">
+      
+      <!-- 讓使用者補充文字線索輔助 AI 分析 -->
+      <div id="aiHintBox" style="display: none; margin-top: 8px;">
+        <label style="font-size: 0.8rem; color: #7e22ce;">💡 可選填：補充食物名稱或份量（讓 AI 估算更準確）</label>
+        <input type="text" id="aiHintText" placeholder="例：無糖豆漿400ml、便當飯吃一半">
+      </div>
+
       <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與營養</button>
 
       <div class="grid-2" style="margin-top: 10px;">
