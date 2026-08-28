@@ -64,7 +64,7 @@ async function analyzeInBodyImage() {
 
   const aiBtn = document.getElementById('inbodyAiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⚡ AI 極速辨識中 (約1~3秒)...';
+  aiBtn.innerText = '⚡ AI 辨識分析中...';
 
   const promptText = `請精確分析這張 InBody 報告圖片，擷取下列 JSON 數值：
 {"weight":數字,"tbw":數字,"protein":數字,"minerals":數字,"smm":數字,"bfm":數字,"bmi":數字,"pbf":數字,"whr":數字,"vfl":數字,"m_ra_kg":數字,"m_ra_pct":數字,"m_la_kg":數字,"m_la_pct":數字,"m_tr_kg":數字,"m_tr_pct":數字,"m_rl_kg":數字,"m_rl_pct":數字,"m_ll_kg":數字,"m_ll_pct":數字,"f_ra_kg":數字,"f_ra_pct":數字,"f_la_kg":數字,"f_la_pct":數字,"f_tr_kg":數字,"f_tr_pct":數字,"f_rl_kg":數字,"f_rl_pct":數字,"f_ll_kg":數字,"f_ll_pct":數字}`;
@@ -79,18 +79,13 @@ async function analyzeInBodyImage() {
             { text: promptText },
             { inlineData: { mimeType: "image/jpeg", data: base64InBodyImage } }
           ]
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          thinkingConfig: { thinkingBudget: 0 } // 關鍵加速：強制關閉思考
-        }
+        }]
       })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
-    let rawText = resData.candidates[0].content.parts[0].text.trim();
+    let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const res = JSON.parse(rawText);
 
     const map = {
