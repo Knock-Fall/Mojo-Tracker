@@ -1,4 +1,3 @@
-/* 2. style.css */
 :root {
   --primary: #3b82f6;
   --accent: #10b981;
@@ -156,17 +155,36 @@ input:focus, select:focus { border-color: var(--primary); }
   transition: width 0.3s ease;
 }
 
-.log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+/* 列表與操作按鈕彈性排版 */
+.log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  gap: 8px;
+}
 .log-item:last-child { border-bottom: none; }
-.badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
+.log-info { flex: 1; min-width: 0; }
+.log-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; white-space: nowrap; }
 .badge-shot { background: #fdf2f8; color: var(--shot); }
 
 .action-btn {
-  padding: 4px 8px;
+  padding: 5px 9px;
   font-size: 0.75rem;
+  font-weight: 600;
   border-radius: 6px;
   border: 1px solid transparent;
   cursor: pointer;
+  white-space: nowrap;
+  display: inline-block;
 }
 .btn-edit { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
 .btn-del { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
