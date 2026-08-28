@@ -322,7 +322,7 @@ function renderDiet() {
     }
   });
 
-  // 需求 2：嚴格抓取「小於等於當天日期 (<= queryDate)」的最新 InBody 體重
+  // 嚴格抓取「小於等於當天日期 (<= queryDate)」的最新 InBody 體重
   let latestWeight = 80;
   const bodies = window.MojoState.bodyLogs || [];
   const validBodiesBeforeOrOnDate = bodies.filter(b => b.date <= queryDate);
@@ -330,7 +330,6 @@ function renderDiet() {
   if (validBodiesBeforeOrOnDate.length > 0) {
     latestWeight = Number(validBodiesBeforeOrOnDate[validBodiesBeforeOrOnDate.length - 1].weight) || 80;
   } else if (bodies.length > 0) {
-    // 若該日之前尚未量過，以最早的那筆或首筆基準為準
     latestWeight = Number(bodies[0].weight) || 80;
   }
 
@@ -414,7 +413,6 @@ function renderDiet() {
   if (calTarEl) calTarEl.innerText = targetCalories;
   if (inbodyRefEl) inbodyRefEl.innerText = `依 InBody 基準體重 ${latestWeight}kg 連動`;
 
-  // 需求 1：進度條顏色修復 (固定顏色並支援超標標註)
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
   const calProgEl = document.getElementById('calProgress');
   if (calProgEl) {
