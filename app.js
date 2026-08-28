@@ -10,9 +10,12 @@ function getLocalTodayStr() {
 
 function resetDatesToToday() {
   const today = getLocalTodayStr();
-  document.getElementById('shotDate').value = today;
-  document.getElementById('bodyDate').value = today;
-  document.getElementById('dietDate').value = today;
+  const shotDateEl = document.getElementById('shotDate');
+  const bodyDateEl = document.getElementById('bodyDate');
+  const dietDateEl = document.getElementById('dietDate');
+  if (shotDateEl) shotDateEl.value = today;
+  if (bodyDateEl) bodyDateEl.value = today;
+  if (dietDateEl) dietDateEl.value = today;
 }
 
 let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
@@ -41,8 +44,10 @@ function switchTab(tab) {
   }
 }
 
-document.getElementById('btnTabInbody').addEventListener('click', () => switchTab('inbody'));
-document.getElementById('btnTabDiet').addEventListener('click', () => switchTab('diet'));
+const btnInbodyEl = document.getElementById('btnTabInbody');
+const btnDietEl = document.getElementById('btnTabDiet');
+if (btnInbodyEl) btnInbodyEl.addEventListener('click', () => switchTab('inbody'));
+if (btnDietEl) btnDietEl.addEventListener('click', () => switchTab('diet'));
 
 function getSecretToken() {
   return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
@@ -388,11 +393,11 @@ function saveDiet() {
 function editDiet(index) {
   const item = dietLogs[index];
   if (!item) return;
-  const newContent = prompt('修改食物名稱：', item.content);
+  const newContent = prompt('修改食物名稱：', item.content || '');
   if (newContent === null) return;
-  const newCal = prompt('修改熱量 (kcal)：', item.cal);
+  const newCal = prompt('修改熱量 (kcal)：', item.cal || 0);
   if (newCal === null) return;
-  const newPro = prompt('修改蛋白質 (g)：', item.pro);
+  const newPro = prompt('修改蛋白質 (g)：', item.pro || 0);
   if (newPro === null) return;
 
   dietLogs[index].content = newContent.trim();
@@ -569,7 +574,7 @@ function renderBodyList() {
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
         <span class="badge badge-shot">${s.dose}</span>
-        <button class="action-btn btn-del" onclick="deleteShotLog(${idx})">刪除</button>
+        <button class="action-btn btn-del" style="padding:4px 8px; font-size:0.75rem; border-radius:6px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; cursor:pointer;" onclick="deleteShotLog(${idx})">刪除</button>
       </div>
     </div>`;
   });
@@ -581,7 +586,7 @@ function renderBodyList() {
         <small style="color:var(--sub)">${b.date} ｜ 肌肉 ${b.smm}kg ｜ 內臟 ${b.vfl}級${trunkInfo}</small>
       </div>
       <div>
-        <button class="action-btn btn-del" onclick="deleteBodyLog('${b.date}')">刪除</button>
+        <button class="action-btn btn-del" style="padding:4px 8px; font-size:0.75rem; border-radius:6px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; cursor:pointer;" onclick="deleteBodyLog('${b.date}')">刪除</button>
       </div>
     </div>`;
   });
@@ -608,8 +613,8 @@ function renderDiet() {
           <small style="color:var(--sub);">${c} kcal ｜ ${p.toFixed(1)}g 蛋白</small>
         </div>
         <div style="display:flex; gap:6px;">
-          <button class="action-btn btn-edit" onclick="editDiet(${originalIndex})">編輯</button>
-          <button class="action-btn btn-del" onclick="deleteDiet(${originalIndex})">刪除</button>
+          <button class="action-btn btn-edit" style="padding:4px 8px; font-size:0.75rem; border-radius:6px; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; cursor:pointer;" onclick="editDiet(${originalIndex})">編輯</button>
+          <button class="action-btn btn-del" style="padding:4px 8px; font-size:0.75rem; border-radius:6px; background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; cursor:pointer;" onclick="deleteDiet(${originalIndex})">刪除</button>
         </div>
       </div>`;
     }
@@ -626,7 +631,7 @@ function renderDiet() {
   const targetProtein = Math.round(latestWeight * 1.6);
   const currentDeficit = tdee - totalC;
 
-  // 1. 赤字看板更新 (修復計算中)
+  // 1. 赤字看板更新
   const deficitCurEl = document.getElementById('deficitCurrent');
   const tdeeRefEl = document.getElementById('tdeeRef');
   const deficitStatusEl = document.getElementById('deficitStatus');
@@ -651,29 +656,42 @@ function renderDiet() {
   }
 
   // 2. 熱量進度
-  document.getElementById('calCurrent').innerText = totalC;
-  document.getElementById('calTarget').innerText = targetCalories;
-  document.getElementById('inbodyWeightRef').innerText = `依最新體重 ${latestWeight}kg 連動`;
+  const calCurEl = document.getElementById('calCurrent');
+  const calTarEl = document.getElementById('calTarget');
+  const inbodyRefEl = document.getElementById('inbodyWeightRef');
+  if (calCurEl) calCurEl.innerText = totalC;
+  if (calTarEl) calTarEl.innerText = targetCalories;
+  if (inbodyRefEl) inbodyRefEl.innerText = `依最新體重 ${latestWeight}kg 連動`;
 
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
-  document.getElementById('calProgress').style.width = calPct + '%';
+  const calProgEl = document.getElementById('calProgress');
+  if (calProgEl) calProgEl.style.width = calPct + '%';
 
   const calDiff = targetCalories - totalC;
-  document.getElementById('calRemainTxt').innerText = calDiff >= 0 ? `剩餘：${calDiff} kcal` : `超標：${Math.abs(calDiff)} kcal`;
-  document.getElementById('calRemainTxt').style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
+  const calRemEl = document.getElementById('calRemainTxt');
+  if (calRemEl) {
+    calRemEl.innerText = calDiff >= 0 ? `剩餘：${calDiff} kcal` : `超標：${Math.abs(calDiff)} kcal`;
+    calRemEl.style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
+  }
 
   // 3. 蛋白質進度
-  document.getElementById('proCurrent').innerText = totalP.toFixed(1);
-  document.getElementById('proTarget').innerText = targetProtein;
+  const proCurEl = document.getElementById('proCurrent');
+  const proTarEl = document.getElementById('proTarget');
+  if (proCurEl) proCurEl.innerText = totalP.toFixed(1);
+  if (proTarEl) proTarEl.innerText = targetProtein;
 
   const proPct = Math.min(100, Math.round((totalP / targetProtein) * 100));
-  document.getElementById('proProgress').style.width = proPct + '%';
+  const proProgEl = document.getElementById('proProgress');
+  if (proProgEl) proProgEl.style.width = proPct + '%';
 
   const proDiff = (targetProtein - totalP).toFixed(1);
-  document.getElementById('proRemainTxt').innerText = proDiff >= 0 ? `剩餘：${proDiff} g` : `已達標 (+${Math.abs(proDiff)}g)`;
-  document.getElementById('proRemainTxt').style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
+  const proRemEl = document.getElementById('proRemainTxt');
+  if (proRemEl) {
+    proRemEl.innerText = proDiff >= 0 ? `剩餘：${proDiff} g` : `已達標 (+${Math.abs(proDiff)}g)`;
+    proRemEl.style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
+  }
 
-  list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
+  if (list) list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
 }
 
 resetDatesToToday();
