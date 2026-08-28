@@ -3,23 +3,23 @@
 let scaleChartInstance = null;
 let base64ScaleImage = '';
 
-function compressScaleImage(file, maxWidth = 800, quality = 0.7) {
+function compressScaleImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
         let w = img.width, h = img.height;
-        if (w > maxWidth) {
-          h = Math.round((h * maxWidth) / w);
-          w = maxWidth;
+        if (w > 800) {
+          h = Math.round((h * 800) / w);
+          w = 800;
         }
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
         resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
       };
       img.onerror = reject;
@@ -34,7 +34,7 @@ async function previewAndAnalyzeScale(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const res = await compressScaleImage(file, 800, 0.7);
+      const res = await compressScaleImage(file);
       const preview = document.getElementById('scaleImagePreview');
       preview.src = res.dataUrl;
       preview.style.display = 'block';
@@ -58,7 +58,8 @@ async function analyzeScaleImage() {
   aiBtn.disabled = true;
   aiBtn.innerText = '⚡ AI 辨識分析中...';
 
-  const promptText = `請辨識 Zepp Life 截圖並回傳純 JSON：
+  // 精簡 prompt，節省輸出與輸入 Token
+  const promptText = `請分析 Zepp Life 截圖並回傳純 JSON：
 {"date":"YYYY-MM-DD(預設2026)","time":"HH:mm","weight":數字,"muscle":數字,"fat":數字,"bmi":數字,"water":數字,"vfl":數字,"bmr":數字,"bone":數字,"protein":數字,"score":數字,"body_type":"文字"}`;
 
   try {
