@@ -1,3 +1,4 @@
+// Mojo Project
 let currentChartMode = 'core';
 let chartInstance = null;
 let base64InBodyImage = '';
