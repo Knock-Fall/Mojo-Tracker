@@ -227,7 +227,7 @@
     
     <div class="card">
       <div class="card-title">
-        <span>⚡ 今日營養與赤字進度</span>
+        <span>⚡ 今日營養、水分與赤字進度</span>
         <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
       </div>
 
@@ -243,7 +243,26 @@
         </div>
       </div>
 
-      <!-- 2. 熱量攝取進度條 -->
+      <!-- 2. 每日飲水追蹤卡 -->
+      <div class="nutrition-card" style="border-left: 4px solid #0284c7; background: #f0f9ff;">
+        <div class="nutrition-head">
+          <span style="color: #0369a1;">💧 每日水分攝取</span>
+          <span><strong id="waterCurrent">0</strong> / <span id="waterTarget" style="color:var(--sub);">2800</span> ml</span>
+        </div>
+        <div class="progress-bg">
+          <div id="waterProgress" class="progress-fill" style="width: 0%; background: #0284c7;"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+          <span id="waterRemainTxt">剩餘：2800 ml</span>
+          <div style="display: flex; gap: 6px;">
+            <button class="action-btn btn-edit" style="background:#e0f2fe;" onclick="addWater(250)">+250ml</button>
+            <button class="action-btn btn-edit" style="background:#bae6fd;" onclick="addWater(500)">+500ml</button>
+            <button class="action-btn btn-del" onclick="resetWater()">重設</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 熱量攝取進度條 -->
       <div class="nutrition-card">
         <div class="nutrition-head">
           <span style="color: var(--primary);">🔥 熱量攝取</span>
@@ -258,7 +277,7 @@
         </div>
       </div>
 
-      <!-- 3. 蛋白質攝取進度條 -->
+      <!-- 4. 蛋白質攝取進度條 -->
       <div class="nutrition-card">
         <div class="nutrition-head">
           <span style="color: var(--accent);">🥩 蛋白質攝取</span>
@@ -273,7 +292,7 @@
         </div>
       </div>
 
-      <!-- 4. 碳水化合物攝取進度條 -->
+      <!-- 5. 碳水化合物攝取進度條 -->
       <div class="nutrition-card">
         <div class="nutrition-head">
           <span style="color: #ea580c;">🍚 碳水化合物攝取</span>
@@ -287,6 +306,36 @@
           <span>控醣減脂 (2.0g/kg)</span>
         </div>
       </div>
+
+      <!-- 6. 脂肪攝取進度條 -->
+      <div class="nutrition-card">
+        <div class="nutrition-head">
+          <span style="color: #eab308;">🥑 脂肪攝取</span>
+          <span><strong id="fatCurrent">0</strong> / <span id="fatTarget" style="color:var(--sub);">50</span> g</span>
+        </div>
+        <div class="progress-bg">
+          <div id="fatProgress" class="progress-fill" style="width: 0%; background: #eab308;"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
+          <span id="fatRemainTxt">剩餘：50 g</span>
+          <span>維持荷爾蒙 (0.6g/kg)</span>
+        </div>
+      </div>
+
+      <!-- 7. 膳食纖維攝取進度條 -->
+      <div class="nutrition-card">
+        <div class="nutrition-head">
+          <span style="color: #14b8a6;">🥦 膳食纖維攝取</span>
+          <span><strong id="fiberCurrent">0</strong> / <span id="fiberTarget" style="color:var(--sub);">28</span> g</span>
+        </div>
+        <div class="progress-bg">
+          <div id="fiberProgress" class="progress-fill" style="width: 0%; background: #14b8a6;"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
+          <span id="fiberRemainTxt">剩餘：28 g</span>
+          <span>腸胃蠕動防便秘</span>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -298,13 +347,12 @@
       <input type="file" id="foodImage" accept="image/*" style="display: none;" onchange="previewAndAnalyze(this)">
       <img id="imagePreview" class="preview-box">
       
-      <!-- 讓使用者補充文字線索輔助 AI 分析 -->
       <div id="aiHintBox" style="display: none; margin-top: 8px;">
         <label style="font-size: 0.8rem; color: #7e22ce;">💡 可選填：補充食物名稱或份量（讓 AI 估算更準確）</label>
         <input type="text" id="aiHintText" placeholder="例：無糖豆漿400ml、便當飯吃一半">
       </div>
 
-      <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與營養</button>
+      <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與五大營養</button>
 
       <div class="grid-2" style="margin-top: 10px;">
         <div class="form-group">
@@ -337,6 +385,16 @@
         <div class="form-group">
           <label>碳水 (g)</label>
           <input type="number" step="0.1" id="dietCarbs" placeholder="0.0">
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label>脂肪 (g)</label>
+          <input type="number" step="0.1" id="dietFat" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label>纖維 (g)</label>
+          <input type="number" step="0.1" id="dietFiber" placeholder="0.0">
         </div>
       </div>
       <button class="btn" style="background: var(--accent);" onclick="saveDiet()">加入飲食紀錄</button>
