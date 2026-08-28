@@ -1,4 +1,5 @@
 // Mojo Project
+// 4. scale.js
 let scaleChartInstance = null;
 let base64ScaleImage = '';
 
@@ -27,12 +28,27 @@ async function analyzeScaleImage() {
 
   const aiBtn = document.getElementById('scaleAiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⏳ AI 辨識 Zepp Life 截圖中...';
+  aiBtn.innerText = '⏳ AI 正在深度辨識 Zepp Life 所有數據...';
 
-  const promptText = `請分析這張 Zepp Life (或小米運動健康) 的體重測量截圖，精準擷取「測量日期(YYYY-MM-DD)」、「體重(kg)」、「骨骼肌或肌肉量(kg)」、「體脂率(%)」。
-若截圖中日期只有月/日（例如 8/28），年份請預設為今年 (2026)。
-請務必且嚴格僅回傳如下純 JSON 格式，若某項目找不到請填 0 或 null：
-{"date": "2026-08-28", "weight": 81.3, "muscle": 58.2, "fat": 21.0}`;
+  const promptText = `請精確分析這張 Zepp Life / 小米運動健康 截圖：
+1. 頂部測量時間（例如 "8月28日 06:55"）：
+   - date: 請輸出西元格式 "YYYY-MM-DD"（年份預設 2026，如 "2026-08-28"）
+   - time: 請輸出24小時制 "HH:mm"（必須補零，如 "06:55"）
+2. 畫面中的指標數據：
+   - weight: 體重數值 (如 81.35)
+   - muscle: 肌肉數值 (如 57.22)
+   - fat: 體脂百分比 (如 25.8)
+   - bmi: BMI 數值 (如 26.3)
+   - water: 水分百分比 (如 50.8)
+   - vfl: 內臟脂肪數值 (如 12)
+   - bmr: 基礎代謝大卡數值 (如 1622)
+   - bone: 骨質數值 (如 3.07)
+   - protein: 蛋白質百分比 (如 19.4)
+   - score: 最上方大字身體評分 (如 58)
+   - body_type: 體型判定文字 (如 "偏胖型")
+
+請嚴格僅回傳如下純 JSON，找不到填 null 或 0：
+{"date":"2026-08-28","time":"06:55","weight":81.35,"muscle":57.22,"fat":25.8,"bmi":26.3,"water":50.8,"vfl":12,"bmr":1622,"bone":3.07,"protein":19.4,"score":58,"body_type":"偏胖型"}`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
@@ -46,14 +62,30 @@ async function analyzeScaleImage() {
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const res = JSON.parse(rawText);
 
+    // 1. 日期處理
     if (res.date) {
-      document.getElementById('scaleDate').value = res.date.replace(/\//g, '-').slice(0, 10);
+      document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
     }
-    if (res.weight) document.getElementById('scaleWeight').value = res.weight;
-    if (res.muscle) document.getElementById('scaleMuscle').value = res.muscle;
-    if (res.fat) document.getElementById('scaleFat').value = res.fat;
+    // 2. 時間處理（嚴格補齊 HH:mm 格式）
+    if (res.time) {
+      let t = String(res.time).trim();
+      if (t.length === 4 && t.indexOf(':') === 1) t = '0' + t;
+      document.getElementById('scaleTime').value = t;
+    }
+    // 3. 所有 10 大數值欄位精確填入
+    if (res.weight !== undefined && res.weight !== null) document.getElementById('scaleWeight').value = res.weight;
+    if (res.muscle !== undefined && res.muscle !== null) document.getElementById('scaleMuscle').value = res.muscle;
+    if (res.fat !== undefined && res.fat !== null) document.getElementById('scaleFat').value = res.fat;
+    if (res.bmi !== undefined && res.bmi !== null) document.getElementById('scaleBMI').value = res.bmi;
+    if (res.water !== undefined && res.water !== null) document.getElementById('scaleWater').value = res.water;
+    if (res.vfl !== undefined && res.vfl !== null) document.getElementById('scaleVFL').value = res.vfl;
+    if (res.bmr !== undefined && res.bmr !== null) document.getElementById('scaleBMR').value = res.bmr;
+    if (res.bone !== undefined && res.bone !== null) document.getElementById('scaleBone').value = res.bone;
+    if (res.protein !== undefined && res.protein !== null) document.getElementById('scaleProtein').value = res.protein;
+    if (res.score !== undefined && res.score !== null) document.getElementById('scaleScore').value = res.score;
+    if (res.body_type) document.getElementById('scaleBodyType').value = res.body_type;
 
-    alert('✨ Zepp Life 截圖辨識完成！請確認數值後按「記錄家用體重數據」。');
+    alert(`✨ 辨識成功！\n日期：${res.date || '已帶入'}\n時間：${res.time || '已帶入'}\n10 大指標已全部自動填妥！`);
   } catch (err) {
     alert('辨識失敗：' + err.message);
   } finally {
@@ -64,23 +96,33 @@ async function analyzeScaleImage() {
 
 function saveScaleData() {
   const dateVal = document.getElementById('scaleDate').value;
+  const timeVal = document.getElementById('scaleTime').value || '08:00';
   const weightVal = parseFloat(document.getElementById('scaleWeight').value);
   if (!weightVal) return alert('請輸入家用體重計的「體重」數值！');
 
-  const muscleVal = parseFloat(document.getElementById('scaleMuscle').value) || 0;
-  const fatVal = parseFloat(document.getElementById('scaleFat').value) || 0;
-
   const item = {
     date: dateVal,
+    time: timeVal,
     weight: weightVal,
-    muscle: muscleVal,
-    fat: fatVal
+    muscle: parseFloat(document.getElementById('scaleMuscle').value) || 0,
+    fat: parseFloat(document.getElementById('scaleFat').value) || 0,
+    bmi: parseFloat(document.getElementById('scaleBMI').value) || 0,
+    water: parseFloat(document.getElementById('scaleWater').value) || 0,
+    vfl: parseInt(document.getElementById('scaleVFL').value) || 0,
+    bmr: parseInt(document.getElementById('scaleBMR').value) || 0,
+    bone: parseFloat(document.getElementById('scaleBone').value) || 0,
+    protein: parseFloat(document.getElementById('scaleProtein').value) || 0,
+    score: parseInt(document.getElementById('scaleScore').value) || 0,
+    body_type: document.getElementById('scaleBodyType').value || ''
   };
 
-  const list = window.MojoState.scaleLogs || [];
-  window.MojoState.scaleLogs = list.filter(s => s.date !== dateVal);
+  if (!window.MojoState) window.MojoState = {};
+  if (!window.MojoState.scaleLogs) window.MojoState.scaleLogs = [];
+  
+  const list = window.MojoState.scaleLogs;
+  window.MojoState.scaleLogs = list.filter(s => !(s.date === dateVal && (s.time || '') === timeVal));
   window.MojoState.scaleLogs.push(item);
-  window.MojoState.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+  window.MojoState.scaleLogs.sort((a,b) => new Date(`${a.date} ${a.time || '00:00'}`) - new Date(`${b.date} ${b.time || '00:00'}`));
 
   localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
   uploadToCloud('SCALE', item);
@@ -89,7 +131,7 @@ function saveScaleData() {
   document.getElementById('scaleImagePreview').style.display = 'none';
   document.getElementById('scaleAiBtn').style.display = 'none';
 
-  alert('家用體重計數據已儲存！');
+  alert(`家用數據 (${dateVal} ${timeVal}) 已儲存！`);
   
   renderScaleChart();
   renderBodyList();
@@ -97,17 +139,17 @@ function saveScaleData() {
   if (typeof renderDiet === 'function') renderDiet();
 }
 
-function editScaleLog(date) {
+function editScaleLog(uniqueId) {
   const list = window.MojoState.scaleLogs || [];
-  const idx = list.findIndex(s => s.date === date);
+  const idx = list.findIndex(s => `${s.date}_${s.time || ''}` === uniqueId);
   if (idx === -1) return;
   const s = list[idx];
 
-  const newW = prompt(`修改 ${date} 家用體重 (kg)：`, s.weight || '');
+  const newW = prompt(`修改 ${s.date} ${s.time || ''} 體重 (kg)：`, s.weight || '');
   if (newW === null) return;
-  const newM = prompt(`修改 ${date} 肌肉量 (kg)：`, s.muscle || 0);
+  const newM = prompt(`修改 肌肉量 (kg)：`, s.muscle || 0);
   if (newM === null) return;
-  const newF = prompt(`修改 ${date} 體脂率 (%)：`, s.fat || 0);
+  const newF = prompt(`修改 體脂率 (%)：`, s.fat || 0);
   if (newF === null) return;
 
   list[idx].weight = parseFloat(newW) || s.weight;
@@ -122,10 +164,10 @@ function editScaleLog(date) {
   if (typeof renderDiet === 'function') renderDiet();
 }
 
-function deleteScaleLog(date) {
-  if (confirm(`確定要刪除 ${date} 的家用體重計紀錄嗎？`)) {
+function deleteScaleLog(uniqueId) {
+  if (confirm('確定要刪除這筆家用體重計紀錄嗎？')) {
     const list = window.MojoState.scaleLogs || [];
-    window.MojoState.scaleLogs = list.filter(s => s.date !== date);
+    window.MojoState.scaleLogs = list.filter(s => `${s.date}_${s.time || ''}` !== uniqueId);
     localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
     renderScaleChart();
     renderBodyList();
@@ -145,7 +187,10 @@ function renderScaleChart() {
     return;
   }
 
-  const labels = list.map(l => String(l.date || '').slice(5));
+  const labels = list.map(l => {
+    const dStr = String(l.date || '').slice(5);
+    return l.time ? `${dStr} ${l.time}` : dStr;
+  });
   const weights = list.map(l => Number(l.weight) || null);
   const muscles = list.map(l => Number(l.muscle) || null);
   const fats = list.map(l => Number(l.fat) || null);
@@ -163,7 +208,7 @@ function renderScaleChart() {
           borderColor: '#1e5188',
           backgroundColor: '#1e5188',
           borderWidth: 3,
-          pointRadius: 6,
+          pointRadius: 5,
           tension: 0.2,
           yAxisID: 'yWeight'
         },
@@ -174,7 +219,7 @@ function renderScaleChart() {
           backgroundColor: '#884444',
           borderWidth: 2,
           borderDash: [5, 5],
-          pointRadius: 5,
+          pointRadius: 4,
           tension: 0.2,
           yAxisID: 'yOther'
         },
@@ -185,7 +230,7 @@ function renderScaleChart() {
           backgroundColor: '#b58933',
           borderWidth: 2,
           borderDash: [2, 3],
-          pointRadius: 5,
+          pointRadius: 4,
           tension: 0.2,
           yAxisID: 'yOther'
         }
@@ -254,7 +299,7 @@ function renderComparisonAnalysis() {
     if (avgDiffFat !== null) {
       html += `• <strong>體脂率偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffFat >= 0 ? '+' + avgDiffFat : avgDiffFat} %</strong><br>`;
     }
-    html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與晨間水分影響較大，日常看「下降趨勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
+    html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與水分影響較大，日常看「下降趨勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
   } else {
     const latestScale = scales[scales.length - 1];
     const latestBody = bodies[bodies.length - 1];
@@ -262,7 +307,7 @@ function renderComparisonAnalysis() {
     const fDiff = (latestScale.fat && latestBody.pbf) ? (latestScale.fat - latestBody.pbf).toFixed(1) : null;
 
     html += `<strong>🔍 最新數據橫向比較：</strong><br>`;
-    html += `• 家用最新 (${latestScale.date})：${latestScale.weight} kg ｜ 體脂 ${latestScale.fat || '--'}%<br>`;
+    html += `• 家用最新 (${latestScale.date} ${latestScale.time || ''})：${latestScale.weight} kg ｜ 體脂 ${latestScale.fat || '--'}%<br>`;
     html += `• InBody最新 (${latestBody.date})：${latestBody.weight} kg ｜ 體脂 ${latestBody.pbf}%<br>`;
     html += `• 體重落差：<strong>${wDiff >= 0 ? '+' + wDiff : wDiff} kg</strong>` + (fDiff ? ` ｜ 體脂落差：<strong>${fDiff >= 0 ? '+' + fDiff : fDiff} %</strong>` : '') + `<br>`;
     html += `<small style="color:var(--sub);">若同一天兩邊都有測量，將自動進行長期平均誤差校準分析。</small>`;
