@@ -1,5 +1,4 @@
 // Mojo Project
-// 5. body.js
 let currentChartMode = 'core';
 let chartInstance = null;
 let base64InBodyImage = '';
@@ -77,16 +76,18 @@ function saveShot() {
     dose: document.getElementById('shotDose').value,
     note: document.getElementById('shotNote').value
   };
-  if (!window.shotLogs) window.shotLogs = [];
-  shotLogs.unshift(shot);
-  localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+  const list = window.MojoState.shotLogs || [];
+  list.unshift(shot);
+  window.MojoState.shotLogs = list;
+  localStorage.setItem('my_shot_logs', JSON.stringify(list));
   uploadToCloud('SHOT', shot);
   alert('猛健樂紀錄已儲存！');
   renderBodyList();
 }
 
 function editShotLog(index) {
-  const s = shotLogs[index];
+  const list = window.MojoState.shotLogs || [];
+  const s = list[index];
   if (!s) return;
   const newDate = prompt('修改施打日期 (YYYY-MM-DD)：', s.date || '');
   if (newDate === null) return;
@@ -95,19 +96,20 @@ function editShotLog(index) {
   const newNote = prompt('修改施打部位/備註：', s.note || '');
   if (newNote === null) return;
 
-  shotLogs[index].date = newDate.trim();
-  shotLogs[index].dose = newDose.trim();
-  shotLogs[index].note = newNote.trim();
+  list[index].date = newDate.trim();
+  list[index].dose = newDose.trim();
+  list[index].note = newNote.trim();
 
-  localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
-  uploadToCloud('SHOT', shotLogs[index]);
+  localStorage.setItem('my_shot_logs', JSON.stringify(list));
+  uploadToCloud('SHOT', list[index]);
   renderBodyList();
 }
 
 function deleteShotLog(index) {
   if (confirm('確定要刪除這筆施打紀錄嗎？')) {
-    shotLogs.splice(index, 1);
-    localStorage.setItem('my_shot_logs', JSON.stringify(shotLogs));
+    const list = window.MojoState.shotLogs || [];
+    list.splice(index, 1);
+    localStorage.setItem('my_shot_logs', JSON.stringify(list));
     renderBodyList();
   }
 }
@@ -150,11 +152,12 @@ function saveBodyData() {
     f_ll_pct: parseFloat(document.getElementById('f_ll_pct').value) || 0
   };
 
-  if (!window.bodyLogs) window.bodyLogs = [];
-  bodyLogs = bodyLogs.filter(item => item.date !== b.date);
-  bodyLogs.push(b);
-  bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
-  localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+  const list = window.MojoState.bodyLogs || [];
+  window.MojoState.bodyLogs = list.filter(item => item.date !== b.date);
+  window.MojoState.bodyLogs.push(b);
+  window.MojoState.bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  localStorage.setItem('my_body_logs', JSON.stringify(window.MojoState.bodyLogs));
   uploadToCloud('BODY', b);
   alert('全方位 InBody 數據已儲存！');
   renderBodyChart();
@@ -164,9 +167,10 @@ function saveBodyData() {
 }
 
 function editBodyLog(date) {
-  const index = bodyLogs.findIndex(b => b.date === date);
+  const list = window.MojoState.bodyLogs || [];
+  const index = list.findIndex(b => b.date === date);
   if (index === -1) return;
-  const b = bodyLogs[index];
+  const b = list[index];
 
   const newWeight = prompt(`修改 ${date} 體重 (kg)：`, b.weight || '');
   if (newWeight === null) return;
@@ -177,13 +181,13 @@ function editBodyLog(date) {
   const newVFL = prompt(`修改 ${date} 內臟脂肪等級：`, b.vfl || '');
   if (newVFL === null) return;
 
-  bodyLogs[index].weight = parseFloat(newWeight) || b.weight;
-  bodyLogs[index].smm = parseFloat(newSMM) || b.smm;
-  bodyLogs[index].pbf = parseFloat(newPBF) || b.pbf;
-  bodyLogs[index].vfl = parseInt(newVFL) || b.vfl;
+  list[index].weight = parseFloat(newWeight) || b.weight;
+  list[index].smm = parseFloat(newSMM) || b.smm;
+  list[index].pbf = parseFloat(newPBF) || b.pbf;
+  list[index].vfl = parseInt(newVFL) || b.vfl;
 
-  localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
-  uploadToCloud('BODY', bodyLogs[index]);
+  localStorage.setItem('my_body_logs', JSON.stringify(list));
+  uploadToCloud('BODY', list[index]);
   renderBodyChart();
   renderBodyList();
   if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
@@ -192,8 +196,9 @@ function editBodyLog(date) {
 
 function deleteBodyLog(date) {
   if (confirm(`確定要刪除 ${date} 的體態紀錄嗎？`)) {
-    bodyLogs = bodyLogs.filter(b => b.date !== date);
-    localStorage.setItem('my_body_logs', JSON.stringify(bodyLogs));
+    const list = window.MojoState.bodyLogs || [];
+    window.MojoState.bodyLogs = list.filter(b => b.date !== date);
+    localStorage.setItem('my_body_logs', JSON.stringify(window.MojoState.bodyLogs));
     renderBodyChart();
     renderBodyList();
     if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
@@ -205,21 +210,23 @@ function renderBodyChart() {
   const canvas = document.getElementById('bodyChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  if (!bodyLogs || bodyLogs.length === 0) {
+  const list = window.MojoState.bodyLogs || [];
+
+  if (list.length === 0) {
     if (chartInstance) chartInstance.destroy();
     return;
   }
 
-  const labels = bodyLogs.map(l => String(l.date || '').slice(5));
+  const labels = list.map(l => String(l.date || '').slice(5));
   if (chartInstance) chartInstance.destroy();
 
   let datasets = [];
   let scales = { x: { grid: { display: false } } };
 
   if (currentChartMode === 'core') {
-    const weights = bodyLogs.map(l => Number(l.weight) || 0);
-    const pbfs = bodyLogs.map(l => Number(l.pbf) || 0);
-    const smms = bodyLogs.map(l => Number(l.smm) || 0);
+    const weights = list.map(l => Number(l.weight) || 0);
+    const pbfs = list.map(l => Number(l.pbf) || 0);
+    const smms = list.map(l => Number(l.smm) || 0);
     const minW = Math.min(...weights);
     const maxW = Math.max(...weights);
     const validOthers = pbfs.concat(smms).filter(v => v > 0);
@@ -236,35 +243,35 @@ function renderBodyChart() {
     scales.yOther = { type: 'linear', position: 'right', title: { display: true, text: '肌肉 / 體脂', color: '#64748b' }, min: Math.floor(minOther - 2), max: Math.ceil(maxOther + 2), grid: { drawOnChartArea: false } };
   } else if (currentChartMode === 'comp') {
     datasets = [
-      { label: '水分 (L)', data: bodyLogs.map(l => Number(l.tbw) || 0), borderColor: '#06b6d4', tension: 0.3 },
-      { label: '蛋白質 (kg)', data: bodyLogs.map(l => Number(l.protein) || 0), borderColor: '#10b981', tension: 0.3 },
-      { label: '礦物質 (kg)', data: bodyLogs.map(l => Number(l.minerals) || 0), borderColor: '#f59e0b', tension: 0.3 },
-      { label: '體脂肪 (kg)', data: bodyLogs.map(l => Number(l.bfm) || 0), borderColor: '#ef4444', tension: 0.3 }
+      { label: '水分 (L)', data: list.map(l => Number(l.tbw) || 0), borderColor: '#06b6d4', tension: 0.3 },
+      { label: '蛋白質 (kg)', data: list.map(l => Number(l.protein) || 0), borderColor: '#10b981', tension: 0.3 },
+      { label: '礦物質 (kg)', data: list.map(l => Number(l.minerals) || 0), borderColor: '#f59e0b', tension: 0.3 },
+      { label: '體脂肪 (kg)', data: list.map(l => Number(l.bfm) || 0), borderColor: '#ef4444', tension: 0.3 }
     ];
     scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '數值 (kg / L)' } };
   } else if (currentChartMode === 'muscle_seg') {
     datasets = [
-      { label: '右上肢', data: bodyLogs.map(l => Number(l.m_ra_kg) || 0), borderColor: '#3b82f6', tension: 0.3 },
-      { label: '左上肢', data: bodyLogs.map(l => Number(l.m_la_kg) || 0), borderColor: '#60a5fa', tension: 0.3 },
-      { label: '軀幹', data: bodyLogs.map(l => Number(l.m_tr_kg) || 0), borderColor: '#10b981', tension: 0.3, borderWidth: 3 },
-      { label: '右下肢', data: bodyLogs.map(l => Number(l.m_rl_kg) || 0), borderColor: '#f59e0b', tension: 0.3 },
-      { label: '左下肢', data: bodyLogs.map(l => Number(l.m_ll_kg) || 0), borderColor: '#fbbf24', tension: 0.3 }
+      { label: '右上肢', data: list.map(l => Number(l.m_ra_kg) || 0), borderColor: '#3b82f6', tension: 0.3 },
+      { label: '左上肢', data: list.map(l => Number(l.m_la_kg) || 0), borderColor: '#60a5fa', tension: 0.3 },
+      { label: '軀幹', data: list.map(l => Number(l.m_tr_kg) || 0), borderColor: '#10b981', tension: 0.3, borderWidth: 3 },
+      { label: '右下肢', data: list.map(l => Number(l.m_rl_kg) || 0), borderColor: '#f59e0b', tension: 0.3 },
+      { label: '左下肢', data: list.map(l => Number(l.m_ll_kg) || 0), borderColor: '#fbbf24', tension: 0.3 }
     ];
     scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '部位肌肉重 (kg)' } };
   } else if (currentChartMode === 'fat_seg') {
     datasets = [
-      { label: '右上肢', data: bodyLogs.map(l => Number(l.f_ra_kg) || 0), borderColor: '#f87171', tension: 0.3 },
-      { label: '左上肢', data: bodyLogs.map(l => Number(l.f_la_kg) || 0), borderColor: '#fca5a5', tension: 0.3 },
-      { label: '軀幹', data: bodyLogs.map(l => Number(l.f_tr_kg) || 0), borderColor: '#ef4444', tension: 0.3, borderWidth: 3 },
-      { label: '右下肢', data: bodyLogs.map(l => Number(l.f_rl_kg) || 0), borderColor: '#c084fc', tension: 0.3 },
-      { label: '左下肢', data: bodyLogs.map(l => Number(l.f_ll_kg) || 0), borderColor: '#e879f9', tension: 0.3 }
+      { label: '右上肢', data: list.map(l => Number(l.f_ra_kg) || 0), borderColor: '#f87171', tension: 0.3 },
+      { label: '左上肢', data: list.map(l => Number(l.f_la_kg) || 0), borderColor: '#fca5a5', tension: 0.3 },
+      { label: '軀幹', data: list.map(l => Number(l.f_tr_kg) || 0), borderColor: '#ef4444', tension: 0.3, borderWidth: 3 },
+      { label: '右下肢', data: list.map(l => Number(l.f_rl_kg) || 0), borderColor: '#c084fc', tension: 0.3 },
+      { label: '左下肢', data: list.map(l => Number(l.f_ll_kg) || 0), borderColor: '#e879f9', tension: 0.3 }
     ];
     scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '部位脂肪重 (kg)' } };
   } else if (currentChartMode === 'obesity') {
     datasets = [
-      { label: 'BMI', data: bodyLogs.map(l => Number(l.bmi) || 0), borderColor: '#8b5cf6', tension: 0.3 },
-      { label: '內臟脂肪級別', data: bodyLogs.map(l => Number(l.vfl) || 0), borderColor: '#ea580c', tension: 0.3 },
-      { label: '腰臀比 (WHR*10)', data: bodyLogs.map(l => (Number(l.whr) ? Number(l.whr) * 10 : 0)), borderColor: '#ec4899', tension: 0.3 }
+      { label: 'BMI', data: list.map(l => Number(l.bmi) || 0), borderColor: '#8b5cf6', tension: 0.3 },
+      { label: '內臟脂肪級別', data: list.map(l => Number(l.vfl) || 0), borderColor: '#ea580c', tension: 0.3 },
+      { label: '腰臀比 (WHR*10)', data: list.map(l => (Number(l.whr) ? Number(l.whr) * 10 : 0)), borderColor: '#ec4899', tension: 0.3 }
     ];
     scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '等級 / 指標' } };
   }
@@ -281,10 +288,9 @@ function renderBodyList() {
   const scaleContainer = document.getElementById('scaleLogList');
   const bodyContainer = document.getElementById('bodyLogList');
 
-  // 1. 猛健樂施打紀錄安全渲染
   if (shotContainer) {
     let shotHtml = '';
-    const curShots = window.shotLogs || [];
+    const curShots = window.MojoState.shotLogs || [];
     curShots.forEach((s, idx) => {
       shotHtml += `<div class="log-item">
         <div class="log-info">
@@ -301,10 +307,9 @@ function renderBodyList() {
     shotContainer.innerHTML = shotHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有施打紀錄</p>';
   }
 
-  // 2. 家用體重計紀錄安全渲染
   if (scaleContainer) {
     let scaleHtml = '';
-    const curScales = window.scaleLogs || [];
+    const curScales = window.MojoState.scaleLogs || [];
     curScales.slice().reverse().forEach(s => {
       scaleHtml += `<div class="log-item">
         <div class="log-info">
@@ -320,10 +325,9 @@ function renderBodyList() {
     scaleContainer.innerHTML = scaleHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">尚未有家用體重計紀錄</p>';
   }
 
-  // 3. InBody 歷史數據安全渲染
   if (bodyContainer) {
     let bodyHtml = '';
-    const curBodies = window.bodyLogs || [];
+    const curBodies = window.MojoState.bodyLogs || [];
     curBodies.slice().reverse().forEach(b => {
       const trunkInfo = (b.m_tr_kg || b.f_tr_kg) ? ` ｜ 軀幹肌/脂: ${b.m_tr_kg || 0}/${b.f_tr_kg || 0}kg` : '';
       bodyHtml += `<div class="log-item">
