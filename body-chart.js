@@ -25,7 +25,6 @@ function renderBodyChart() {
     return;
   }
 
-  // 橫向滑動自適應寬度
   const minWidthPerPoint = 65;
   const parentWidth = container.parentElement.clientWidth || 340;
   const totalWidth = Math.max(parentWidth, list.length * minWidthPerPoint);
@@ -146,7 +145,11 @@ function renderBodyChart() {
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold' } } },
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { boxWidth: 12, font: { weight: 'bold', size: 12 }, color: '#334155' }
+        },
         tooltip: {
           padding: 10,
           backgroundColor: 'rgba(15, 23, 42, 0.9)',
