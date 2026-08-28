@@ -3,7 +3,7 @@
 let scaleChartInstance = null;
 let base64ScaleImage = '';
 
-function compressScaleImage(file, maxWidth = 1000, quality = 0.75) {
+function compressScaleImage(file, maxWidth = 800, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -34,7 +34,7 @@ async function previewAndAnalyzeScale(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const res = await compressScaleImage(file, 1000, 0.75);
+      const res = await compressScaleImage(file, 800, 0.7);
       const preview = document.getElementById('scaleImagePreview');
       preview.src = res.dataUrl;
       preview.style.display = 'block';
@@ -58,44 +58,20 @@ async function analyzeScaleImage() {
   aiBtn.disabled = true;
   aiBtn.innerText = '⚡ AI 辨識分析中...';
 
-  const promptText = `請仔細辨識這張 Zepp Life (小米運動健康) 體脂計截圖中的每一項數據：
-1. 頂部測量時間（例如「8月28日 06:55」）：
-   - date: 請輸出西元格式 "YYYY-MM-DD"（若無年份請填 "2026-08-28"）
-   - time: 請輸出 24 小時制 "HH:mm"（如 "06:55"）
-2. 各項數據指標：
-   - weight: 體重數字（如 81.35）
-   - muscle: 肌肉數字（如 57.22）
-   - fat: 體脂數字（如 25.8）
-   - bmi: BMI 數字（如 26.3）
-   - water: 水分數字（如 50.8）
-   - vfl: 內臟脂肪等級（如 12）
-   - bmr: 基礎代謝大卡（如 1622）
-   - bone: 骨質重量（如 3.07）
-   - protein: 蛋白質百分比（如 19.4）
-   - score: 頂部大字分數（如 58）
-   - body_type: 體型字樣（如 "偏胖型"）
-
-請絕對且嚴格僅回傳如下純 JSON，不要有任何 Markdown 或多餘文字：
-{"date":"2026-08-28","time":"06:55","weight":81.35,"muscle":57.22,"fat":25.8,"bmi":26.3,"water":50.8,"vfl":12,"bmr":1622,"bone":3.07,"protein":19.4,"score":58,"body_type":"偏胖型"}`;
+  const promptText = `請辨識 Zepp Life 截圖並回傳純 JSON：
+{"date":"YYYY-MM-DD(預設2026)","time":"HH:mm","weight":數字,"muscle":數字,"fat":數字,"bmi":數字,"water":數字,"vfl":數字,"bmr":數字,"bone":數字,"protein":數字,"score":數字,"body_type":"文字"}`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: promptText },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: base64ScaleImage
-                }
-              }
-            ]
-          }
-        ]
+        contents: [{
+          parts: [
+            { text: promptText },
+            { inlineData: { mimeType: "image/jpeg", data: base64ScaleImage } }
+          ]
+        }]
       })
     });
     const resData = await response.json();
