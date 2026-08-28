@@ -322,11 +322,16 @@ function renderDiet() {
     }
   });
 
-  // 需求 4：嚴格只抓 InBody 體重，排除家用體重計干擾
+  // 需求 2：嚴格抓取「小於等於當天日期 (<= queryDate)」的最新 InBody 體重
   let latestWeight = 80;
   const bodies = window.MojoState.bodyLogs || [];
-  if (bodies.length > 0) {
-    latestWeight = Number(bodies[bodies.length - 1].weight) || 80;
+  const validBodiesBeforeOrOnDate = bodies.filter(b => b.date <= queryDate);
+
+  if (validBodiesBeforeOrOnDate.length > 0) {
+    latestWeight = Number(validBodiesBeforeOrOnDate[validBodiesBeforeOrOnDate.length - 1].weight) || 80;
+  } else if (bodies.length > 0) {
+    // 若該日之前尚未量過，以最早的那筆或首筆基準為準
+    latestWeight = Number(bodies[0].weight) || 80;
   }
 
   const tdee = Math.round(latestWeight * 28);
@@ -407,11 +412,15 @@ function renderDiet() {
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
   if (calCurEl) calCurEl.innerText = totalC;
   if (calTarEl) calTarEl.innerText = targetCalories;
-  if (inbodyRefEl) inbodyRefEl.innerText = `依 InBody 最新體重 ${latestWeight}kg 連動`;
+  if (inbodyRefEl) inbodyRefEl.innerText = `依 InBody 基準體重 ${latestWeight}kg 連動`;
 
+  // 需求 1：進度條顏色修復 (固定顏色並支援超標標註)
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
   const calProgEl = document.getElementById('calProgress');
-  if (calProgEl) calProgEl.style.width = calPct + '%';
+  if (calProgEl) {
+    calProgEl.style.width = calPct + '%';
+    calProgEl.style.backgroundColor = totalC > targetCalories ? '#ef4444' : '#3b82f6';
+  }
 
   const calDiff = targetCalories - totalC;
   const calRemEl = document.getElementById('calRemainTxt');
@@ -427,13 +436,16 @@ function renderDiet() {
 
   const proPct = Math.min(100, Math.round((totalP / targetProtein) * 100));
   const proProgEl = document.getElementById('proProgress');
-  if (proProgEl) proProgEl.style.width = proPct + '%';
+  if (proProgEl) {
+    proProgEl.style.width = proPct + '%';
+    proProgEl.style.backgroundColor = '#10b981';
+  }
 
   const proDiff = (targetProtein - totalP).toFixed(1);
   const proRemEl = document.getElementById('proRemainTxt');
   if (proRemEl) {
     proRemEl.innerText = proDiff >= 0 ? `剩餘：${proDiff} g` : `已達標 (+${Math.abs(proDiff)}g)`;
-    proRemEl.style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
+    proRemEl.style.color = proDiff <= 0 ? '#10b981' : 'var(--sub)';
   }
 
   const carbsCurEl = document.getElementById('carbsCurrent');
@@ -443,7 +455,10 @@ function renderDiet() {
 
   const carbsPct = Math.min(100, Math.round((totalCarbs / targetCarbs) * 100));
   const carbsProgEl = document.getElementById('carbsProgress');
-  if (carbsProgEl) carbsProgEl.style.width = carbsPct + '%';
+  if (carbsProgEl) {
+    carbsProgEl.style.width = carbsPct + '%';
+    carbsProgEl.style.backgroundColor = '#ea580c';
+  }
 
   const carbsDiff = (targetCarbs - totalCarbs).toFixed(1);
   const carbsRemEl = document.getElementById('carbsRemainTxt');
@@ -459,7 +474,10 @@ function renderDiet() {
 
   const fatPct = Math.min(100, Math.round((totalFat / targetFat) * 100));
   const fatProgEl = document.getElementById('fatProgress');
-  if (fatProgEl) fatProgEl.style.width = fatPct + '%';
+  if (fatProgEl) {
+    fatProgEl.style.width = fatPct + '%';
+    fatProgEl.style.backgroundColor = '#eab308';
+  }
 
   const fatDiff = (targetFat - totalFat).toFixed(1);
   const fatRemEl = document.getElementById('fatRemainTxt');
@@ -475,7 +493,10 @@ function renderDiet() {
 
   const fiberPct = Math.min(100, Math.round((totalFiber / targetFiber) * 100));
   const fiberProgEl = document.getElementById('fiberProgress');
-  if (fiberProgEl) fiberProgEl.style.width = fiberPct + '%';
+  if (fiberProgEl) {
+    fiberProgEl.style.width = fiberPct + '%';
+    fiberProgEl.style.backgroundColor = '#14b8a6';
+  }
 
   const fiberDiff = (targetFiber - totalFiber).toFixed(1);
   const fiberRemEl = document.getElementById('fiberRemainTxt');
@@ -484,7 +505,7 @@ function renderDiet() {
     fiberRemEl.style.color = fiberDiff <= 0 ? '#14b8a6' : 'var(--sub)';
   }
 
-  // 渲染營養智能建議
+  // 渲染營養智能建議卡片
   const suggestCard = document.getElementById('nutritionSuggestCard');
   const suggestBox = document.getElementById('suggestContent');
   if (suggestCard && suggestBox) {
