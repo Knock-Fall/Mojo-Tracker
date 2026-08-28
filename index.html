@@ -1,4 +1,5 @@
 <!-- Mojo Project -->
+<!-- 1. index.html -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -61,11 +62,20 @@
       <button class="btn btn-shot" type="button" onclick="saveShot()">記錄本次施打</button>
     </div>
 
-    <!-- 家用體重計 (Zepp Life / 小米) 快速打卡 -->
+    <!-- 家用體重計 (Zepp Life / 小米) 快速打卡 + AI 截圖辨識 -->
     <div class="card" style="border-left: 5px solid #0284c7;">
       <div class="card-title">
         <span>📱 家用體重計日常記錄 (Zepp Life)</span>
+        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
       </div>
+
+      <label for="scaleImage" class="btn-upload" style="border-color: #0284c7; color: #0284c7; background: #f0f9ff;">
+        📷 點擊此處上傳 Zepp Life 截圖（AI 自動辨識）
+      </label>
+      <input type="file" id="scaleImage" accept="image/*" style="display: none;" onchange="previewAndAnalyzeScale(this)">
+      <img id="scaleImagePreview" class="preview-box">
+      <button id="scaleAiBtn" class="btn" type="button" style="display: none; background: #0284c7; margin-bottom: 12px;" onclick="analyzeScaleImage()">✨ 開始 AI 辨識 Zepp Life 數據</button>
+
       <div class="grid-2">
         <div class="form-group">
           <label>測量日期</label>
@@ -89,7 +99,7 @@
       <button class="btn" type="button" style="background:#0284c7;" onclick="saveScaleData()">記錄家用體重數據</button>
     </div>
 
-    <!-- 家用體重計專屬趨勢圖 (還原 App 視覺) -->
+    <!-- 家用體重計專屬趨勢圖 -->
     <div class="card">
       <div class="card-title">📈 家用日常體重趨勢 (Zepp Life)</div>
       <canvas id="scaleChart" height="210"></canvas>
@@ -484,7 +494,9 @@
 
 </div>
 
-<script src="common.js?v=9999"></script>
+<!-- 拆分後的模組化 JS 檔案 -->
+<script src="sync.js?v=9999"></script>
+<script src="scale.js?v=9999"></script>
 <script src="body.js?v=9999"></script>
 <script src="diet.js?v=9999"></script>
 <script src="main.js?v=9999"></script>
