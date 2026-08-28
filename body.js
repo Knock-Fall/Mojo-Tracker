@@ -85,11 +85,14 @@ function saveShot() {
 function editShotLog(index) {
   const s = shotLogs[index];
   if (!s) return;
+  const newDate = prompt('修改施打日期 (YYYY-MM-DD)：', s.date || '');
+  if (newDate === null) return;
   const newDose = prompt('修改施打劑量（如：2.5mg, 5.0mg）：', s.dose || '2.5mg');
   if (newDose === null) return;
   const newNote = prompt('修改施打部位/備註：', s.note || '');
   if (newNote === null) return;
 
+  shotLogs[index].date = newDate.trim();
   shotLogs[index].dose = newDose.trim();
   shotLogs[index].note = newNote.trim();
 
