@@ -145,7 +145,6 @@ function deleteDiet(index) {
   }
 }
 
-// 雙軌水分打卡
 function addWaterRecord(type, amount) {
   const queryDate = document.getElementById('dietDate').value;
   if (!waterLogs || typeof waterLogs !== 'object') waterLogs = {};
@@ -209,8 +208,11 @@ function renderDiet() {
     }
   });
 
+  // 最新體重優先連動：有家用看家用最新，無則看 InBody
   let latestWeight = 80;
-  if (bodyLogs && bodyLogs.length > 0) {
+  if (scaleLogs && scaleLogs.length > 0) {
+    latestWeight = Number(scaleLogs[scaleLogs.length - 1].weight) || 80;
+  } else if (bodyLogs && bodyLogs.length > 0) {
     latestWeight = Number(bodyLogs[bodyLogs.length - 1].weight) || 80;
   }
 
