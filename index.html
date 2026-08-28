@@ -1,3 +1,4 @@
+<!-- 1. index.html -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -5,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=9999">
 </head>
 <body>
 
@@ -272,6 +273,21 @@
           <span>減重保肌 (1.6g/kg)</span>
         </div>
       </div>
+
+      <!-- 4. 碳水化合物攝取進度條 -->
+      <div class="nutrition-card">
+        <div class="nutrition-head">
+          <span style="color: #ea580c;">🍚 碳水化合物攝取</span>
+          <span><strong id="carbsCurrent">0</strong> / <span id="carbsTarget" style="color:var(--sub);">160</span> g</span>
+        </div>
+        <div class="progress-bg">
+          <div id="carbsProgress" class="progress-fill" style="width: 0%; background: #ea580c;"></div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
+          <span id="carbsRemainTxt">剩餘：160 g</span>
+          <span>控醣減脂 (2.0g/kg)</span>
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -282,7 +298,7 @@
       </label>
       <input type="file" id="foodImage" accept="image/*" style="display: none;" onchange="previewAndAnalyze(this)">
       <img id="imagePreview" class="preview-box">
-      <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與蛋白質</button>
+      <button id="aiBtn" class="btn btn-ai" style="display: none;" onclick="analyzeFoodImage()">✨ 開始 AI 分析熱量與營養</button>
 
       <div class="grid-2" style="margin-top: 10px;">
         <div class="form-group">
@@ -303,7 +319,7 @@
         <label>食物內容</label>
         <input type="text" id="dietContent" placeholder="例：雞胸肉沙拉、無糖豆漿">
       </div>
-      <div class="grid-2">
+      <div class="grid-3">
         <div class="form-group">
           <label>熱量 (kcal)</label>
           <input type="number" id="dietCal" placeholder="0">
@@ -311,6 +327,10 @@
         <div class="form-group">
           <label>蛋白質 (g)</label>
           <input type="number" step="0.1" id="dietPro" placeholder="0.0">
+        </div>
+        <div class="form-group">
+          <label>碳水 (g)</label>
+          <input type="number" step="0.1" id="dietCarbs" placeholder="0.0">
         </div>
       </div>
       <button class="btn" style="background: var(--accent);" onclick="saveDiet()">加入飲食紀錄</button>
@@ -324,6 +344,9 @@
 
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="common.js?v=9999"></script>
+<script src="body.js?v=9999"></script>
+<script src="diet.js?v=9999"></script>
+<script src="main.js?v=9999"></script>
 </body>
 </html>
