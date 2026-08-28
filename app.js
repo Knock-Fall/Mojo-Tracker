@@ -551,32 +551,62 @@ function renderDiet() {
     </div>`;
   });
 
+  // 最新 InBody 數據連動
   let latestWeight = 80;
+  let latestSMM = 35;
   if (bodyLogs && bodyLogs.length > 0) {
     latestWeight = Number(bodyLogs[bodyLogs.length - 1].weight) || 80;
+    latestSMM = Number(bodyLogs[bodyLogs.length - 1].smm) || (latestWeight * 0.4);
   }
 
-  const targetCalories = Math.round(latestWeight * 22);
+  // TDEE 估算與保肌赤字目標
+  const tdee = Math.round(latestWeight * 28);
+  const targetCalories = tdee - 500;
   const targetProtein = Math.round(latestWeight * 1.6);
 
+  // 當前赤字
+  const currentDeficit = tdee - totalC;
+
+  // 1. 赤字看板
+  document.getElementById('deficitCurrent').innerText = (currentDeficit > 0 ? `-${currentDeficit}` : `+${Math.abs(currentDeficit)}`);
+  document.getElementById('deficitTarget').innerText = `-500`;
+  document.getElementById('tdeeRef').innerText = `TDEE 消耗: ${tdee} kcal`;
+
+  const deficitStatusEl = document.getElementById('deficitStatus');
+  if (currentDeficit >= 400 && currentDeficit <= 600) {
+    deficitStatusEl.innerText = '🎯 完美保肌燃脂赤字 (300~500kcal)';
+    deficitStatusEl.style.color = '#059669';
+  } else if (currentDeficit > 600) {
+    deficitStatusEl.innerText = '⚠️ 赤字過大，注意補充蛋白質防掉肌';
+    deficitStatusEl.style.color = '#d97706';
+  } else if (currentDeficit > 0) {
+    deficitStatusEl.innerText = '🌱 溫和減脂中 (可再少吃或多動)';
+    deficitStatusEl.style.color = '#2563eb';
+  } else {
+    deficitStatusEl.innerText = '⛔ 熱量盈餘 (超過今日消耗)';
+    deficitStatusEl.style.color = '#dc2626';
+  }
+
+  // 2. 熱量進度
   document.getElementById('calCurrent').innerText = totalC;
   document.getElementById('calTarget').innerText = targetCalories;
-  document.getElementById('proCurrent').innerText = totalP.toFixed(1);
-  document.getElementById('proTarget').innerText = targetProtein;
-  document.getElementById('inbodyWeightRef').innerText = `依最新體重 ${latestWeight}kg 連動`;
+  document.getElementById('inbodyWeightRef').innerText = `依體重 ${latestWeight}kg 連動`;
 
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
-  const proPct = Math.min(100, Math.round((totalP / targetProtein) * 100));
-
   document.getElementById('calProgress').style.width = calPct + '%';
-  document.getElementById('proProgress').style.width = proPct + '%';
 
   const calDiff = targetCalories - totalC;
-  const proDiff = (targetProtein - totalP).toFixed(1);
-
   document.getElementById('calRemainTxt').innerText = calDiff >= 0 ? `剩餘：${calDiff} kcal` : `超標：${Math.abs(calDiff)} kcal`;
   document.getElementById('calRemainTxt').style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
 
+  // 3. 蛋白質進度
+  document.getElementById('proCurrent').innerText = totalP.toFixed(1);
+  document.getElementById('proTarget').innerText = targetProtein;
+
+  const proPct = Math.min(100, Math.round((totalP / targetProtein) * 100));
+  document.getElementById('proProgress').style.width = proPct + '%';
+
+  const proDiff = (targetProtein - totalP).toFixed(1);
   document.getElementById('proRemainTxt').innerText = proDiff >= 0 ? `剩餘：${proDiff} g` : `已達標 (+${Math.abs(proDiff)}g)`;
   document.getElementById('proRemainTxt').style.color = proDiff <= 0 ? 'var(--accent)' : 'var(--sub)';
 
