@@ -1,7 +1,7 @@
 // Mojo Project
+// 6. diet.js
 let base64DietImage = '';
 
-// 日期快速切換助手
 function changeDietDateBy(offsetDays) {
   const input = document.getElementById('dietDate');
   if (!input) return;
@@ -62,7 +62,7 @@ async function analyzeFoodImage() {
 {"food": "食物名稱與份量", "cal": 450, "pro": 25.5, "carbs": 35.0, "fat": 15.0, "fiber": 3.5}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }] })
