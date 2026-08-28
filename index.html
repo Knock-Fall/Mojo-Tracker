@@ -227,10 +227,23 @@
     
     <div class="card">
       <div class="card-title">
-        <span>⚡ 今日營養攝取進度</span>
+        <span>⚡ 今日營養與赤字進度</span>
         <span class="api-tip" onclick="setupApiKey()">⚙️ API Key</span>
       </div>
 
+      <!-- 1. 熱量赤字即時看板 -->
+      <div class="nutrition-card" style="border-left: 4px solid #f59e0b; background: #fffbeb;">
+        <div class="nutrition-head">
+          <span style="color: #b45309;">⚖️ 保肌減脂赤字</span>
+          <span><strong id="deficitCurrent" style="color:#b45309;">0</strong> / <span id="deficitTarget" style="color:var(--sub);">-500</span> kcal</span>
+        </div>
+        <div style="font-size: 0.8rem; color: #78350f; margin-top: 4px; display: flex; justify-content: space-between;">
+          <span id="deficitStatus">計算中...</span>
+          <span id="tdeeRef">TDEE: -- kcal</span>
+        </div>
+      </div>
+
+      <!-- 2. 熱量攝取進度條 -->
       <div class="nutrition-card">
         <div class="nutrition-head">
           <span style="color: var(--primary);">🔥 熱量攝取</span>
@@ -241,10 +254,11 @@
         </div>
         <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
           <span id="calRemainTxt">剩餘：1800 kcal</span>
-          <span id="inbodyWeightRef">依最新體重估算</span>
+          <span id="inbodyWeightRef">依最新體重連動</span>
         </div>
       </div>
 
+      <!-- 3. 蛋白質攝取進度條 -->
       <div class="nutrition-card">
         <div class="nutrition-head">
           <span style="color: var(--accent);">🥩 蛋白質攝取</span>
