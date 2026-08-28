@@ -225,6 +225,74 @@ function resetWaterRecord() {
   }
 }
 
+// 需求 1 核心演算法：根據缺口動態生成食物與份數建議
+function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, diffWater) {
+  let suggestions = [];
+
+  // 1. 蛋白質不足
+  if (diffPro > 15) {
+    const eggQty = Math.max(1, Math.round(diffPro / 7));
+    const chickenQty = Math.max(1, Math.round(diffPro / 23));
+    const soyQty = Math.max(1, Math.round(diffPro / 14));
+    suggestions.push({
+      emoji: '🍗',
+      title: '即食雞胸肉',
+      desc: `約需 ${chickenQty} 包（提供 ~${chickenQty * 23}g 蛋白）`
+    });
+    suggestions.push({
+      emoji: '🥚',
+      title: '茶葉蛋 / 水煮蛋',
+      desc: `約需 ${eggQty} 顆（提供 ~${eggQty * 7}g 蛋白）`
+    });
+    suggestions.push({
+      emoji: '🥛',
+      title: '無糖高纖豆漿',
+      desc: `約需 ${soyQty} 瓶（400ml/瓶，~${soyQty * 14}g 蛋白）`
+    });
+  }
+
+  // 2. 膳食纖維不足
+  if (diffFiber > 8) {
+    const vegQty = Math.max(1, Math.round(diffFiber / 3));
+    const appleQty = Math.max(1, Math.round(diffFiber / 4));
+    suggestions.push({
+      emoji: '🥦',
+      title: '燙綠花椰菜/菠菜',
+      desc: `約需 ${vegQty} 碗（提供 ~${vegQty * 3}g 纖維）`
+    });
+    suggestions.push({
+      emoji: '🍎',
+      title: '帶皮蘋果 / 奇異果',
+      desc: `約需 ${appleQty} 顆（提供 ~${appleQty * 4}g 纖維）`
+    });
+    suggestions.push({
+      emoji: '🌽',
+      title: '生菜沙拉盒',
+      desc: `超商沙拉 1 盒（約可補 3~4g 纖維）`
+    });
+  }
+
+  // 3. 水分或純水比例不足
+  if (diffWater > 400 || (pureRatio < 50 && diffWater >= 0)) {
+    suggestions.push({
+      emoji: '💧',
+      title: '溫純白開水',
+      desc: `尚缺 ${Math.max(500, diffWater)} ml，多補純水提高代謝`
+    });
+  }
+
+  // 4. 赤字過大 (熱量吃太少)
+  if (diffCal > 500 && diffPro <= 15) {
+    suggestions.push({
+      emoji: '🥑',
+      title: '綜合堅果 / 酪梨',
+      desc: `補 1 小把堅果（~160kcal 良好油脂）`
+    });
+  }
+
+  return suggestions;
+}
+
 function renderDiet() {
   const dietDateInput = document.getElementById('dietDate');
   if (!dietDateInput) return;
@@ -422,6 +490,35 @@ function renderDiet() {
   if (fiberRemEl) {
     fiberRemEl.innerText = fiberDiff >= 0 ? `剩餘：${fiberDiff} g` : `已達標 (+${Math.abs(fiberDiff)}g)`;
     fiberRemEl.style.color = fiberDiff <= 0 ? '#14b8a6' : 'var(--sub)';
+  }
+
+  // 渲染需求 1 建議卡片
+  const suggestCard = document.getElementById('nutritionSuggestCard');
+  const suggestBox = document.getElementById('suggestContent');
+  if (suggestCard && suggestBox) {
+    const listSuggestions = generateNutritionSuggestions(
+      parseFloat(proDiff),
+      parseFloat(fiberDiff),
+      calDiff,
+      pureRatio,
+      targetWater - totalW
+    );
+
+    if (listSuggestions.length > 0) {
+      let sHtml = '<div class="suggest-box">';
+      listSuggestions.forEach(s => {
+        sHtml += `<div class="suggest-item">
+          <div class="suggest-emoji">${s.emoji}</div>
+          <div class="suggest-title">${s.title}</div>
+          <div class="suggest-desc">${s.desc}</div>
+        </div>`;
+      });
+      sHtml += '</div>';
+      suggestBox.innerHTML = sHtml;
+      suggestCard.style.display = 'block';
+    } else {
+      suggestCard.style.display = 'none';
+    }
   }
 
   if (list) list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
