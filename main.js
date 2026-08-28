@@ -7,14 +7,26 @@ function getLocalTodayStr() {
   return `${year}-${month}-${day}`;
 }
 
+function getLocalCurrentTimeStr() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 function resetDatesToToday() {
   const today = getLocalTodayStr();
+  const curTime = getLocalCurrentTimeStr();
+
   const shotDateEl = document.getElementById('shotDate');
   const scaleDateEl = document.getElementById('scaleDate');
+  const scaleTimeEl = document.getElementById('scaleTime');
   const bodyDateEl = document.getElementById('bodyDate');
   const dietDateEl = document.getElementById('dietDate');
+
   if (shotDateEl) shotDateEl.value = today;
   if (scaleDateEl) scaleDateEl.value = today;
+  if (scaleTimeEl) scaleTimeEl.value = curTime;
   if (bodyDateEl) bodyDateEl.value = today;
   if (dietDateEl) dietDateEl.value = today;
 }
