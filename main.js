@@ -1,4 +1,50 @@
 // Mojo Project
+// 7. main.js
+function getLocalTodayStr() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function resetDatesToToday() {
+  const today = getLocalTodayStr();
+  const shotDateEl = document.getElementById('shotDate');
+  const scaleDateEl = document.getElementById('scaleDate');
+  const bodyDateEl = document.getElementById('bodyDate');
+  const dietDateEl = document.getElementById('dietDate');
+  if (shotDateEl) shotDateEl.value = today;
+  if (scaleDateEl) scaleDateEl.value = today;
+  if (bodyDateEl) bodyDateEl.value = today;
+  if (dietDateEl) dietDateEl.value = today;
+}
+
+function switchTab(tab) {
+  const btnInbody = document.getElementById('btnTabInbody');
+  const btnDiet = document.getElementById('btnTabDiet');
+  const tabInbody = document.getElementById('tab-inbody');
+  const tabDiet = document.getElementById('tab-diet');
+
+  if (tab === 'inbody') {
+    btnInbody.classList.add('active');
+    btnDiet.classList.remove('active');
+    tabInbody.classList.add('active');
+    tabDiet.classList.remove('active');
+    setTimeout(() => {
+      if (typeof renderBodyChart === 'function') renderBodyChart();
+      if (typeof renderScaleChart === 'function') renderScaleChart();
+      if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
+    }, 50);
+  } else {
+    btnDiet.classList.add('active');
+    btnInbody.classList.remove('active');
+    tabDiet.classList.add('active');
+    tabInbody.classList.remove('active');
+    setTimeout(() => { if (typeof renderDiet === 'function') renderDiet(); }, 50);
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   const btnInbody = document.getElementById('btnTabInbody');
   const btnDiet = document.getElementById('btnTabDiet');
