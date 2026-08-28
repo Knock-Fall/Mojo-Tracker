@@ -18,6 +18,43 @@ function previewAndAnalyzeScale(input) {
   }
 }
 
+// 具備自動切換備援模型的呼叫函式
+async function callGeminiVision(promptText, base64Image, apiKey) {
+  const models = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-1.5-flash'
+  ];
+
+  let lastError = null;
+  for (const model of models) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: promptText },
+              { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+            ]
+          }]
+        })
+      });
+      const data = await response.json();
+      if (data.error) {
+        // 若遇到 High demand 或 503，換下一個備援模型重試
+        lastError = new Error(data.error.message);
+        continue;
+      }
+      return data;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('所有備援模型皆忙碌中，請稍後再試');
+}
+
 async function analyzeScaleImage() {
   let apiKey = localStorage.getItem('gemini_api_key');
   if (!apiKey) {
@@ -51,28 +88,16 @@ async function analyzeScaleImage() {
 {"date":"2026-08-28","time":"06:55","weight":81.35,"muscle":57.22,"fat":25.8,"bmi":26.3,"water":50.8,"vfl":12,"bmr":1622,"bone":3.07,"protein":19.4,"score":58,"body_type":"偏胖型"}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64ScaleImage } }] }] })
-    });
-    const resData = await response.json();
-    if (resData.error) throw new Error(resData.error.message);
-
+    const resData = await callGeminiVision(promptText, base64ScaleImage, apiKey);
     let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
     const res = JSON.parse(rawText);
 
-    // 1. 日期處理
-    if (res.date) {
-      document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
-    }
-    // 2. 時間處理（嚴格補齊 HH:mm 格式）
+    if (res.date) document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
     if (res.time) {
       let t = String(res.time).trim();
       if (t.length === 4 && t.indexOf(':') === 1) t = '0' + t;
       document.getElementById('scaleTime').value = t;
     }
-    // 3. 所有 10 大數值欄位精確填入
     if (res.weight !== undefined && res.weight !== null) document.getElementById('scaleWeight').value = res.weight;
     if (res.muscle !== undefined && res.muscle !== null) document.getElementById('scaleMuscle').value = res.muscle;
     if (res.fat !== undefined && res.fat !== null) document.getElementById('scaleFat').value = res.fat;
@@ -87,7 +112,7 @@ async function analyzeScaleImage() {
 
     alert(`✨ 辨識成功！\n日期：${res.date || '已帶入'}\n時間：${res.time || '已帶入'}\n10 大指標已全部自動填妥！`);
   } catch (err) {
-    alert('辨識失敗：' + err.message);
+    alert('辨識失敗：' + err.message + '\n請稍候 10 秒後再試一次！');
   } finally {
     aiBtn.disabled = false;
     aiBtn.innerText = '✨ 開始 AI 辨識 Zepp Life 數據';
