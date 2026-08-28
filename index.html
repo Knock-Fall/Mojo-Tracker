@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80933">
+  <link rel="stylesheet" href="style.css?v=80934">
 </head>
 <body>
 
@@ -500,6 +500,7 @@
       <div id="suggestContent"></div>
     </div>
 
+    <!-- 新增餐點卡片 -->
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄（支援補填選取日期）</div>
       
@@ -553,7 +554,8 @@
           <input type="number" step="0.1" id="dietFiber" placeholder="0.0">
         </div>
       </div>
-      <button class="btn" type="button" style="background: var(--accent);" onclick="saveDiet()">加入所選日期飲食紀錄</button>
+      <!-- 確保此按鈕永遠存在於表單底部 -->
+      <button class="btn" type="button" style="background: var(--accent); margin-top: 10px;" onclick="saveDiet()">加入所選日期飲食紀錄</button>
     </div>
 
     <div class="card">
@@ -563,17 +565,17 @@
   </div>
 
   <div class="version-footer">
-    版本驗證代碼：<strong>MK-80933</strong>
+    版本驗證代碼：<strong>MK-80934</strong>
   </div>
 
 </div>
 
-<script src="sync.js?v=80933"></script>
-<script src="shot.js?v=80933"></script>
-<script src="scale.js?v=80933"></script>
-<script src="body.js?v=80933"></script>
-<script src="body-chart.js?v=80933"></script>
-<script src="diet.js?v=80933"></script>
-<script src="main.js?v=80933"></script>
+<script src="sync.js?v=80934"></script>
+<script src="shot.js?v=80934"></script>
+<script src="scale.js?v=80934"></script>
+<script src="body.js?v=80934"></script>
+<script src="body-chart.js?v=80934"></script>
+<script src="diet.js?v=80934"></script>
+<script src="main.js?v=80934"></script>
 </body>
 </html>
