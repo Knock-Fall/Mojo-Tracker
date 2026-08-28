@@ -11,23 +11,23 @@ function switchChartMode(mode, btnEl) {
   renderBodyChart();
 }
 
-function compressInBodyImage(file, maxWidth = 900, quality = 0.7) {
+function compressInBodyImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
         let w = img.width, h = img.height;
-        if (w > maxWidth) {
-          h = Math.round((h * maxWidth) / w);
-          w = maxWidth;
+        if (w > 800) {
+          h = Math.round((h * 800) / w);
+          w = 800;
         }
         const canvas = document.createElement('canvas');
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
         resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
       };
       img.onerror = reject;
@@ -42,7 +42,7 @@ async function previewAndAnalyzeInBody(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const compressed = await compressInBodyImage(file, 900, 0.7);
+      const compressed = await compressInBodyImage(file);
       const preview = document.getElementById('inbodyImagePreview');
       preview.src = compressed.dataUrl;
       preview.style.display = 'block';
