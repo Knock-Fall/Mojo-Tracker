@@ -1,5 +1,4 @@
 // Mojo Project
-// 4. scale.js
 let scaleChartInstance = null;
 let base64ScaleImage = '';
 
@@ -78,11 +77,12 @@ function saveScaleData() {
     fat: fatVal
   };
 
-  scaleLogs = scaleLogs.filter(s => s.date !== dateVal);
-  scaleLogs.push(item);
-  scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+  const list = window.MojoState.scaleLogs || [];
+  window.MojoState.scaleLogs = list.filter(s => s.date !== dateVal);
+  window.MojoState.scaleLogs.push(item);
+  window.MojoState.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-  localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
+  localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
   uploadToCloud('SCALE', item);
 
   document.getElementById('scaleImage').value = '';
@@ -98,9 +98,10 @@ function saveScaleData() {
 }
 
 function editScaleLog(date) {
-  const idx = scaleLogs.findIndex(s => s.date === date);
+  const list = window.MojoState.scaleLogs || [];
+  const idx = list.findIndex(s => s.date === date);
   if (idx === -1) return;
-  const s = scaleLogs[idx];
+  const s = list[idx];
 
   const newW = prompt(`修改 ${date} 家用體重 (kg)：`, s.weight || '');
   if (newW === null) return;
@@ -109,12 +110,12 @@ function editScaleLog(date) {
   const newF = prompt(`修改 ${date} 體脂率 (%)：`, s.fat || 0);
   if (newF === null) return;
 
-  scaleLogs[idx].weight = parseFloat(newW) || s.weight;
-  scaleLogs[idx].muscle = parseFloat(newM) || 0;
-  scaleLogs[idx].fat = parseFloat(newF) || 0;
+  list[idx].weight = parseFloat(newW) || s.weight;
+  list[idx].muscle = parseFloat(newM) || 0;
+  list[idx].fat = parseFloat(newF) || 0;
 
-  localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
-  uploadToCloud('SCALE', scaleLogs[idx]);
+  localStorage.setItem('my_scale_logs', JSON.stringify(list));
+  uploadToCloud('SCALE', list[idx]);
   renderScaleChart();
   renderBodyList();
   renderComparisonAnalysis();
@@ -123,8 +124,9 @@ function editScaleLog(date) {
 
 function deleteScaleLog(date) {
   if (confirm(`確定要刪除 ${date} 的家用體重計紀錄嗎？`)) {
-    scaleLogs = scaleLogs.filter(s => s.date !== date);
-    localStorage.setItem('my_scale_logs', JSON.stringify(scaleLogs));
+    const list = window.MojoState.scaleLogs || [];
+    window.MojoState.scaleLogs = list.filter(s => s.date !== date);
+    localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
     renderScaleChart();
     renderBodyList();
     renderComparisonAnalysis();
@@ -136,15 +138,17 @@ function renderScaleChart() {
   const canvas = document.getElementById('scaleChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  if (!scaleLogs || scaleLogs.length === 0) {
+  const list = window.MojoState.scaleLogs || [];
+  
+  if (list.length === 0) {
     if (scaleChartInstance) scaleChartInstance.destroy();
     return;
   }
 
-  const labels = scaleLogs.map(l => String(l.date || '').slice(5));
-  const weights = scaleLogs.map(l => Number(l.weight) || null);
-  const muscles = scaleLogs.map(l => Number(l.muscle) || null);
-  const fats = scaleLogs.map(l => Number(l.fat) || null);
+  const labels = list.map(l => String(l.date || '').slice(5));
+  const weights = list.map(l => Number(l.weight) || null);
+  const muscles = list.map(l => Number(l.muscle) || null);
+  const fats = list.map(l => Number(l.fat) || null);
 
   if (scaleChartInstance) scaleChartInstance.destroy();
 
@@ -160,7 +164,6 @@ function renderScaleChart() {
           backgroundColor: '#1e5188',
           borderWidth: 3,
           pointRadius: 6,
-          pointHoverRadius: 8,
           tension: 0.2,
           yAxisID: 'yWeight'
         },
@@ -192,15 +195,7 @@ function renderScaleChart() {
       responsive: true,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } },
-        tooltip: {
-          padding: 10,
-          callbacks: {
-            label: function(c) {
-              return `${c.dataset.label}: ${c.raw}`;
-            }
-          }
-        }
+        legend: { position: 'bottom', labels: { boxWidth: 12 } }
       },
       scales: {
         x: { grid: { color: '#f1f5f9' } },
@@ -225,14 +220,17 @@ function renderComparisonAnalysis() {
   const el = document.getElementById('scaleDiffReport');
   if (!el) return;
 
-  if (!scaleLogs.length || !bodyLogs.length) {
+  const scales = window.MojoState.scaleLogs || [];
+  const bodies = window.MojoState.bodyLogs || [];
+
+  if (!scales.length || !bodies.length) {
     el.innerHTML = '💡 累積至少 1 筆 InBody 與 1 筆家用體重計數據後，將在此自動產出偏差校正與對比分析。';
     return;
   }
 
   let pairs = [];
-  scaleLogs.forEach(s => {
-    const matchedBody = bodyLogs.find(b => b.date === s.date);
+  scales.forEach(s => {
+    const matchedBody = bodies.find(b => b.date === s.date);
     if (matchedBody) {
       pairs.push({ date: s.date, scale: s, inbody: matchedBody });
     }
@@ -258,8 +256,8 @@ function renderComparisonAnalysis() {
     }
     html += `💡 <em>建議觀念：家用體脂計受雙腳阻抗與晨間水分影響較大，日常看「下降趨勢」，精準數值每隔 2~4 週以 InBody 進行校正。</em>`;
   } else {
-    const latestScale = scaleLogs[scaleLogs.length - 1];
-    const latestBody = bodyLogs[bodyLogs.length - 1];
+    const latestScale = scales[scales.length - 1];
+    const latestBody = bodies[bodies.length - 1];
     const wDiff = (latestScale.weight - latestBody.weight).toFixed(1);
     const fDiff = (latestScale.fat && latestBody.pbf) ? (latestScale.fat - latestBody.pbf).toFixed(1) : null;
 
