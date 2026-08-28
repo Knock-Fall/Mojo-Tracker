@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=50001">
+  <link rel="stylesheet" href="style.css?v=60001">
 </head>
 <body>
 
@@ -32,7 +32,7 @@
   <!-- 體態與猛健樂 TAB -->
   <div id="tab-inbody" class="tab-content active">
     
-    <!-- 猛健樂施打紀錄 -->
+    <!-- 猛健樂施打紀錄 (由 shot.js 驅動) -->
     <div class="card" style="border-left: 5px solid var(--shot);">
       <div class="card-title">
         <span>💉 猛健樂 (Mounjaro) 施打紀錄</span>
@@ -61,7 +61,7 @@
       <button class="btn btn-shot" type="button" onclick="saveShot()">記錄本次施打</button>
     </div>
 
-    <!-- 家用體重計 (Zepp Life) 完整全數據版 -->
+    <!-- 家用體重計 (Zepp Life) 完整全數據版 (由 scale.js 驅動) -->
     <div class="card" style="border-left: 5px solid #0284c7;">
       <div class="card-title">
         <span>📱 家用體重計日常記錄 (Zepp Life)</span>
@@ -69,7 +69,7 @@
       </div>
 
       <label for="scaleImage" class="btn-upload" style="border-color: #0284c7; color: #0284c7; background: #f0f9ff;">
-        📷 點擊此處上傳 Zepp Life 截圖（AI 自動秒辨識全部 10 項目）
+        📷 點擊此處上傳 Zepp Life 截圖（極速秒讀全項目）
       </label>
       <input type="file" id="scaleImage" accept="image/*" style="display: none;" onchange="previewAndAnalyzeScale(this)">
       <img id="scaleImagePreview" class="preview-box">
@@ -159,7 +159,7 @@
       </div>
     </div>
 
-    <!-- InBody 全方位數據輸入 -->
+    <!-- InBody 全方位數據輸入 (由 body.js 驅動) -->
     <div class="card">
       <div class="card-title">
         <span>📝 記錄 InBody 全方位數據</span>
@@ -318,7 +318,7 @@
       <canvas id="bodyChart" height="230"></canvas>
     </div>
 
-    <!-- 獨立卡片 1：猛健樂施打紀錄 -->
+    <!-- 獨立卡片 1：猛健樂施打歷程 -->
     <div class="card">
       <div class="card-title">💉 猛健樂施打歷程</div>
       <div id="shotLogList"></div>
@@ -340,7 +340,7 @@
   <!-- 飲食紀錄 TAB -->
   <div id="tab-diet" class="tab-content">
     
-    <!-- 日期快速導覽與切換卡片 -->
+    <!-- 日期快速導覽卡片 -->
     <div class="card" style="padding: 12px 16px; background: #ffffff;">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
         <button class="action-btn btn-edit" type="button" onclick="changeDietDateBy(-1)">◀ 前一天</button>
@@ -546,11 +546,12 @@
 
 </div>
 
-<!-- 模組化 JS 檔案 -->
-<script src="sync.js?v=50001"></script>
-<script src="scale.js?v=50001"></script>
-<script src="body.js?v=50001"></script>
-<script src="diet.js?v=50001"></script>
-<script src="main.js?v=50001"></script>
+<!-- 8 個模組化 JS 檔案 -->
+<script src="sync.js?v=60001"></script>
+<script src="shot.js?v=60001"></script>
+<script src="scale.js?v=60001"></script>
+<script src="body.js?v=60001"></script>
+<script src="diet.js?v=60001"></script>
+<script src="main.js?v=60001"></script>
 </body>
 </html>
