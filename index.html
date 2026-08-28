@@ -22,8 +22,8 @@
   header { background: #0f172a; color: #fff; padding: 18px 20px; text-align: center; }
   header h1 { font-size: 1.2rem; }
   
-  .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
-  .tab-btn { flex: 1; padding: 12px 0; border: none; background: none; font-size: 0.95rem; font-weight: bold; color: var(--sub); cursor: pointer; }
+  .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .tab-btn { flex: 1; padding: 14px 0; border: none; background: none; font-size: 0.95rem; font-weight: bold; color: var(--sub); cursor: pointer; outline: none; }
   .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
   
   .container { padding: 16px; max-width: 600px; margin: 0 auto; }
@@ -179,8 +179,8 @@
 </header>
 
 <div class="nav-tabs">
-  <button id="btnTabInbody" class="tab-btn active" onclick="switchTab('inbody')">📊 體態與猛健樂</button>
-  <button id="btnTabDiet" class="tab-btn" onclick="switchTab('diet')">🥗 飲食紀錄</button>
+  <button id="btnTabInbody" class="tab-btn active" type="button">📊 體態與猛健樂</button>
+  <button id="btnTabDiet" class="tab-btn" type="button">🥗 飲食紀錄</button>
 </div>
 
 <div class="container">
@@ -490,12 +490,35 @@
     document.getElementById('bodyDate').value = today;
     document.getElementById('dietDate').value = today;
   }
-  resetDatesToToday();
 
   let bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
   let dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
   let shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
   let currentChartMode = 'core';
+
+  function switchTab(tab) {
+    const btnInbody = document.getElementById('btnTabInbody');
+    const btnDiet = document.getElementById('btnTabDiet');
+    const tabInbody = document.getElementById('tab-inbody');
+    const tabDiet = document.getElementById('tab-diet');
+
+    if (tab === 'inbody') {
+      btnInbody.classList.add('active');
+      btnDiet.classList.remove('active');
+      tabInbody.classList.add('active');
+      tabDiet.classList.remove('active');
+      setTimeout(() => { try { renderBodyChart(); } catch(e){} }, 50);
+    } else {
+      btnDiet.classList.add('active');
+      btnInbody.classList.remove('active');
+      tabDiet.classList.add('active');
+      tabInbody.classList.remove('active');
+      setTimeout(() => { try { renderDiet(); } catch(e){} }, 50);
+    }
+  }
+
+  document.getElementById('btnTabInbody').addEventListener('click', () => switchTab('inbody'));
+  document.getElementById('btnTabDiet').addEventListener('click', () => switchTab('diet'));
 
   function getSecretToken() {
     return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
