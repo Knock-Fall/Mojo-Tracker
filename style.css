@@ -160,7 +160,6 @@ input:focus, select:focus { border-color: var(--primary); }
 .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
 .badge-shot { background: #fdf2f8; color: var(--shot); }
 
-/* 操作小按鈕樣式 */
 .action-btn {
   padding: 4px 8px;
   font-size: 0.75rem;
