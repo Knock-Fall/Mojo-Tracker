@@ -11,7 +11,7 @@ function switchChartMode(mode, btnEl) {
   renderBodyChart();
 }
 
-function compressInBodyImage(file, maxWidth = 1600, quality = 0.8) {
+function compressInBodyImage(file, maxWidth = 1400, quality = 0.75) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -42,7 +42,7 @@ async function previewAndAnalyzeInBody(input) {
   const file = input.files[0];
   if (file) {
     try {
-      const compressed = await compressInBodyImage(file, 1600, 0.8);
+      const compressed = await compressInBodyImage(file, 1400, 0.75);
       const preview = document.getElementById('inbodyImagePreview');
       preview.src = compressed.dataUrl;
       preview.style.display = 'block';
@@ -64,9 +64,9 @@ async function analyzeInBodyImage() {
 
   const aiBtn = document.getElementById('inbodyAiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⚡ AI 極速辨識 InBody 報告中...';
+  aiBtn.innerText = '⚡ AI 極速辨識中 (約1~3秒)...';
 
-  const promptText = `請分析這張 InBody 報告圖片，精準擷取各項數值。請務必且嚴格僅回傳純 JSON 格式，若某項目找不到請填 0 或 null：
+  const promptText = `請精確分析這張 InBody 報告圖片，擷取下列 JSON 數值：
 {"weight":數字,"tbw":數字,"protein":數字,"minerals":數字,"smm":數字,"bfm":數字,"bmi":數字,"pbf":數字,"whr":數字,"vfl":數字,"m_ra_kg":數字,"m_ra_pct":數字,"m_la_kg":數字,"m_la_pct":數字,"m_tr_kg":數字,"m_tr_pct":數字,"m_rl_kg":數字,"m_rl_pct":數字,"m_ll_kg":數字,"m_ll_pct":數字,"f_ra_kg":數字,"f_ra_pct":數字,"f_la_kg":數字,"f_la_pct":數字,"f_tr_kg":數字,"f_tr_pct":數字,"f_rl_kg":數字,"f_rl_pct":數字,"f_ll_kg":數字,"f_ll_pct":數字}`;
 
   try {
@@ -79,13 +79,18 @@ async function analyzeInBodyImage() {
             { text: promptText },
             { inlineData: { mimeType: "image/jpeg", data: base64InBodyImage } }
           ]
-        }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 } // 關鍵加速：強制關閉思考
+        }
       })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
-    let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
+    let rawText = resData.candidates[0].content.parts[0].text.trim();
     const res = JSON.parse(rawText);
 
     const map = {
