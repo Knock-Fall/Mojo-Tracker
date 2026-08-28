@@ -1,13 +1,14 @@
 // Mojo Project
-// 3. sync.js
 const GAS_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
-// 全域掛載
-window.bodyLogs = JSON.parse(localStorage.getItem('my_body_logs') || '[]');
-window.scaleLogs = JSON.parse(localStorage.getItem('my_scale_logs') || '[]');
-window.dietLogs = JSON.parse(localStorage.getItem('my_diet_logs') || '[]');
-window.shotLogs = JSON.parse(localStorage.getItem('my_shot_logs') || '[]');
-window.waterLogs = JSON.parse(localStorage.getItem('my_water_logs') || '{}');
+// 全域狀態中央管理庫
+window.MojoState = {
+  bodyLogs: JSON.parse(localStorage.getItem('my_body_logs') || '[]'),
+  scaleLogs: JSON.parse(localStorage.getItem('my_scale_logs') || '[]'),
+  dietLogs: JSON.parse(localStorage.getItem('my_diet_logs') || '[]'),
+  shotLogs: JSON.parse(localStorage.getItem('my_shot_logs') || '[]'),
+  waterLogs: JSON.parse(localStorage.getItem('my_water_logs') || '{}')
+};
 
 function getSecretToken() {
   return localStorage.getItem('gas_secret_token') || 'my_custom_secret_key_888';
@@ -32,18 +33,18 @@ function uploadToCloud(type, payload) {
   }).catch(err => console.log('Cloud sync pending:', err));
 }
 
-// 唯一鍵去重函式
-function deduplicateLogs(list, keyFn) {
+// 唯一特徵去重演算法
+function deduplicate(list, keyGenerator) {
   const seen = new Set();
-  const result = [];
+  const res = [];
   for (let i = list.length - 1; i >= 0; i--) {
-    const key = keyFn(list[i]);
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.unshift(list[i]);
+    const k = keyGenerator(list[i]);
+    if (!seen.has(k)) {
+      seen.add(k);
+      res.unshift(list[i]);
     }
   }
-  return result;
+  return res;
 }
 
 async function syncFromCloud() {
@@ -71,31 +72,31 @@ async function syncFromCloud() {
       } catch(e){}
     });
 
-    // 執行嚴格去重：避免試算表中歷史重複資料污染
-    window.bodyLogs = deduplicateLogs(newBody, item => item.date);
-    window.scaleLogs = deduplicateLogs(newScale, item => item.date);
-    window.shotLogs = deduplicateLogs(newShot, item => `${item.date}_${item.dose}_${item.note}`);
-    window.dietLogs = deduplicateLogs(newDiet, item => `${item.date}_${item.type}_${item.content}_${item.cal}`);
-    window.waterLogs = newWater;
+    // 依業務唯一鍵去重，避免重複堆疊
+    window.MojoState.bodyLogs = deduplicate(newBody, b => b.date);
+    window.MojoState.scaleLogs = deduplicate(newScale, s => s.date);
+    window.MojoState.shotLogs = deduplicate(newShot, s => `${s.date}_${s.dose}_${s.note}`);
+    window.MojoState.dietLogs = deduplicate(newDiet, d => `${d.date}_${d.type}_${d.content}_${d.cal}_${d.pro}_${d.carbs}_${d.fat}_${d.fiber}`);
+    window.MojoState.waterLogs = newWater;
 
     // 排序
-    window.bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
-    window.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+    window.MojoState.bodyLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
+    window.MojoState.scaleLogs.sort((a,b) => new Date(a.date) - new Date(b.date));
 
-    // 儲存至本地
-    localStorage.setItem('my_body_logs', JSON.stringify(window.bodyLogs));
-    localStorage.setItem('my_scale_logs', JSON.stringify(window.scaleLogs));
-    localStorage.setItem('my_diet_logs', JSON.stringify(window.dietLogs));
-    localStorage.setItem('my_shot_logs', JSON.stringify(window.shotLogs));
-    localStorage.setItem('my_water_logs', JSON.stringify(window.waterLogs));
+    // 儲存至本機
+    localStorage.setItem('my_body_logs', JSON.stringify(window.MojoState.bodyLogs));
+    localStorage.setItem('my_scale_logs', JSON.stringify(window.MojoState.scaleLogs));
+    localStorage.setItem('my_diet_logs', JSON.stringify(window.MojoState.dietLogs));
+    localStorage.setItem('my_shot_logs', JSON.stringify(window.MojoState.shotLogs));
+    localStorage.setItem('my_water_logs', JSON.stringify(window.MojoState.waterLogs));
     
-    // 觸發全模組渲染
+    // 全域重新渲染
     if (typeof renderBodyChart === 'function') renderBodyChart();
     if (typeof renderScaleChart === 'function') renderScaleChart();
     if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
     if (typeof renderBodyList === 'function') renderBodyList();
     if (typeof renderDiet === 'function') renderDiet();
-    alert('✅ 同步完成，已自動過濾重複數據！');
+    alert('✅ 雲端同步完成！已自動過濾重複紀錄。');
   } catch(err) {
     alert('同步失敗：' + err.message + '\n請確認 Secret Token 是否正確。');
   }
