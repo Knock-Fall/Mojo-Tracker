@@ -160,5 +160,16 @@ input:focus, select:focus { border-color: var(--primary); }
 .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; }
 .badge-shot { background: #fdf2f8; color: var(--shot); }
 
+/* 操作小按鈕樣式 */
+.action-btn {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn-edit { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.btn-del { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+
 .preview-box { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; margin-top: 8px; display: none; background: #000; }
 .api-tip { font-size: 0.8rem; color: #8b5cf6; cursor: pointer; text-decoration: underline; }
