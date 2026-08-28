@@ -215,10 +215,10 @@ function renderScaleChart() {
     return;
   }
 
-  // 橫向滑動長度動態調整，每點至少 55px
+  // 橫向滑動自適應寬度
   const minWidthPerPoint = 55;
-  const wrapperWidth = container.parentElement.clientWidth || 340;
-  const totalWidth = Math.max(wrapperWidth, list.length * minWidthPerPoint);
+  const parentWidth = container.parentElement.clientWidth || 340;
+  const totalWidth = Math.max(parentWidth, list.length * minWidthPerPoint);
   container.style.width = `${totalWidth}px`;
 
   const labels = list.map(l => {
@@ -255,7 +255,6 @@ function renderScaleChart() {
         backgroundColor: 'rgba(30, 58, 138, 0.06)',
         borderWidth: 3,
         pointRadius: 5,
-        pointHoverRadius: 7,
         tension: 0.3,
         fill: true,
         yAxisID: 'yWeight'
@@ -306,22 +305,22 @@ function renderScaleChart() {
       { label: '水分 (%)', data: list.map(l => Number(l.water) || null), borderColor: '#0284c7', backgroundColor: 'rgba(2, 132, 199, 0.08)', borderWidth: 3, tension: 0.3, yAxisID: 'yWater', fill: true },
       { label: '基礎代謝 (kcal)', data: list.map(l => Number(l.bmr) || null), borderColor: '#7c3aed', borderWidth: 2.5, tension: 0.3, yAxisID: 'yBMR' }
     ];
-    scales.yWater = { type: 'linear', position: 'left', title: { display: true, text: '水分 (%)', color: '#0284c7' }, grid: { color: '#f1f5f9' } };
-    scales.yBMR = { type: 'linear', position: 'right', title: { display: true, text: '基礎代謝 (kcal)', color: '#7c3aed' }, grid: { drawOnChartArea: false } };
+    scales.yWater = { type: 'linear', position: 'left', title: { display: true, text: '水分 (%)', color: '#0284c7', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#0284c7' } };
+    scales.yBMR = { type: 'linear', position: 'right', title: { display: true, text: '代謝 (kcal)', color: '#7c3aed', font: { weight: 'bold' } }, grid: { drawOnChartArea: false }, ticks: { color: '#7c3aed' } };
   } else if (currentScaleChartMode === 'bone_protein') {
     datasets = [
       { label: '蛋白質 (%)', data: list.map(l => Number(l.protein) || null), borderColor: '#10b981', borderWidth: 3, tension: 0.3, yAxisID: 'yPro' },
       { label: '骨質 (kg)', data: list.map(l => Number(l.bone) || null), borderColor: '#f59e0b', borderWidth: 2.5, tension: 0.3, yAxisID: 'yBone' }
     ];
-    scales.yPro = { type: 'linear', position: 'left', title: { display: true, text: '蛋白質 (%)', color: '#10b981' }, grid: { color: '#f1f5f9' } };
-    scales.yBone = { type: 'linear', position: 'right', title: { display: true, text: '骨質 (kg)', color: '#f59e0b' }, grid: { drawOnChartArea: false } };
+    scales.yPro = { type: 'linear', position: 'left', title: { display: true, text: '蛋白質 (%)', color: '#10b981', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#10b981' } };
+    scales.yBone = { type: 'linear', position: 'right', title: { display: true, text: '骨質 (kg)', color: '#f59e0b', font: { weight: 'bold' } }, grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b' } };
   } else if (currentScaleChartMode === 'vfl_score') {
     datasets = [
       { label: '身體評分', data: list.map(l => Number(l.score) || null), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderWidth: 3, tension: 0.3, yAxisID: 'yScore', fill: true },
-      { label: '內臟脂肪級別', data: list.map(l => Number(l.vfl) || null), borderColor: '#ef4444', borderWidth: 2.5, tension: 0.3, yAxisID: 'yVFL' }
+      { label: '內臟脂肪等級', data: list.map(l => Number(l.vfl) || null), borderColor: '#ef4444', borderWidth: 2.5, tension: 0.3, yAxisID: 'yVFL' }
     ];
-    scales.yScore = { type: 'linear', position: 'left', title: { display: true, text: '評分 (分)', color: '#3b82f6' }, grid: { color: '#f1f5f9' } };
-    scales.yVFL = { type: 'linear', position: 'right', title: { display: true, text: '內臟脂肪等級', color: '#ef4444' }, grid: { drawOnChartArea: false } };
+    scales.yScore = { type: 'linear', position: 'left', title: { display: true, text: '評分 (分)', color: '#3b82f6', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' }, ticks: { color: '#3b82f6' } };
+    scales.yVFL = { type: 'linear', position: 'right', title: { display: true, text: '內臟等級', color: '#ef4444', font: { weight: 'bold' } }, grid: { drawOnChartArea: false }, ticks: { color: '#ef4444' } };
   }
 
   scaleChartInstance = new Chart(ctx, {
@@ -346,7 +345,7 @@ function renderScaleChart() {
 
   setTimeout(() => {
     container.parentElement.scrollLeft = container.parentElement.scrollWidth;
-  }, 100);
+  }, 50);
 }
 
 function renderScaleList() {
