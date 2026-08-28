@@ -1,4 +1,4 @@
-// 6. main.js
+// Mojo Project
 window.addEventListener('DOMContentLoaded', () => {
   const btnInbody = document.getElementById('btnTabInbody');
   const btnDiet = document.getElementById('btnTabDiet');
