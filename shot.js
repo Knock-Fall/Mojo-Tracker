@@ -1,5 +1,5 @@
 // Mojo Project
-// 3. shot.js (支援歷史週期預測留存與驗證回顧)
+// 3. shot.js
 
 function saveShot() {
   const dateVal = document.getElementById('shotDate').value;
@@ -63,42 +63,6 @@ function deleteShot(date) {
   }
 }
 
-// 輔助運算：計算特定週期的預測與實際驗證結果
-function getCyclePredictionReview(shotDateStr, nextShotDateStr) {
-  const scales = window.MojoState.scaleLogs || [];
-  const bodies = window.MojoState.bodyLogs || [];
-
-  // 抓取該週期內的家用數據
-  const scalesInCycle = scales.filter(s => s.date >= shotDateStr && s.date <= nextShotDateStr);
-  if (scalesInCycle.length < 2) return null;
-
-  // 計算該週期內的體重與體脂線性斜率
-  const wList = scalesInCycle.map(s => s.weight);
-  const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
-  
-  const slopeW = (typeof calculateLinearSlope === 'function') ? calculateLinearSlope(wList) : 0;
-  const slopeF = (fList.length >= 2 && typeof calculateLinearSlope === 'function') ? calculateLinearSlope(fList) : 0;
-
-  // 偏差值估算（預設 -0.34kg 與 +1.38%）
-  const avgDiffW = -0.34;
-  const avgDiffFat = 1.38;
-
-  const firstScale = scalesInCycle[0];
-  const predWeight = (firstScale.weight + (slopeW * 7) - avgDiffW).toFixed(1);
-  const predFat = ((firstScale.fat || 26) + (slopeF * 7) - avgDiffFat).toFixed(1);
-
-  // 檢查在 nextShotDateStr 當天是否有真實 InBody 紀錄進行比對
-  const actualInBody = bodies.find(b => b.date === nextShotDateStr || b.date === shotDateStr);
-  const matchedInBodyOnNext = bodies.find(b => b.date === nextShotDateStr);
-
-  return {
-    predWeight: predWeight,
-    predFat: predFat,
-    weeklyDelta: (slopeW * 7).toFixed(2),
-    actualInBody: matchedInBodyOnNext || null
-  };
-}
-
 function renderShotList() {
   const container = document.getElementById('shotLogList');
   if (!container) return;
@@ -117,30 +81,30 @@ function renderShotList() {
     const dNext = String(nextDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    // 取得該週期的回顧與預測資訊
-    const review = getCyclePredictionReview(s.date, nextShotDateStr);
     let reviewHtml = '';
+    if (typeof computeCycleProjection === 'function') {
+      const proj = computeCycleProjection(s.date, nextShotDateStr);
+      if (proj) {
+        let actualCompHtml = '';
+        if (proj.actualInBody) {
+          const diffW = (proj.actualInBody.weight - parseFloat(proj.predWeight)).toFixed(1);
+          const diffF = (proj.actualInBody.pbf - parseFloat(proj.predFat)).toFixed(1);
+          actualCompHtml = `<div style="margin-top:4px; padding-top:4px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600;">
+            🎯 實際 InBody 驗證 (${nextShotDateStr})：體重 ${proj.actualInBody.weight}kg (誤差 ${diffW >= 0 ? '+' + diffW : diffW}kg) ｜ 體脂 ${proj.actualInBody.pbf}%
+          </div>`;
+        } else {
+          actualCompHtml = `<div style="margin-top:2px; color:#64748b; font-size:0.75rem;">
+            ⏳ 週期進行中或等待 ${nextShotDateStr} InBody 校準驗證
+          </div>`;
+        }
 
-    if (review) {
-      let actualCompHtml = '';
-      if (review.actualInBody) {
-        const diffW = (review.actualInBody.weight - parseFloat(review.predWeight)).toFixed(1);
-        const diffF = (review.actualInBody.pbf - parseFloat(review.predFat)).toFixed(1);
-        actualCompHtml = `<div style="margin-top:4px; padding-top:4px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600;">
-          🎯 實際 InBody 驗證 (${nextShotDateStr})：體重 ${review.actualInBody.weight}kg (誤差 ${diffW >= 0 ? '+' + diffW : diffW}kg) ｜ 體脂 ${review.actualInBody.pbf}%
-        </div>`;
-      } else {
-        actualCompHtml = `<div style="margin-top:2px; color:#64748b; font-size:0.75rem;">
-          ⏳ 週期進行中或等待 ${nextShotDateStr} InBody 校準驗證
+        reviewHtml = `<div style="margin-top:6px; padding:8px 10px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.5;">
+          <strong>🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</strong><br>
+          • 週變化速率：${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg/週<br>
+          • 週期預測 InBody：體重 ~<strong>${proj.predWeight} kg</strong> ｜ 體脂 ~<strong>${proj.predFat} %</strong>
+          ${actualCompHtml}
         </div>`;
       }
-
-      reviewHtml = `<div style="margin-top:6px; padding:8px 10px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.5;">
-        <strong>🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</strong><br>
-        • 週變化速率：${parseFloat(review.weeklyDelta) <= 0 ? review.weeklyDelta : '+' + review.weeklyDelta} kg/週<br>
-        • 週期預測 InBody：體重 ~<strong>${review.predWeight} kg</strong> ｜ 體脂 ~<strong>${review.predFat} %</strong>
-        ${actualCompHtml}
-      </div>`;
     }
 
     html += `<div class="log-item" style="flex-direction:column; align-items:stretch; padding:10px 0;">
