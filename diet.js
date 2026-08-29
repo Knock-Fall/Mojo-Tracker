@@ -215,7 +215,8 @@ function addWaterRecord(type, amount) {
 }
 
 function addCustomWater(type) {
-  const input = document.getElementById('customWaterPure');
+  const inputId = (type === 'pure') ? 'customWaterPure' : 'customWaterTea';
+  const input = document.getElementById(inputId);
   if (!input) return;
   const val = parseInt(input.value);
   if (!val || val <= 0) return alert('請輸入有效的水量數值 (ml)');
@@ -327,14 +328,24 @@ function renderDiet() {
     }
   });
 
+  // 升級：雙軌搜尋小於等於當天日期的「最新體重（家用體重計 or InBody）」
   let latestWeight = 80;
-  const bodies = window.MojoState.bodyLogs || [];
-  const validBodiesBeforeOrOnDate = bodies.filter(b => b.date <= queryDate);
+  let weightSourceLabel = '預設基準';
+  
+  const bodies = (window.MojoState.bodyLogs || []).filter(b => b.date <= queryDate);
+  const scales = (window.MojoState.scaleLogs || []).filter(s => s.date <= queryDate);
 
-  if (validBodiesBeforeOrOnDate.length > 0) {
-    latestWeight = Number(validBodiesBeforeOrOnDate[validBodiesBeforeOrOnDate.length - 1].weight) || 80;
-  } else if (bodies.length > 0) {
-    latestWeight = Number(bodies[0].weight) || 80;
+  let candidateRecords = [];
+  bodies.forEach(b => candidateRecords.push({ date: b.date, time: '00:00', weight: Number(b.weight), type: 'InBody' }));
+  scales.forEach(s => candidateRecords.push({ date: s.date, time: s.time || '00:00', weight: Number(s.weight), type: '家用' }));
+
+  if (candidateRecords.length > 0) {
+    candidateRecords.sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
+    latestWeight = candidateRecords[0].weight;
+    weightSourceLabel = `${candidateRecords[0].type} ${latestWeight}kg`;
+  } else if ((window.MojoState.bodyLogs || []).length > 0) {
+    latestWeight = Number(window.MojoState.bodyLogs[0].weight) || 80;
+    weightSourceLabel = `首筆 InBody ${latestWeight}kg`;
   }
 
   const tdee = Math.round(latestWeight * 28);
@@ -415,7 +426,7 @@ function renderDiet() {
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
   if (calCurEl) calCurEl.innerText = totalC;
   if (calTarEl) calTarEl.innerText = targetCalories;
-  if (inbodyRefEl) inbodyRefEl.innerText = `依 InBody 基準體重 ${latestWeight}kg 連動`;
+  if (inbodyRefEl) inbodyRefEl.innerText = `依最新基準 ${weightSourceLabel} 連動`;
 
   const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
   const calProgEl = document.getElementById('calProgress');
