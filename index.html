@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80945">
+  <link rel="stylesheet" href="style.css?v=80946">
 </head>
 <body>
 
@@ -382,7 +382,7 @@
         </div>
       </div>
 
-      <!-- 2. 雙軌水分追蹤卡 -->
+      <!-- 2. 雙軌水分追蹤卡（雙軌皆具備快速鍵與自訂輸入） -->
       <div class="nutrition-card" style="border-left: 4px solid #0284c7; background: #f0f9ff;">
         <div class="nutrition-head">
           <span style="color: #0369a1;">💧 總水分攝取</span>
@@ -400,8 +400,9 @@
         </div>
 
         <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #bae6fd; display: flex; flex-direction: column; gap: 8px;">
+          <!-- 純水區 -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
-            <span style="font-size: 0.8rem; font-weight: bold; color: #0284c7;">💧 白開水快速鍵：</span>
+            <span style="font-size: 0.8rem; font-weight: bold; color: #0284c7;">💧 純白開水快速鍵：</span>
             <div style="display: flex; gap: 6px;">
               <button class="action-btn btn-edit" type="button" onclick="addWaterRecord('pure', 600)">+600ml</button>
               <button class="action-btn btn-edit" type="button" onclick="addWaterRecord('pure', 500)">+500ml</button>
@@ -411,17 +412,26 @@
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0369a1;">✏️ 自訂純水量：</span>
             <div style="display: flex; gap: 6px; flex: 1; max-width: 220px;">
-              <input type="number" id="customWaterPure" placeholder="輸入 ml (例:150)" style="padding: 4px 8px; font-size: 0.8rem;">
+              <input type="number" id="customWaterPure" placeholder="輸入 ml" style="padding: 4px 8px; font-size: 0.8rem;">
               <button class="action-btn btn-edit" type="button" onclick="addCustomWater('pure')">+加水</button>
             </div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #e0f2fe; padding-top: 6px;">
-            <span style="font-size: 0.8rem; font-weight: bold; color: #0d9488;">🍵 無糖茶/黑咖啡：</span>
+          <!-- 茶/咖啡區 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; border-top: 1px dashed #e0f2fe; padding-top: 6px;">
+            <span style="font-size: 0.8rem; font-weight: bold; color: #0d9488;">🍵 茶/咖啡快速鍵：</span>
             <div style="display: flex; gap: 6px;">
               <button class="action-btn btn-edit" type="button" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;" onclick="addWaterRecord('tea', 350)">+350ml(中杯)</button>
               <button class="action-btn btn-edit" type="button" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;" onclick="addWaterRecord('tea', 700)">+700ml(大杯)</button>
               <button class="action-btn btn-del" type="button" onclick="resetWaterRecord()">歸零</button>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <span style="font-size: 0.8rem; font-weight: bold; color: #0f766e;">✏️ 自訂茶/咖啡量：</span>
+            <div style="display: flex; gap: 6px; flex: 1; max-width: 220px;">
+              <input type="number" id="customWaterTea" placeholder="輸入 ml" style="padding: 4px 8px; font-size: 0.8rem;">
+              <button class="action-btn btn-edit" type="button" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;" onclick="addCustomWater('tea')">+加茶</button>
             </div>
           </div>
         </div>
@@ -438,7 +448,7 @@
         </div>
         <div style="font-size: 0.75rem; color: var(--sub); margin-top: 4px; display: flex; justify-content: space-between;">
           <span id="calRemainTxt">剩餘：1800 kcal</span>
-          <span id="inbodyWeightRef">依 InBody 基準體重連動</span>
+          <span id="inbodyWeightRef">依最新體重連動</span>
         </div>
       </div>
 
@@ -576,7 +586,7 @@
   </div>
 
   <div class="version-footer">
-    版本驗證代碼：<strong>MK-80945</strong>
+    版本驗證代碼：<strong>MK-80946</strong>
   </div>
 
 </div>
@@ -608,12 +618,12 @@
   </div>
 </div>
 
-<script src="sync.js?v=80945"></script>
-<script src="shot.js?v=80945"></script>
-<script src="scale.js?v=80945"></script>
-<script src="body.js?v=80945"></script>
-<script src="body-chart.js?v=80945"></script>
-<script src="diet.js?v=80945"></script>
-<script src="main.js?v=80945"></script>
+<script src="sync.js?v=80946"></script>
+<script src="shot.js?v=80946"></script>
+<script src="scale.js?v=80946"></script>
+<script src="body.js?v=80946"></script>
+<script src="body-chart.js?v=80946"></script>
+<script src="diet.js?v=80946"></script>
+<script src="main.js?v=80946"></script>
 </body>
 </html>
