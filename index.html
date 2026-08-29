@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80946">
+  <link rel="stylesheet" href="style.css?v=80948">
 </head>
 <body>
 
@@ -16,7 +16,7 @@
 
 <div class="nav-tabs">
   <button id="btnTabInbody" class="tab-btn active" type="button">📊 體態與猛健樂</button>
-  <button id="btnTabDiet" class="tab-btn" type="button">🥗 飲食紀錄</button>
+  <button id="btnTabDiet" class="tab-btn" type="button">🥗 飲食與運動</button>
 </div>
 
 <div class="container">
@@ -351,7 +351,7 @@
     </div>
   </div>
 
-  <!-- 飲食紀錄 TAB -->
+  <!-- 飲食與運動 TAB -->
   <div id="tab-diet" class="tab-content">
     
     <div class="card" style="padding: 12px 16px; background: #ffffff;">
@@ -367,22 +367,30 @@
 
     <div class="card">
       <div class="card-title">
-        <span>⚡ 該日營養、雙軌水分與赤字進度</span>
+        <span>⚡ 該日綜合熱量、運動與赤字看板</span>
       </div>
 
-      <!-- 1. 熱量赤字即時看板 -->
+      <!-- 1. 綜合熱量赤字與運動扣除即時看板 -->
       <div class="nutrition-card" style="border-left: 4px solid #f59e0b; background: #fffbeb;">
         <div class="nutrition-head">
-          <span style="color: #b45309;">⚖️ 保肌減脂赤字</span>
+          <span style="color: #b45309;">⚖️ 保肌減脂實際赤字</span>
           <span><strong id="deficitCurrent" style="color:#b45309;">0</strong> / <span id="deficitTarget" style="color:var(--sub);">-500</span> kcal</span>
         </div>
+        
+        <!-- 綜合收支明細 -->
+        <div style="font-size: 0.8rem; color: #92400e; margin: 6px 0; padding: 6px 8px; background: rgba(254, 243, 199, 0.7); border-radius: 6px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+          <span>🍽️ 攝取：<strong id="summaryCalIn">0</strong> kcal</span>
+          <span>🏋️ 運動消耗：<strong id="summaryCalBurn">0</strong> kcal</span>
+          <span>🔥 淨熱量：<strong id="summaryNetCal">0</strong> kcal</span>
+        </div>
+
         <div style="font-size: 0.8rem; color: #78350f; margin-top: 4px; display: flex; justify-content: space-between;">
           <span id="deficitStatus">計算中...</span>
-          <span id="tdeeRef">TDEE: -- kcal</span>
+          <span id="tdeeRef">TDEE 消耗: -- kcal</span>
         </div>
       </div>
 
-      <!-- 2. 雙軌水分追蹤卡（雙軌皆具備快速鍵與自訂輸入） -->
+      <!-- 2. 雙軌水分追蹤卡 -->
       <div class="nutrition-card" style="border-left: 4px solid #0284c7; background: #f0f9ff;">
         <div class="nutrition-head">
           <span style="color: #0369a1;">💧 總水分攝取</span>
@@ -395,12 +403,11 @@
         </div>
 
         <div style="font-size: 0.78rem; color: #0c4a6e; margin-top: 6px; display: flex; justify-content: space-between;">
-          <span id="waterBreakdownTxt">純水: 0 ml (0%) ｜ 無糖茶: 0 ml</span>
+          <span id="waterBreakdownTxt">純水: 0 ml (0%) ｜ 茶/咖啡: 0 ml</span>
           <span id="waterRatioStatus">建議純水 ≥ 50%</span>
         </div>
 
         <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #bae6fd; display: flex; flex-direction: column; gap: 8px;">
-          <!-- 純水區 -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0284c7;">💧 純白開水快速鍵：</span>
             <div style="display: flex; gap: 6px;">
@@ -417,7 +424,6 @@
             </div>
           </div>
 
-          <!-- 茶/咖啡區 -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; border-top: 1px dashed #e0f2fe; padding-top: 6px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0d9488;">🍵 茶/咖啡快速鍵：</span>
             <div style="display: flex; gap: 6px;">
@@ -440,7 +446,7 @@
       <!-- 3. 熱量攝取進度條 -->
       <div class="nutrition-card">
         <div class="nutrition-head">
-          <span style="color: var(--primary);">🔥 熱量攝取</span>
+          <span style="color: var(--primary);">🔥 飲食熱量攝取</span>
           <span><strong id="calCurrent">0</strong> / <span id="calTarget" style="color:var(--sub);">1800</span> kcal</span>
         </div>
         <div class="progress-bg">
@@ -521,6 +527,51 @@
       <div id="suggestContent"></div>
     </div>
 
+    <!-- 🏋️ 體能與運動訓練紀錄卡片 -->
+    <div class="card" style="border-left: 5px solid #6366f1;">
+      <div class="card-title" style="color: #4338ca;">
+        <span>🏋️ 體能訓練與運動消耗</span>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>運動項目</label>
+          <select id="workoutTypeSelect" onchange="handleWorkoutSelectChange(this)">
+            <!-- 動態注入預設與自訂項目 -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label>運動時長 (分鐘)</label>
+          <input type="number" id="workoutDuration" placeholder="例：45">
+        </div>
+      </div>
+
+      <!-- 自訂新增項目輸入列 -->
+      <div id="newWorkoutItemBox" style="display: none; margin-bottom: 10px; background: #eef2ff; padding: 10px; border-radius: 8px;">
+        <label style="font-size: 0.8rem; color: #4338ca; font-weight: bold;">➕ 新增自訂運動項目名稱：</label>
+        <div style="display: flex; gap: 6px; margin-top: 4px;">
+          <input type="text" id="newWorkoutNameInput" placeholder="例：羽球、攀岩、皮拉提斯">
+          <button class="action-btn btn-sync" type="button" style="background:#6366f1;" onclick="addNewWorkoutCategory()">儲存項目</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label>預估消耗熱量 (kcal) *</label>
+          <input type="number" id="workoutCal" placeholder="例：280">
+        </div>
+        <div class="form-group">
+          <label>訓練備註 / 感受度</label>
+          <input type="text" id="workoutNote" placeholder="例：深蹲 80kg 5組、核心力竭">
+        </div>
+      </div>
+
+      <button class="btn" type="button" style="background: #6366f1; color:#fff;" onclick="saveWorkout()">記錄本次運動消耗</button>
+
+      <!-- 該日運動紀錄清單 -->
+      <div id="workoutLogList" style="margin-top: 12px; border-top: 1px dashed #c7d2fe; padding-top: 8px;"></div>
+    </div>
+
     <!-- 新增餐點卡片 -->
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄（支援補填選取日期）</div>
@@ -586,7 +637,7 @@
   </div>
 
   <div class="version-footer">
-    版本驗證代碼：<strong>MK-80946</strong>
+    版本驗證代碼：<strong>MK-80948</strong>
   </div>
 
 </div>
@@ -618,12 +669,12 @@
   </div>
 </div>
 
-<script src="sync.js?v=80947"></script>
-<script src="shot.js?v=80947"></script>
-<script src="scale.js?v=80947"></script>
-<script src="body.js?v=80947"></script>
-<script src="body-chart.js?v=80947"></script>
-<script src="diet.js?v=80947"></script>
-<script src="main.js?v=80947"></script>
+<script src="sync.js?v=80948"></script>
+<script src="shot.js?v=80948"></script>
+<script src="scale.js?v=80948"></script>
+<script src="body.js?v=80948"></script>
+<script src="body-chart.js?v=80948"></script>
+<script src="diet.js?v=80948"></script>
+<script src="main.js?v=80948"></script>
 </body>
 </html>
