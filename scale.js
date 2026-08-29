@@ -415,91 +415,6 @@ function renderScaleChart() {
   }, 50);
 }
 
-function calculateLinearSlope(dataPoints) {
-  const n = dataPoints.length;
-  if (n < 2) return 0;
-  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-  for (let i = 0; i < n; i++) {
-    sumX += i;
-    sumY += dataPoints[i];
-    sumXY += i * dataPoints[i];
-    sumXX += i * i;
-  }
-  const denominator = (n * sumXX - sumX * sumX);
-  if (denominator === 0) return 0;
-  return (n * sumXY - sumX * sumY) / denominator;
-}
-
-// 統一通用預測計算引擎
-function computeCycleProjection(startDateStr, endDateStr) {
-  const scales = window.MojoState.scaleLogs || [];
-  const bodies = window.MojoState.bodyLogs || [];
-
-  // 1. 計算全域平均偏差
-  let avgDiffW = -0.34, avgDiffFat = 1.38;
-  let pairs = [];
-  scales.forEach(s => {
-    const matched = bodies.find(b => b.date === s.date);
-    if (matched) pairs.push({ s, b: matched });
-  });
-  if (pairs.length > 0) {
-    let diffWTotal = 0, diffFatTotal = 0, countFat = 0;
-    pairs.forEach(p => {
-      diffWTotal += (p.s.weight - p.b.weight);
-      if (p.s.fat && p.b.pbf) {
-        diffFatTotal += (p.s.fat - p.b.pbf);
-        countFat++;
-      }
-    });
-    avgDiffW = diffWTotal / pairs.length;
-    if (countFat > 0) avgDiffFat = diffFatTotal / countFat;
-  }
-
-  // 2. 篩選該區間內的家用數據
-  const scalesInCycle = scales.filter(s => s.date >= startDateStr && s.date <= endDateStr);
-  if (scalesInCycle.length < 2) return null;
-
-  const wList = scalesInCycle.map(s => s.weight);
-  const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
-  const mList = scalesInCycle.map(s => s.muscle).filter(m => m > 0);
-
-  const slopeW = calculateLinearSlope(wList);
-  const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
-  const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
-
-  const latestScale = scalesInCycle[scalesInCycle.length - 1];
-  const latestDateObj = new Date(latestScale.date);
-  const endDateObj = new Date(endDateStr);
-  const remainingDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
-
-  const projScaleWeight = latestScale.weight + (slopeW * remainingDays);
-  const projScaleFat = (latestScale.fat || 25) + (slopeF * remainingDays);
-  const projScaleMuscle = (latestScale.muscle || 55) + (slopeM * remainingDays);
-
-  const predWeight = (projScaleWeight - avgDiffW).toFixed(1);
-  const predFat = (projScaleFat - avgDiffFat).toFixed(1);
-  const predSMM = (projScaleMuscle * 0.96).toFixed(1);
-  const weeklyDelta = (slopeW * 7).toFixed(2);
-
-  let statusTip = '🌱 溫和穩健減脂中';
-  if (slopeW < -0.15 && slopeM >= -0.02) {
-    statusTip = '🔥 高效燃脂且肌肉維持極佳';
-  } else if (slopeM < -0.05) {
-    statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
-  }
-
-  const matchedInBody = bodies.find(b => b.date === endDateStr);
-
-  return {
-    predWeight,
-    predFat,
-    predSMM,
-    weeklyDelta,
-    statusTip,
-    actualInBody: matchedInBody || null
-  };
-}
-
 function renderComparisonAnalysis() {
   const el = document.getElementById('scaleDiffReport');
   if (!el) return;
@@ -564,7 +479,8 @@ function renderComparisonAnalysis() {
     const dNext = String(nextShotDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    const proj = computeCycleProjection(latestShot.date, nextShotDateStr);
+    // 直接呼叫 shot.js 中的統一引擎
+    const proj = (typeof computeCycleProjection === 'function') ? computeCycleProjection(latestShot.date, nextShotDateStr) : null;
 
     if (proj) {
       html += `<div style="margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
