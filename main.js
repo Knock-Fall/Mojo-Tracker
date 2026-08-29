@@ -6,6 +6,7 @@ window.MojoState = {
   scaleLogs: [],
   bodyLogs: [],
   dietLogs: [],
+  workoutLogs: [],
   waterLogs: {}
 };
 
@@ -31,7 +32,6 @@ function getStoredKeyObjects() {
     if (raw) return JSON.parse(raw);
   } catch(e) {}
   
-  // 相容舊版陣列與單一字串
   const oldPool = localStorage.getItem('gemini_api_keys_pool');
   if (oldPool) {
     try {
@@ -241,8 +241,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const s4 = localStorage.getItem('my_diet_logs');
     if (s4) window.MojoState.dietLogs = JSON.parse(s4);
 
-    const s5 = localStorage.getItem('my_water_logs');
-    if (s5) window.MojoState.waterLogs = JSON.parse(s5);
+    const s5 = localStorage.getItem('my_workout_logs');
+    if (s5) window.MojoState.workoutLogs = JSON.parse(s5);
+
+    const s6 = localStorage.getItem('my_water_logs');
+    if (s6) window.MojoState.waterLogs = JSON.parse(s6);
   } catch (e) {
     console.error('LocalStorage 載入失敗', e);
   }
