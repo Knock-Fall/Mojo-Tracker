@@ -24,12 +24,68 @@ function getLocalTimeStr() {
   return `${h}:${m}`;
 }
 
+// 多組 API Key 管理核心
+function getActiveApiKey() {
+  const activeKey = localStorage.getItem('gemini_active_key');
+  if (activeKey) return activeKey.trim();
+
+  const keys = getStoredApiKeys();
+  if (keys.length > 0) return keys[0];
+  return '';
+}
+
+function getStoredApiKeys() {
+  try {
+    const saved = localStorage.getItem('gemini_api_keys_pool');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  const oldKey = localStorage.getItem('gemini_api_key');
+  return oldKey ? [oldKey.trim()] : [];
+}
+
 function setupApiKey() {
-  const curKey = localStorage.getItem('gemini_api_key') || '';
-  const newKey = prompt('請輸入您的 Google Gemini API Key：', curKey);
-  if (newKey !== null) {
-    localStorage.setItem('gemini_api_key', newKey.trim());
-    alert('API Key 已儲存！');
+  let keys = getStoredApiKeys();
+  let currentActive = localStorage.getItem('gemini_active_key') || (keys.length ? keys[0] : '');
+
+  let msg = `⚙️ Gemini API Key 管理中心\n目前已儲存 ${keys.length} 組金鑰：\n\n`;
+  keys.forEach((k, idx) => {
+    const isCurrent = (k === currentActive) ? ' [🎯 使用中]' : '';
+    msg += `[${idx + 1}] ${k.slice(0, 8)}...${k.slice(-4)}${isCurrent}\n`;
+  });
+  msg += `\n請輸入操作指令：\n• 新增金鑰：輸入「add 你的新金鑰」\n• 切換金鑰：輸入「use 編號」(例如 use 1)\n• 直接貼上新金鑰直接儲存啟用`;
+
+  const input = prompt(msg);
+  if (!input) return;
+
+  const trimmed = input.trim();
+  if (trimmed.startsWith('add ')) {
+    const newK = trimmed.replace('add ', '').trim();
+    if (newK.length > 10) {
+      keys.push(newK);
+      localStorage.setItem('gemini_api_keys_pool', JSON.stringify(keys));
+      localStorage.setItem('gemini_active_key', newK);
+      localStorage.setItem('gemini_api_key', newK);
+      alert(`✨ 成功新增並切換至第 ${keys.length} 組金鑰！`);
+    } else {
+      alert('金鑰格式或長度不正確。');
+    }
+  } else if (trimmed.startsWith('use ')) {
+    const idx = parseInt(trimmed.replace('use ', '')) - 1;
+    if (idx >= 0 && idx < keys.length) {
+      localStorage.setItem('gemini_active_key', keys[idx]);
+      localStorage.setItem('gemini_api_key', keys[idx]);
+      alert(`🎯 已切換至第 ${idx + 1} 組金鑰！`);
+    } else {
+      alert('找不到該編號的金鑰。');
+    }
+  } else if (trimmed.length > 10) {
+    if (!keys.includes(trimmed)) {
+      keys.push(trimmed);
+      localStorage.setItem('gemini_api_keys_pool', JSON.stringify(keys));
+    }
+    localStorage.setItem('gemini_active_key', trimmed);
+    localStorage.setItem('gemini_api_key', trimmed);
+    alert('✨ API Key 已成功儲存並啟用！');
   }
 }
 
@@ -84,7 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 載入本地儲存
   try {
     const s1 = localStorage.getItem('my_shot_logs');
     if (s1) window.MojoState.shotLogs = JSON.parse(s1);
@@ -104,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('LocalStorage 載入失敗', e);
   }
 
-  // 初始渲染各模組
   if (typeof renderShotList === 'function') renderShotList();
   if (typeof renderScaleChart === 'function') renderScaleChart();
   if (typeof renderScaleList === 'function') renderScaleList();
