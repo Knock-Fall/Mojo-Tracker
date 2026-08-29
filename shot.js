@@ -17,32 +17,38 @@ function calculateLinearSlope(dataPoints) {
   return (n * sumXY - sumX * sumY) / denominator;
 }
 
-// 通用週期投影預測引擎（全站統一使用）
+// 通用週期投影預測引擎（含骨骼肌真實校正）
 function computeCycleProjection(startDateStr, endDateStr) {
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
 
   // 1. 計算全域歷史偏差 (家用 - InBody)
-  let avgDiffW = -0.34, avgDiffFat = 1.38;
+  let avgDiffW = -0.34, avgDiffFat = 1.38, avgDiffMuscle = 22.5;
   let pairs = [];
   scales.forEach(s => {
     const matched = bodies.find(b => b.date === s.date);
     if (matched) pairs.push({ s, b: matched });
   });
+
   if (pairs.length > 0) {
-    let diffWTotal = 0, diffFatTotal = 0, countFat = 0;
+    let diffWTotal = 0, diffFatTotal = 0, diffMTotal = 0, countFat = 0, countM = 0;
     pairs.forEach(p => {
       diffWTotal += (p.s.weight - p.b.weight);
       if (p.s.fat && p.b.pbf) {
         diffFatTotal += (p.s.fat - p.b.pbf);
         countFat++;
       }
+      if (p.s.muscle && p.b.smm) {
+        diffMTotal += (p.s.muscle - p.b.smm);
+        countM++;
+      }
     });
     avgDiffW = diffWTotal / pairs.length;
     if (countFat > 0) avgDiffFat = diffFatTotal / countFat;
+    if (countM > 0) avgDiffMuscle = diffMTotal / countM;
   }
 
-  // 2. 抓取週期內的家用數據（若當前週期筆數少，則取最近 5 筆確保斜率穩定）
+  // 2. 抓取週期內的家用數據
   const scalesInCycle = scales.filter(s => s.date >= startDateStr);
   const targetScales = scalesInCycle.length >= 2 ? scalesInCycle : scales.slice(-5);
   if (targetScales.length < 2) return null;
@@ -55,7 +61,6 @@ function computeCycleProjection(startDateStr, endDateStr) {
   const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
   const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
 
-  // 以最新一筆家用體重為出發點，計算距離第 7 天的剩餘天數
   const latestScale = scales[scales.length - 1];
   const latestDateObj = new Date(latestScale.date);
   const endDateObj = new Date(endDateStr);
@@ -63,11 +68,11 @@ function computeCycleProjection(startDateStr, endDateStr) {
 
   const projScaleWeight = latestScale.weight + (slopeW * remainingDays);
   const projScaleFat = (latestScale.fat || 25) + (slopeF * remainingDays);
-  const projScaleMuscle = (latestScale.muscle || 55) + (slopeM * remainingDays);
+  const projScaleMuscle = (latestScale.muscle || 57) + (slopeM * remainingDays);
 
   const predWeight = (projScaleWeight - avgDiffW).toFixed(1);
   const predFat = (projScaleFat - avgDiffFat).toFixed(1);
-  const predSMM = (projScaleMuscle * 0.96).toFixed(1);
+  const predSMM = (projScaleMuscle - avgDiffMuscle).toFixed(1); // 正確扣除家用總肌肉與 InBody 骨骼肌之定義差
   const weeklyDelta = (slopeW * 7).toFixed(2);
 
   let statusTip = '🌱 溫和穩健減脂中';
@@ -176,8 +181,9 @@ function renderShotList() {
       if (proj.actualInBody) {
         const diffW = (proj.actualInBody.weight - parseFloat(proj.predWeight)).toFixed(1);
         const diffF = (proj.actualInBody.pbf - parseFloat(proj.predFat)).toFixed(1);
+        const diffM = (proj.actualInBody.smm - parseFloat(proj.predSMM)).toFixed(1);
         actualCompHtml = `<div style="margin-top:4px; padding-top:4px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600;">
-          🎯 實際 InBody 驗證 (${nextShotDateStr})：體重 ${proj.actualInBody.weight}kg (誤差 ${diffW >= 0 ? '+' + diffW : diffW}kg) ｜ 體脂 ${proj.actualInBody.pbf}%
+          🎯 實際 InBody 驗證 (${nextShotDateStr})：體重 ${proj.actualInBody.weight}kg (${diffW >= 0 ? '+' + diffW : diffW}kg) ｜ 骨骼肌 ${proj.actualInBody.smm}kg (${diffM >= 0 ? '+' + diffM : diffM}kg) ｜ 體脂 ${proj.actualInBody.pbf}%
         </div>`;
       } else {
         actualCompHtml = `<div style="margin-top:2px; color:#64748b; font-size:0.75rem;">
@@ -188,7 +194,7 @@ function renderShotList() {
       reviewHtml = `<div style="margin-top:6px; padding:8px 10px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.5;">
         <strong>🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</strong><br>
         • 週變化速率：${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg/週<br>
-        • 週期預測 InBody：體重 ~<strong>${proj.predWeight} kg</strong> ｜ 體脂 ~<strong>${proj.predFat} %</strong>
+        • 週期預測 InBody：體重 ~<strong>${proj.predWeight} kg</strong> ｜ 骨骼肌 ~<strong>${proj.predSMM} kg</strong> ｜ 體脂 ~<strong>${proj.predFat} %</strong>
         ${actualCompHtml}
       </div>`;
     }
