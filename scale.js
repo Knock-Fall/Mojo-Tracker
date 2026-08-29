@@ -60,11 +60,11 @@ async function previewAndAnalyzeScale(input) {
 }
 
 async function analyzeScaleImage() {
-  let apiKey = localStorage.getItem('gemini_api_key');
+  let apiKey = (typeof getActiveApiKey === 'function') ? getActiveApiKey() : localStorage.getItem('gemini_api_key');
   if (!apiKey) {
-    apiKey = prompt('首次使用辨識功能，請輸入您的 Gemini API Key：');
+    setupApiKey();
+    apiKey = (typeof getActiveApiKey === 'function') ? getActiveApiKey() : localStorage.getItem('gemini_api_key');
     if (!apiKey) return alert('未輸入 API Key，無法進行分析');
-    localStorage.setItem('gemini_api_key', apiKey.trim());
   }
 
   const aiBtn = document.getElementById('scaleAiBtn');
@@ -478,14 +478,11 @@ function renderComparisonAnalysis() {
     html += `• 當前落差：<strong>${wDiff >= 0 ? '+' + wDiff : wDiff} kg</strong><br>`;
   }
 
-  // 猛健樂 7 天週期預測計算（精準抓取日期最大值作為最新施打日）
   if (shots.length > 0 && scales.length >= 2) {
-    // 取得真正的最新施打紀錄
     const sortedShots = shots.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     const latestShot = sortedShots[0];
     const shotDateObj = new Date(latestShot.date);
     
-    // 計算下一次施打日（加 7 天）
     const nextShotDateObj = new Date(shotDateObj);
     nextShotDateObj.setDate(nextShotDateObj.getDate() + 7);
     
@@ -494,7 +491,6 @@ function renderComparisonAnalysis() {
     const dNext = String(nextShotDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    // 抓取最新施打日當天及之後的家用數據進行趨勢運算
     const scalesInCycle = scales.filter(s => s.date >= latestShot.date);
     const targetScales = scalesInCycle.length >= 2 ? scalesInCycle : scales.slice(-5);
 
@@ -514,7 +510,6 @@ function renderComparisonAnalysis() {
     const projScaleFat = (lastScale.fat || 25) + (slopeF * remainingDays);
     const projScaleMuscle = (lastScale.muscle || 55) + (slopeM * remainingDays);
 
-    // 偏差補償校正
     const predInbodyWeight = (projScaleWeight - avgDiffW).toFixed(1);
     const predInbodyFat = avgDiffFat !== null ? (projScaleFat - avgDiffFat).toFixed(1) : (projScaleFat - 1.3).toFixed(1);
     const predInbodySMM = (projScaleMuscle * 0.96).toFixed(1);
