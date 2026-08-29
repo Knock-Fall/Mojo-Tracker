@@ -51,6 +51,7 @@ select {
 }
 input:focus, select:focus { border-color: var(--primary); }
 
+/* 主按鈕標準樣式加固 */
 .btn {
   display: block !important;
   width: 100% !important;
@@ -68,7 +69,7 @@ input:focus, select:focus { border-color: var(--primary); }
 .btn-primary { background: #2563eb !important; color: #ffffff !important; }
 .btn-accent { background: #10b981 !important; color: #ffffff !important; }
 .btn-scale { background: #0284c7 !important; color: #ffffff !important; }
-.btn-shot { background: var(--shot) !important; color: #ffffff !important; }
+.btn-shot-submit { background: #ec4899 !important; color: #ffffff !important; }
 .btn-ai { background: #8b5cf6 !important; color: #ffffff !important; }
 .btn-ai:disabled { background: #cbd5e1 !important; cursor: not-allowed !important; }
 
