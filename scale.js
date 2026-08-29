@@ -436,18 +436,23 @@ function renderComparisonAnalysis() {
     }
   });
 
-  let avgDiffW = 0, avgDiffFat = null;
+  let avgDiffW = 0, avgDiffFat = null, avgDiffMuscle = null;
   if (pairs.length > 0) {
-    let diffWTotal = 0, diffFatTotal = 0, countFat = 0;
+    let diffWTotal = 0, diffFatTotal = 0, diffMTotal = 0, countFat = 0, countM = 0;
     pairs.forEach(p => {
       diffWTotal += (p.scale.weight - p.inbody.weight);
       if (p.scale.fat && p.inbody.pbf) {
         diffFatTotal += (p.scale.fat - p.inbody.pbf);
         countFat++;
       }
+      if (p.scale.muscle && p.inbody.smm) {
+        diffMTotal += (p.scale.muscle - p.inbody.smm);
+        countM++;
+      }
     });
     avgDiffW = parseFloat((diffWTotal / pairs.length).toFixed(2));
     if (countFat > 0) avgDiffFat = parseFloat((diffFatTotal / countFat).toFixed(2));
+    if (countM > 0) avgDiffMuscle = parseFloat((diffMTotal / countM).toFixed(2));
   }
 
   let html = '';
@@ -457,6 +462,10 @@ function renderComparisonAnalysis() {
     if (avgDiffFat !== null) {
       html += `• <strong>體脂率偏差</strong>：家用體重計平均比 InBody <strong>${avgDiffFat >= 0 ? '+' + avgDiffFat : avgDiffFat} %</strong><br>`;
     }
+    if (avgDiffMuscle !== null) {
+      html += `• <strong>肌肉量／骨骼肌偏差</strong>：家用總肌肉量平均比 InBody 骨骼肌重 <strong>${avgDiffMuscle >= 0 ? '+' + avgDiffMuscle : avgDiffMuscle} kg</strong><br>`;
+    }
+    html += `<small style="color:var(--sub); display:inline-block; margin-top:3px;">說明：家用顯示全身總肌肉組織（含水分），InBody 顯示純骨骼肌 (SMM)，演算法已自動校準差值。</small>`;
   } else {
     const latestScale = scales[scales.length - 1];
     const latestBody = bodies[bodies.length - 1];
@@ -479,7 +488,6 @@ function renderComparisonAnalysis() {
     const dNext = String(nextShotDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    // 直接呼叫 shot.js 中的統一引擎
     const proj = (typeof computeCycleProjection === 'function') ? computeCycleProjection(latestShot.date, nextShotDateStr) : null;
 
     if (proj) {
@@ -490,7 +498,7 @@ function renderComparisonAnalysis() {
         <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.6;">
           • 下次施打預測 InBody 體重：<strong>${proj.predWeight} kg</strong><br>
           • 下次施打預測 InBody 體脂：<strong>${proj.predFat} %</strong><br>
-          • 下次施打預測 骨骼肌重：<strong>${proj.predSMM} kg</strong><br>
+          • 下次施打預測 骨骼肌重 (SMM)：<strong>${proj.predSMM} kg</strong><br>
           • 週期變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong><br>
           <span style="display:inline-block; margin-top:3px; color:#0369a1; font-weight:600;">評估：${proj.statusTip}</span>
         </div>
