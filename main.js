@@ -24,68 +24,156 @@ function getLocalTimeStr() {
   return `${h}:${m}`;
 }
 
-// 多組 API Key 管理核心
-function getActiveApiKey() {
-  const activeKey = localStorage.getItem('gemini_active_key');
-  if (activeKey) return activeKey.trim();
-
-  const keys = getStoredApiKeys();
-  if (keys.length > 0) return keys[0];
-  return '';
-}
-
-function getStoredApiKeys() {
+// 視覺化 API Key 記憶庫核心
+function getStoredKeyObjects() {
   try {
-    const saved = localStorage.getItem('gemini_api_keys_pool');
-    if (saved) return JSON.parse(saved);
+    const raw = localStorage.getItem('gemini_key_pool_v2');
+    if (raw) return JSON.parse(raw);
   } catch(e) {}
-  const oldKey = localStorage.getItem('gemini_api_key');
-  return oldKey ? [oldKey.trim()] : [];
+  
+  // 相容舊版陣列與單一字串
+  const oldPool = localStorage.getItem('gemini_api_keys_pool');
+  if (oldPool) {
+    try {
+      const arr = JSON.parse(oldPool);
+      return arr.map((k, idx) => ({ id: 'k_' + idx, name: `金鑰 ${idx + 1}`, key: k }));
+    } catch(e) {}
+  }
+  const singleKey = localStorage.getItem('gemini_api_key');
+  if (singleKey) {
+    return [{ id: 'k_default', name: '預設金鑰', key: singleKey.trim() }];
+  }
+  return [];
 }
 
-function setupApiKey() {
-  let keys = getStoredApiKeys();
-  let currentActive = localStorage.getItem('gemini_active_key') || (keys.length ? keys[0] : '');
+function saveKeyObjects(list) {
+  localStorage.setItem('gemini_key_pool_v2', JSON.stringify(list));
+}
 
-  let msg = `⚙️ Gemini API Key 管理中心\n目前已儲存 ${keys.length} 組金鑰：\n\n`;
-  keys.forEach((k, idx) => {
-    const isCurrent = (k === currentActive) ? ' [🎯 使用中]' : '';
-    msg += `[${idx + 1}] ${k.slice(0, 8)}...${k.slice(-4)}${isCurrent}\n`;
+function getActiveApiKey() {
+  const activeId = localStorage.getItem('gemini_active_key_id');
+  const list = getStoredKeyObjects();
+  if (list.length === 0) return '';
+  const found = list.find(item => item.id === activeId);
+  return (found ? found.key : list[0].key).trim();
+}
+
+function openKeyModal() {
+  renderKeyListInModal();
+  const modal = document.getElementById('apiKeyModal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeKeyModal() {
+  const modal = document.getElementById('apiKeyModal');
+  if (modal) modal.classList.remove('active');
+}
+
+function renderKeyListInModal() {
+  const container = document.getElementById('apiKeyListContainer');
+  if (!container) return;
+  const list = getStoredKeyObjects();
+  const activeId = localStorage.getItem('gemini_active_key_id') || (list.length ? list[0].id : '');
+
+  if (list.length === 0) {
+    container.innerHTML = '<p style="text-align:center; color:var(--sub); padding:10px;">尚未建立任何 API Key</p>';
+    return;
+  }
+
+  let html = '';
+  list.forEach((item, idx) => {
+    const isSelected = item.id === activeId || (idx === 0 && !activeId);
+    const maskedKey = item.key.slice(0, 6) + '...' + item.key.slice(-4);
+
+    html += `<div class="key-item-card ${isSelected ? 'selected' : ''}">
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:bold; font-size:0.9rem; color:#0f172a; display:flex; align-items:center; gap:6px;">
+          ${item.name} ${isSelected ? '<span style="font-size:0.75rem; background:#dbeafe; color:#1d4ed8; padding:2px 6px; border-radius:4px;">使用中</span>' : ''}
+        </div>
+        <small style="color:var(--sub); font-family:monospace;">${maskedKey}</small>
+      </div>
+      <div style="display:flex; gap:6px;">
+        ${!isSelected ? `<button class="action-btn btn-sync" type="button" style="background:#2563eb;" onclick="selectActiveKey('${item.id}')">啟用</button>` : ''}
+        <button class="action-btn btn-edit" type="button" onclick="editKeyItem('${item.id}')">編輯</button>
+        <button class="action-btn btn-del" type="button" onclick="deleteKeyItem('${item.id}')">刪除</button>
+      </div>
+    </div>`;
   });
-  msg += `\n請輸入操作指令：\n• 新增金鑰：輸入「add 你的新金鑰」\n• 切換金鑰：輸入「use 編號」(例如 use 1)\n• 直接貼上新金鑰直接儲存啟用`;
 
-  const input = prompt(msg);
-  if (!input) return;
+  container.innerHTML = html;
+}
 
-  const trimmed = input.trim();
-  if (trimmed.startsWith('add ')) {
-    const newK = trimmed.replace('add ', '').trim();
-    if (newK.length > 10) {
-      keys.push(newK);
-      localStorage.setItem('gemini_api_keys_pool', JSON.stringify(keys));
-      localStorage.setItem('gemini_active_key', newK);
-      localStorage.setItem('gemini_api_key', newK);
-      alert(`✨ 成功新增並切換至第 ${keys.length} 組金鑰！`);
-    } else {
-      alert('金鑰格式或長度不正確。');
+function addNewApiKey() {
+  const nameInput = document.getElementById('newKeyName');
+  const valInput = document.getElementById('newKeyValue');
+  const name = nameInput.value.trim() || `金鑰 ${Date.now().toString().slice(-4)}`;
+  const key = valInput.value.trim();
+
+  if (!key || key.length < 10) return alert('請貼上有效的 API Key');
+
+  const list = getStoredKeyObjects();
+  const newObj = {
+    id: 'k_' + Date.now(),
+    name: name,
+    key: key
+  };
+  list.push(newObj);
+  saveKeyObjects(list);
+  localStorage.setItem('gemini_active_key_id', newObj.id);
+  localStorage.setItem('gemini_api_key', key);
+
+  nameInput.value = '';
+  valInput.value = '';
+  renderKeyListInModal();
+  alert(`✨ 已成功新增「${name}」並設為啟用！`);
+}
+
+function selectActiveKey(id) {
+  const list = getStoredKeyObjects();
+  const target = list.find(item => item.id === id);
+  if (target) {
+    localStorage.setItem('gemini_active_key_id', target.id);
+    localStorage.setItem('gemini_api_key', target.key);
+    renderKeyListInModal();
+    alert(`🎯 已切換至「${target.name}」！`);
+  }
+}
+
+function editKeyItem(id) {
+  const list = getStoredKeyObjects();
+  const idx = list.findIndex(item => item.id === id);
+  if (idx === -1) return;
+  const current = list[idx];
+
+  const newName = prompt('修改此金鑰名稱：', current.name);
+  if (newName === null) return;
+  const newKey = prompt('修改完整 API Key：', current.key);
+  if (newKey === null) return;
+
+  list[idx].name = newName.trim() || current.name;
+  list[idx].key = newKey.trim() || current.key;
+
+  saveKeyObjects(list);
+  if (localStorage.getItem('gemini_active_key_id') === id) {
+    localStorage.setItem('gemini_api_key', list[idx].key);
+  }
+  renderKeyListInModal();
+  alert('✨ 金鑰資訊已成功更新！');
+}
+
+function deleteKeyItem(id) {
+  let list = getStoredKeyObjects();
+  const target = list.find(item => item.id === id);
+  if (!target) return;
+
+  if (confirm(`確定要刪除「${target.name}」這組金鑰嗎？`)) {
+    list = list.filter(item => item.id !== id);
+    saveKeyObjects(list);
+    if (localStorage.getItem('gemini_active_key_id') === id && list.length > 0) {
+      localStorage.setItem('gemini_active_key_id', list[0].id);
+      localStorage.setItem('gemini_api_key', list[0].key);
     }
-  } else if (trimmed.startsWith('use ')) {
-    const idx = parseInt(trimmed.replace('use ', '')) - 1;
-    if (idx >= 0 && idx < keys.length) {
-      localStorage.setItem('gemini_active_key', keys[idx]);
-      localStorage.setItem('gemini_api_key', keys[idx]);
-      alert(`🎯 已切換至第 ${idx + 1} 組金鑰！`);
-    } else {
-      alert('找不到該編號的金鑰。');
-    }
-  } else if (trimmed.length > 10) {
-    if (!keys.includes(trimmed)) {
-      keys.push(trimmed);
-      localStorage.setItem('gemini_api_keys_pool', JSON.stringify(keys));
-    }
-    localStorage.setItem('gemini_active_key', trimmed);
-    localStorage.setItem('gemini_api_key', trimmed);
-    alert('✨ API Key 已成功儲存並啟用！');
+    renderKeyListInModal();
   }
 }
 
