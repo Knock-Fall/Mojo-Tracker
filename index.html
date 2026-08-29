@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80939">
+  <link rel="stylesheet" href="style.css?v=80940">
 </head>
 <body>
 
@@ -65,7 +65,7 @@
     <div class="card" style="border-left: 5px solid #0284c7;">
       <div class="card-title">
         <span>📱 家用體重計日常記錄 (Zepp Life)</span>
-        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key 管理</span>
+        <span class="api-tip" onclick="openKeyModal()">⚙️ API Key 管理</span>
       </div>
 
       <label for="scaleImage" class="btn-upload" style="border-color: #0284c7; color: #0284c7; background: #f0f9ff;">
@@ -173,7 +173,7 @@
     <div class="card">
       <div class="card-title">
         <span>📝 記錄 InBody 全方位數據</span>
-        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key 管理</span>
+        <span class="api-tip" onclick="openKeyModal()">⚙️ API Key 管理</span>
       </div>
 
       <label for="inbodyImage" class="btn-upload">
@@ -337,7 +337,7 @@
       <div id="shotLogList"></div>
     </div>
 
-    <!-- 家用體重計歷史紀錄（含分頁） -->
+    <!-- 家用體重計歷史紀錄 -->
     <div class="card">
       <div class="card-title">📱 家用體重計歷史紀錄 (Zepp Life)</div>
       <div id="scaleLogList"></div>
@@ -367,7 +367,7 @@
     <div class="card">
       <div class="card-title">
         <span>⚡ 該日營養、雙軌水分與赤字進度</span>
-        <span class="api-tip" onclick="setupApiKey()">⚙️ API Key 管理</span>
+        <span class="api-tip" onclick="openKeyModal()">⚙️ API Key 管理</span>
       </div>
 
       <!-- 1. 熱量赤字即時看板 -->
@@ -576,17 +576,44 @@
   </div>
 
   <div class="version-footer">
-    版本驗證代碼：<strong>MK-80939</strong>
+    版本驗證代碼：<strong>MK-80940</strong>
   </div>
 
 </div>
 
-<script src="sync.js?v=80939"></script>
-<script src="shot.js?v=80939"></script>
-<script src="scale.js?v=80939"></script>
-<script src="body.js?v=80939"></script>
-<script src="body-chart.js?v=80939"></script>
-<script src="diet.js?v=80939"></script>
-<script src="main.js?v=80939"></script>
+<!-- 視覺化 API Key 管理 Modal 彈窗 -->
+<div class="modal-overlay" id="apiKeyModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>⚙️ Gemini API Key 管理中心</h3>
+      <button class="modal-close" type="button" onclick="closeKeyModal()">✕</button>
+    </div>
+    
+    <div style="font-size:0.85rem; color:var(--sub); margin-bottom:12px;">
+      可儲存多組金鑰並自訂名稱，點擊「啟用」即可切換：
+    </div>
+
+    <div id="apiKeyListContainer" style="margin-bottom: 16px;"></div>
+
+    <div class="section-box" style="background:#f1f5f9; padding:12px; border-radius:10px;">
+      <div style="font-size:0.88rem; font-weight:bold; color:var(--primary); margin-bottom:8px;">➕ 新增金鑰</div>
+      <div class="form-group">
+        <input type="text" id="newKeyName" placeholder="自訂名稱 (例: 專案A-主要)">
+      </div>
+      <div class="form-group">
+        <input type="text" id="newKeyValue" placeholder="貼上完整 API Key (AIzaSy...)">
+      </div>
+      <button class="btn btn-primary" type="button" style="padding:10px !important;" onclick="addNewApiKey()">新增並儲存</button>
+    </div>
+  </div>
+</div>
+
+<script src="sync.js?v=80940"></script>
+<script src="shot.js?v=80940"></script>
+<script src="scale.js?v=80940"></script>
+<script src="body.js?v=80940"></script>
+<script src="body-chart.js?v=80940"></script>
+<script src="diet.js?v=80940"></script>
+<script src="main.js?v=80940"></script>
 </body>
 </html>
