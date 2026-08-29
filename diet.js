@@ -67,11 +67,11 @@ async function previewAndAnalyze(input) {
 }
 
 async function analyzeFoodImage() {
-  let apiKey = localStorage.getItem('gemini_api_key');
+  let apiKey = (typeof getActiveApiKey === 'function') ? getActiveApiKey() : localStorage.getItem('gemini_api_key');
   if (!apiKey) {
-    apiKey = prompt('首次使用拍照估算，請輸入您的 Gemini API Key：');
+    setupApiKey();
+    apiKey = (typeof getActiveApiKey === 'function') ? getActiveApiKey() : localStorage.getItem('gemini_api_key');
     if (!apiKey) return alert('未輸入 API Key，無法進行分析');
-    localStorage.setItem('gemini_api_key', apiKey.trim());
   }
 
   const aiBtn = document.getElementById('aiBtn');
