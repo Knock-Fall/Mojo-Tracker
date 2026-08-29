@@ -2,6 +2,112 @@
 // 7. diet.js
 let base64DietImage = '';
 
+// 預設運動項目庫
+const DEFAULT_WORKOUTS = [
+  '🏋️ 重訓 (胸背/上半身)',
+  '🏋️ 重訓 (腿臀/下半身)',
+  '🏃 慢跑 / 跑步機',
+  '🚶 快走 / 戶外散步',
+  '🚴 室內腳踏車 / 飛輪',
+  '🏊 游泳',
+  '⚡ 高強度間歇 (HIIT)',
+  '🧘 瑜珈 / 伸展放鬆'
+];
+
+function getWorkoutCategories() {
+  try {
+    const custom = localStorage.getItem('my_custom_workout_categories');
+    if (custom) return JSON.parse(custom);
+  } catch(e) {}
+  return DEFAULT_WORKOUTS;
+}
+
+function initWorkoutDropdown() {
+  const select = document.getElementById('workoutTypeSelect');
+  if (!select) return;
+  const categories = getWorkoutCategories();
+  
+  let html = '';
+  categories.forEach(item => {
+    html += `<option value="${item}">${item}</option>`;
+  });
+  html += `<option value="__NEW__">➕ 自訂新增運動項目...</option>`;
+  select.innerHTML = html;
+}
+
+function handleWorkoutSelectChange(select) {
+  const box = document.getElementById('newWorkoutItemBox');
+  if (!box) return;
+  if (select.value === '__NEW__') {
+    box.style.display = 'block';
+    document.getElementById('newWorkoutNameInput').focus();
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function addNewWorkoutCategory() {
+  const input = document.getElementById('newWorkoutNameInput');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return alert('請輸入運動項目名稱');
+
+  let list = getWorkoutCategories();
+  if (!list.includes(val)) {
+    list.push(val);
+    localStorage.setItem('my_custom_workout_categories', JSON.stringify(list));
+  }
+  initWorkoutDropdown();
+  document.getElementById('workoutTypeSelect').value = val;
+  document.getElementById('newWorkoutItemBox').style.display = 'none';
+  input.value = '';
+}
+
+function saveWorkout() {
+  const queryDate = document.getElementById('dietDate').value;
+  let type = document.getElementById('workoutTypeSelect').value;
+  if (type === '__NEW__') {
+    type = document.getElementById('newWorkoutNameInput').value.trim() || '自訂運動';
+  }
+  const duration = parseInt(document.getElementById('workoutDuration').value) || 0;
+  const cal = parseInt(document.getElementById('workoutCal').value) || 0;
+  const note = document.getElementById('workoutNote').value.trim();
+
+  if (!cal && !duration) return alert('請輸入運動時長或消耗熱量');
+
+  const item = {
+    date: queryDate,
+    type: type,
+    duration: duration,
+    cal: cal,
+    note: note
+  };
+
+  const list = window.MojoState.workoutLogs || [];
+  list.unshift(item);
+  window.MojoState.workoutLogs = list;
+  localStorage.setItem('my_workout_logs', JSON.stringify(list));
+  uploadToCloud('WORKOUT', item);
+
+  document.getElementById('workoutDuration').value = '';
+  document.getElementById('workoutCal').value = '';
+  document.getElementById('workoutNote').value = '';
+  document.getElementById('newWorkoutItemBox').style.display = 'none';
+
+  renderDiet();
+  alert(`運動消耗 (${type} - ${cal} kcal) 已記錄！`);
+}
+
+function deleteWorkout(index) {
+  if (confirm('確定要刪除這筆運動紀錄嗎？')) {
+    const list = window.MojoState.workoutLogs || [];
+    list.splice(index, 1);
+    window.MojoState.workoutLogs = list;
+    localStorage.setItem('my_workout_logs', JSON.stringify(list));
+    renderDiet();
+  }
+}
+
 function compressDietImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -242,52 +348,24 @@ function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, di
     const eggQty = Math.max(1, Math.round(diffPro / 7));
     const chickenQty = Math.max(1, Math.round(diffPro / 23));
     const soyQty = Math.max(1, Math.round(diffPro / 14));
-    suggestions.push({
-      emoji: '🍗',
-      title: '即食雞胸肉',
-      desc: `約需 ${chickenQty} 份 (補 ~${chickenQty * 23}g 蛋白)`
-    });
-    suggestions.push({
-      emoji: '🥚',
-      title: '茶葉蛋 / 水煮蛋',
-      desc: `約需 ${eggQty} 顆 (補 ~${eggQty * 7}g 蛋白)`
-    });
-    suggestions.push({
-      emoji: '🥛',
-      title: '無糖高纖豆漿',
-      desc: `約需 ${soyQty} 瓶 (400ml/瓶)`
-    });
+    suggestions.push({ emoji: '🍗', title: '即食雞胸肉', desc: `約需 ${chickenQty} 份 (~${chickenQty * 23}g 蛋白)` });
+    suggestions.push({ emoji: '🥚', title: '茶葉蛋 / 水煮蛋', desc: `約需 ${eggQty} 顆 (~${eggQty * 7}g 蛋白)` });
+    suggestions.push({ emoji: '🥛', title: '無糖高纖豆漿', desc: `約需 ${soyQty} 瓶 (400ml/瓶)` });
   }
 
   if (diffFiber > 3) {
     const vegQty = Math.max(1, Math.round(diffFiber / 3));
     const appleQty = Math.max(1, Math.round(diffFiber / 4));
-    suggestions.push({
-      emoji: '🥦',
-      title: '燙青菜 / 綠花椰',
-      desc: `約需 ${vegQty} 份 (補 ~${vegQty * 3}g 纖維)`
-    });
-    suggestions.push({
-      emoji: '🍎',
-      title: '帶皮蘋果 / 奇異果',
-      desc: `約需 ${appleQty} 顆 (補 ~${appleQty * 4}g 纖維)`
-    });
+    suggestions.push({ emoji: '🥦', title: '燙青菜 / 綠花椰', desc: `約需 ${vegQty} 份 (~${vegQty * 3}g 纖維)` });
+    suggestions.push({ emoji: '🍎', title: '帶皮蘋果 / 奇異果', desc: `約需 ${appleQty} 顆 (~${appleQty * 4}g 纖維)` });
   }
 
   if (diffWater > 200 || (pureRatio < 50 && diffWater >= 0)) {
-    suggestions.push({
-      emoji: '💧',
-      title: '溫純白開水',
-      desc: `尚缺 ${Math.max(300, Math.round(diffWater))} ml，請多喝白開水`
-    });
+    suggestions.push({ emoji: '💧', title: '溫純白開水', desc: `尚缺 ${Math.max(300, Math.round(diffWater))} ml` });
   }
 
   if (diffCal > 600) {
-    suggestions.push({
-      emoji: '🥑',
-      title: '綜合堅果 / 酪梨',
-      desc: `補 1 小把堅果 (~160kcal 良好油脂)`
-    });
+    suggestions.push({ emoji: '🥑', title: '綜合堅果 / 酪梨', desc: `補 1 小把堅果 (~160kcal)` });
   }
 
   return suggestions;
@@ -297,9 +375,11 @@ function renderDiet() {
   const dietDateInput = document.getElementById('dietDate');
   if (!dietDateInput) return;
   const queryDate = dietDateInput.value;
-  const list = document.getElementById('dietLogList');
   
-  let totalC = 0, totalP = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0, html = '';
+  initWorkoutDropdown();
+
+  // 1. 計算飲食攝取
+  let totalC = 0, totalP = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0, dietHtml = '';
   const curDiets = window.MojoState.dietLogs || [];
 
   curDiets.forEach((item, originalIndex) => {
@@ -315,7 +395,7 @@ function renderDiet() {
       totalCarbs += carbs;
       totalFat += fat;
       totalFiber += fiber;
-      html += `<div class="log-item">
+      dietHtml += `<div class="log-item">
         <div class="log-info">
           <strong>[${item.type || '餐點'}] ${item.content || ''}</strong><br>
           <small style="color:var(--sub);">${c} kcal ｜ 蛋 ${p.toFixed(1)}g ｜ 碳 ${carbs.toFixed(1)}g ｜ 脂 ${fat.toFixed(1)}g ｜ 纖 ${fiber.toFixed(1)}g</small>
@@ -328,10 +408,37 @@ function renderDiet() {
     }
   });
 
-  // 升級：雙軌搜尋小於等於當天日期的「最新體重（家用體重計 or InBody）」
+  const dietListEl = document.getElementById('dietLogList');
+  if (dietListEl) dietListEl.innerHTML = dietHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
+
+  // 2. 計算體能訓練消耗
+  let totalBurn = 0, workoutHtml = '';
+  const curWorkouts = window.MojoState.workoutLogs || [];
+  curWorkouts.forEach((w, idx) => {
+    const wDate = String(w.date || '').replace(/\//g, '-');
+    if (wDate === queryDate) {
+      const bCal = Number(w.cal) || 0;
+      totalBurn += bCal;
+      const durText = w.duration ? `${w.duration} 分鐘 ｜ ` : '';
+      const noteText = w.note ? `<br><small style="color:var(--sub);">${w.note}</small>` : '';
+      workoutHtml += `<div class="log-item">
+        <div class="log-info">
+          <strong>${w.type}</strong><br>
+          <small style="color:#4338ca; font-weight:600;">${durText}消耗 -${bCal} kcal</small>${noteText}
+        </div>
+        <div class="log-actions">
+          <button class="action-btn btn-del" type="button" onclick="deleteWorkout(${idx})">刪除</button>
+        </div>
+      </div>`;
+    }
+  });
+
+  const workoutListEl = document.getElementById('workoutLogList');
+  if (workoutListEl) workoutListEl.innerHTML = workoutHtml ? `<div style="font-size:0.85rem; font-weight:bold; color:#4338ca; margin-bottom:6px;">📋 今日訓練明細：</div>` + workoutHtml : '';
+
+  // 3. 雙軌搜尋該日前最新體重
   let latestWeight = 80;
   let weightSourceLabel = '預設基準';
-  
   const bodies = (window.MojoState.bodyLogs || []).filter(b => b.date <= queryDate);
   const scales = (window.MojoState.scaleLogs || []).filter(s => s.date <= queryDate);
 
@@ -355,23 +462,33 @@ function renderDiet() {
   const targetFat = Math.round(latestWeight * 0.6);
   const targetFiber = 28;
   const targetWater = Math.round(latestWeight * 35);
-  const currentDeficit = tdee - totalC;
+
+  // 綜合淨熱量與實際赤字運算
+  const netCalories = totalC - totalBurn;
+  const actualDeficit = tdee - netCalories;
+
+  const sumInEl = document.getElementById('summaryCalIn');
+  const sumBurnEl = document.getElementById('summaryCalBurn');
+  const sumNetEl = document.getElementById('summaryNetCal');
+  if (sumInEl) sumInEl.innerText = totalC;
+  if (sumBurnEl) sumBurnEl.innerText = totalBurn;
+  if (sumNetEl) sumNetEl.innerText = netCalories;
 
   const deficitCurEl = document.getElementById('deficitCurrent');
   const tdeeRefEl = document.getElementById('tdeeRef');
   const deficitStatusEl = document.getElementById('deficitStatus');
 
-  if (deficitCurEl) deficitCurEl.innerText = (currentDeficit > 0 ? `-${currentDeficit}` : `+${Math.abs(currentDeficit)}`);
+  if (deficitCurEl) deficitCurEl.innerText = (actualDeficit > 0 ? `-${actualDeficit}` : `+${Math.abs(actualDeficit)}`);
   if (tdeeRefEl) tdeeRefEl.innerText = `TDEE 消耗: ${tdee} kcal`;
 
   if (deficitStatusEl) {
-    if (currentDeficit >= 400 && currentDeficit <= 600) {
-      deficitStatusEl.innerText = '🎯 完美保肌燃脂赤字 (300~500kcal)';
+    if (actualDeficit >= 400 && actualDeficit <= 700) {
+      deficitStatusEl.innerText = '🎯 完美燃脂赤字 (含運動扣除)';
       deficitStatusEl.style.color = '#059669';
-    } else if (currentDeficit > 600) {
-      deficitStatusEl.innerText = '⚠️ 赤字過大，注意補充足夠蛋白質';
+    } else if (actualDeficit > 700) {
+      deficitStatusEl.innerText = '⚠️ 赤字偏大，運動後請適度補充蛋白質/碳水';
       deficitStatusEl.style.color = '#d97706';
-    } else if (currentDeficit > 0) {
+    } else if (actualDeficit > 0) {
       deficitStatusEl.innerText = '🌱 溫和赤字中 (進度良好)';
       deficitStatusEl.style.color = '#2563eb';
     } else {
@@ -380,6 +497,7 @@ function renderDiet() {
     }
   }
 
+  // 4. 水分更新
   const wLogs = window.MojoState.waterLogs || {};
   let dayWater = wLogs[queryDate] || { pure: 0, tea: 0 };
   if (typeof dayWater === 'number') dayWater = { pure: dayWater, tea: 0 };
@@ -421,6 +539,7 @@ function renderDiet() {
     }
   }
 
+  // 5. 五大營養素進度條
   const calCurEl = document.getElementById('calCurrent');
   const calTarEl = document.getElementById('calTarget');
   const inbodyRefEl = document.getElementById('inbodyWeightRef');
@@ -518,6 +637,7 @@ function renderDiet() {
     fiberRemEl.style.color = fiberDiff <= 0 ? '#14b8a6' : 'var(--sub)';
   }
 
+  // 6. 智慧建議卡片
   const suggestCard = document.getElementById('nutritionSuggestCard');
   const suggestBox = document.getElementById('suggestContent');
   if (suggestCard && suggestBox) {
@@ -545,6 +665,4 @@ function renderDiet() {
       suggestCard.style.display = 'none';
     }
   }
-
-  if (list) list.innerHTML = html || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
 }
