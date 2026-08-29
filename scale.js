@@ -165,6 +165,7 @@ function saveScaleData() {
   renderScaleChart();
   renderScaleList();
   renderComparisonAnalysis();
+  if (typeof renderShotList === 'function') renderShotList();
   if (typeof renderDiet === 'function') renderDiet();
 }
 
@@ -190,6 +191,7 @@ function editScaleLog(uniqueId) {
   renderScaleChart();
   renderScaleList();
   renderComparisonAnalysis();
+  if (typeof renderShotList === 'function') renderShotList();
   if (typeof renderDiet === 'function') renderDiet();
 }
 
@@ -201,6 +203,7 @@ function deleteScaleLog(uniqueId) {
     renderScaleChart();
     renderScaleList();
     renderComparisonAnalysis();
+    if (typeof renderShotList === 'function') renderShotList();
     if (typeof renderDiet === 'function') renderDiet();
   }
 }
@@ -427,6 +430,76 @@ function calculateLinearSlope(dataPoints) {
   return (n * sumXY - sumX * sumY) / denominator;
 }
 
+// 統一通用預測計算引擎
+function computeCycleProjection(startDateStr, endDateStr) {
+  const scales = window.MojoState.scaleLogs || [];
+  const bodies = window.MojoState.bodyLogs || [];
+
+  // 1. 計算全域平均偏差
+  let avgDiffW = -0.34, avgDiffFat = 1.38;
+  let pairs = [];
+  scales.forEach(s => {
+    const matched = bodies.find(b => b.date === s.date);
+    if (matched) pairs.push({ s, b: matched });
+  });
+  if (pairs.length > 0) {
+    let diffWTotal = 0, diffFatTotal = 0, countFat = 0;
+    pairs.forEach(p => {
+      diffWTotal += (p.s.weight - p.b.weight);
+      if (p.s.fat && p.b.pbf) {
+        diffFatTotal += (p.s.fat - p.b.pbf);
+        countFat++;
+      }
+    });
+    avgDiffW = diffWTotal / pairs.length;
+    if (countFat > 0) avgDiffFat = diffFatTotal / countFat;
+  }
+
+  // 2. 篩選該區間內的家用數據
+  const scalesInCycle = scales.filter(s => s.date >= startDateStr && s.date <= endDateStr);
+  if (scalesInCycle.length < 2) return null;
+
+  const wList = scalesInCycle.map(s => s.weight);
+  const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
+  const mList = scalesInCycle.map(s => s.muscle).filter(m => m > 0);
+
+  const slopeW = calculateLinearSlope(wList);
+  const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
+  const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
+
+  const latestScale = scalesInCycle[scalesInCycle.length - 1];
+  const latestDateObj = new Date(latestScale.date);
+  const endDateObj = new Date(endDateStr);
+  const remainingDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
+
+  const projScaleWeight = latestScale.weight + (slopeW * remainingDays);
+  const projScaleFat = (latestScale.fat || 25) + (slopeF * remainingDays);
+  const projScaleMuscle = (latestScale.muscle || 55) + (slopeM * remainingDays);
+
+  const predWeight = (projScaleWeight - avgDiffW).toFixed(1);
+  const predFat = (projScaleFat - avgDiffFat).toFixed(1);
+  const predSMM = (projScaleMuscle * 0.96).toFixed(1);
+  const weeklyDelta = (slopeW * 7).toFixed(2);
+
+  let statusTip = '🌱 溫和穩健減脂中';
+  if (slopeW < -0.15 && slopeM >= -0.02) {
+    statusTip = '🔥 高效燃脂且肌肉維持極佳';
+  } else if (slopeM < -0.05) {
+    statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
+  }
+
+  const matchedInBody = bodies.find(b => b.date === endDateStr);
+
+  return {
+    predWeight,
+    predFat,
+    predSMM,
+    weeklyDelta,
+    statusTip,
+    actualInBody: matchedInBody || null
+  };
+}
+
 function renderComparisonAnalysis() {
   const el = document.getElementById('scaleDiffReport');
   if (!el) return;
@@ -491,49 +564,22 @@ function renderComparisonAnalysis() {
     const dNext = String(nextShotDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    const scalesInCycle = scales.filter(s => s.date >= latestShot.date);
-    const targetScales = scalesInCycle.length >= 2 ? scalesInCycle : scales.slice(-5);
+    const proj = computeCycleProjection(latestShot.date, nextShotDateStr);
 
-    const wList = targetScales.map(s => s.weight);
-    const fList = targetScales.map(s => s.fat).filter(f => f > 0);
-    const mList = targetScales.map(s => s.muscle).filter(m => m > 0);
-
-    const slopeW = calculateLinearSlope(wList);
-    const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
-    const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
-
-    const lastScale = scales[scales.length - 1];
-    const lastScaleDateObj = new Date(lastScale.date);
-    const remainingDays = Math.max(1, Math.round((nextShotDateObj - lastScaleDateObj) / (1000 * 60 * 60 * 24)));
-
-    const projScaleWeight = lastScale.weight + (slopeW * remainingDays);
-    const projScaleFat = (lastScale.fat || 25) + (slopeF * remainingDays);
-    const projScaleMuscle = (lastScale.muscle || 55) + (slopeM * remainingDays);
-
-    const predInbodyWeight = (projScaleWeight - avgDiffW).toFixed(1);
-    const predInbodyFat = avgDiffFat !== null ? (projScaleFat - avgDiffFat).toFixed(1) : (projScaleFat - 1.3).toFixed(1);
-    const predInbodySMM = (projScaleMuscle * 0.96).toFixed(1);
-
-    const weeklyLossRate = (Math.abs(slopeW) * 7).toFixed(2);
-    let statusTip = '🌱 溫和穩健減脂中';
-    if (slopeW < -0.15 && slopeM >= -0.02) {
-      statusTip = '🔥 高效燃脂且肌肉維持極佳';
-    } else if (slopeM < -0.05) {
-      statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
+    if (proj) {
+      html += `<div style="margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
+        <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:4px;">
+          🔮 猛健樂週期預測 (${latestShot.date} ~ ${nextShotDateStr})
+        </div>
+        <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.6;">
+          • 下次施打預測 InBody 體重：<strong>${proj.predWeight} kg</strong><br>
+          • 下次施打預測 InBody 體脂：<strong>${proj.predFat} %</strong><br>
+          • 下次施打預測 骨骼肌重：<strong>${proj.predSMM} kg</strong><br>
+          • 週期變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong><br>
+          <span style="display:inline-block; margin-top:3px; color:#0369a1; font-weight:600;">評估：${proj.statusTip}</span>
+        </div>
+      </div>`;
     }
-
-    html += `<div style="margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
-      <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:4px;">
-        🔮 猛健樂週期預測 (${latestShot.date} ~ ${nextShotDateStr})
-      </div>
-      <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.6;">
-        • 下次施打預測 InBody 體重：<strong>${predInbodyWeight} kg</strong><br>
-        • 下次施打預測 InBody 體脂：<strong>${predInbodyFat} %</strong><br>
-        • 下次施打預測 骨骼肌重：<strong>${predInbodySMM} kg</strong><br>
-        • 週期變化率：每週預估 <strong>${slopeW <= 0 ? '-' + weeklyLossRate : '+' + weeklyLossRate} kg</strong><br>
-        <span style="display:inline-block; margin-top:3px; color:#0369a1; font-weight:600;">評估：${statusTip}</span>
-      </div>
-    </div>`;
   }
 
   el.innerHTML = html;
