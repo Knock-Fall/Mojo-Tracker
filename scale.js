@@ -481,7 +481,7 @@ function renderComparisonAnalysis() {
     const shotDateObj = new Date(latestShot.date);
     
     const nextShotDateObj = new Date(shotDateObj);
-    nextShotDateObj.setDate(nextShotDateObj.getDate() + 7);
+    nextShotDateObj.setDate(nextDateObj.getDate() + 7);
     
     const yNext = nextShotDateObj.getFullYear();
     const mNext = String(nextShotDateObj.getMonth() + 1).padStart(2, '0');
@@ -492,18 +492,44 @@ function renderComparisonAnalysis() {
 
     if (proj) {
       html += `<div style="margin-top: 10px; padding: 12px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
-        <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:6px;">
+        <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:8px;">
           🔮 猛健樂週期三模型預測 (${latestShot.date} ~ ${nextShotDateStr})
         </div>
-        <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.7;">
-          • <strong>下次施打預測 InBody 體重</strong>：<br>
-          &nbsp;&nbsp;├ <strong>A. 線性回歸</strong>：<strong>${proj.m1_w} kg</strong><br>
-          &nbsp;&nbsp;├ <strong>B. 動量均線</strong>：<strong>${proj.m2_w} kg</strong><br>
-          &nbsp;&nbsp;└ <strong>C. 端點投射</strong>：<strong>${proj.m3_w} kg</strong><br>
-          • 下次施打預測 骨骼肌重 (SMM)：<strong>${proj.predSMM} kg</strong><br>
-          • 下次施打預測 InBody 體脂：<strong>${proj.predFat} %</strong><br>
-          • 週期變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong><br>
-          <span style="display:inline-block; margin-top:3px; color:#0369a1; font-weight:600;">評估：${proj.statusTip}</span>
+
+        <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.8rem; background:#ffffff; border-radius:6px; overflow:hidden; border:1px solid #bfdbfe; margin-bottom:8px;">
+          <thead>
+            <tr style="background:#dbeafe; color:#1e40af;">
+              <th style="padding:5px; border:1px solid #bfdbfe;">模型</th>
+              <th style="padding:5px; border:1px solid #bfdbfe;">體重 (kg)</th>
+              <th style="padding:5px; border:1px solid #bfdbfe;">體脂 (%)</th>
+              <th style="padding:5px; border:1px solid #bfdbfe;">骨骼肌 (kg)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#1e3a8a;">A. 線性回歸</td>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelA.w}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelA.fat}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelA.smm}</td>
+            </tr>
+            <tr>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#0d9488;">B. 動量均線</td>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelB.w}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelB.fat}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelB.smm}</td>
+            </tr>
+            <tr>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#b45309;">C. 端點投射</td>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelC.w}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelC.fat}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelC.smm}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="font-size:0.8rem; color:#1e3a8a; line-height:1.5;">
+          • 週變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong><br>
+          <span style="display:inline-block; margin-top:2px; color:#0369a1; font-weight:600;">評估：${proj.statusTip}</span>
         </div>
       </div>`;
     }
