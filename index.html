@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80951">
+  <link rel="stylesheet" href="style.css?v=80952">
 </head>
 <body>
 
@@ -407,7 +407,6 @@
         </div>
 
         <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #bae6fd; display: flex; flex-direction: column; gap: 8px;">
-          <!-- 純水區 -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0284c7;">💧 純白開水快速鍵：</span>
             <div style="display: flex; gap: 6px;">
@@ -424,7 +423,6 @@
             </div>
           </div>
 
-          <!-- 茶/咖啡區 -->
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; border-top: 1px dashed #e0f2fe; padding-top: 6px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0d9488;">🍵 茶/咖啡快速鍵：</span>
             <div style="display: flex; gap: 6px;">
@@ -538,7 +536,6 @@
         <div class="form-group">
           <label>運動項目</label>
           <select id="workoutTypeSelect" onchange="handleWorkoutSelectChange(this)">
-            <!-- 動態注入預設與自訂項目 -->
           </select>
         </div>
         <div class="form-group">
@@ -547,7 +544,6 @@
         </div>
       </div>
 
-      <!-- 自訂新增項目輸入列 -->
       <div id="newWorkoutItemBox" style="display: none; margin-bottom: 10px; background: #eef2ff; padding: 10px; border-radius: 8px;">
         <label style="font-size: 0.8rem; color: #4338ca; font-weight: bold;">➕ 新增自訂運動項目名稱：</label>
         <div style="display: flex; gap: 6px; margin-top: 4px;">
@@ -568,8 +564,6 @@
       </div>
 
       <button class="btn" type="button" style="background: #6366f1; color:#fff;" onclick="saveWorkout()">記錄本次運動消耗</button>
-
-      <!-- 該日運動紀錄清單 -->
       <div id="workoutLogList" style="margin-top: 12px; border-top: 1px dashed #c7d2fe; padding-top: 8px;"></div>
     </div>
 
@@ -638,7 +632,7 @@
   </div>
 
   <div class="version-footer">
-    版本驗證代碼：<strong>MK-80951</strong>
+    版本驗證代碼：<strong>MK-80952</strong>
   </div>
 
 </div>
@@ -670,12 +664,12 @@
   </div>
 </div>
 
-<script src="sync.js?v=80951"></script>
-<script src="shot.js?v=80951"></script>
-<script src="scale.js?v=80951"></script>
-<script src="body.js?v=80951"></script>
-<script src="body-chart.js?v=80951"></script>
-<script src="diet.js?v=80951"></script>
-<script src="main.js?v=80951"></script>
+<script src="sync.js?v=80952"></script>
+<script src="shot.js?v=80952"></script>
+<script src="scale.js?v=80952"></script>
+<script src="body.js?v=80952"></script>
+<script src="body-chart.js?v=80952"></script>
+<script src="diet.js?v=80952"></script>
+<script src="main.js?v=80952"></script>
 </body>
 </html>
