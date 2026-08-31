@@ -481,7 +481,7 @@ function renderComparisonAnalysis() {
     const shotDateObj = new Date(latestShot.date);
     
     const nextShotDateObj = new Date(shotDateObj);
-    nextShotDateObj.setDate(nextDateObj.getDate() + 7);
+    nextShotDateObj.setDate(nextShotDateObj.getDate() + 7);
     
     const yNext = nextShotDateObj.getFullYear();
     const mNext = String(nextShotDateObj.getMonth() + 1).padStart(2, '0');
