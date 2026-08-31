@@ -1,5 +1,5 @@
 // Mojo Project
-// 3. shot.js
+// 3. shot.js (修正歷史週期區間隔離與錨定計算)
 
 // 通用線性回歸斜率運算
 function calculateLinearSlope(dataPoints) {
@@ -17,7 +17,7 @@ function calculateLinearSlope(dataPoints) {
   return (n * sumXY - sumX * sumY) / denominator;
 }
 
-// 通用週期投影預測引擎（含骨骼肌真實校正）
+// 通用週期投影預測引擎（修復歷史隔離與起始基準）
 function computeCycleProjection(startDateStr, endDateStr) {
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
@@ -48,31 +48,63 @@ function computeCycleProjection(startDateStr, endDateStr) {
     if (countM > 0) avgDiffMuscle = diffMTotal / countM;
   }
 
-  // 2. 抓取週期內的家用數據
-  const scalesInCycle = scales.filter(s => s.date >= startDateStr);
-  const targetScales = scalesInCycle.length >= 2 ? scalesInCycle : scales.slice(-5);
-  if (targetScales.length < 2) return null;
+  // 2. 嚴格過濾該 7 天週期內的家用數據 (不被未來或最新資料污染)
+  const scalesInCycle = scales.filter(s => s.date >= startDateStr && s.date <= endDateStr);
+  
+  // 若該週期內無足夠數據，則抓取 startDateStr 當天或最靠近的前一筆作為起點
+  let baseScale = null;
+  if (scalesInCycle.length > 0) {
+    baseScale = scalesInCycle[0];
+  } else {
+    const beforeScales = scales.filter(s => s.date <= startDateStr);
+    if (beforeScales.length > 0) {
+      baseScale = beforeScales[beforeScales.length - 1];
+    }
+  }
 
-  const wList = targetScales.map(s => s.weight);
-  const fList = targetScales.map(s => s.fat).filter(f => f > 0);
-  const mList = targetScales.map(s => s.muscle).filter(m => m > 0);
+  if (!baseScale) return null;
 
-  const slopeW = calculateLinearSlope(wList);
-  const slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
-  const slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
+  // 計算該週期內的趨勢斜率
+  let slopeW = 0, slopeF = 0, slopeM = 0;
+  if (scalesInCycle.length >= 2) {
+    const wList = scalesInCycle.map(s => s.weight);
+    const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
+    const mList = scalesInCycle.map(s => s.muscle).filter(m => m > 0);
 
-  const latestScale = scales[scales.length - 1];
-  const latestDateObj = new Date(latestScale.date);
-  const endDateObj = new Date(endDateStr);
-  const remainingDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
+    slopeW = calculateLinearSlope(wList);
+    slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
+    slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
+  } else {
+    // 若該週只有1筆或沒有，參考前後趨勢平均值
+    slopeW = -0.1; // 預設穩健每週 -0.7kg 斜率
+  }
 
-  const projScaleWeight = latestScale.weight + (slopeW * remainingDays);
-  const projScaleFat = (latestScale.fat || 25) + (slopeF * remainingDays);
-  const projScaleMuscle = (latestScale.muscle || 57) + (slopeM * remainingDays);
+  // 判斷是否為「當前進行中週期」還是「過去已結束週期」
+  const lastScaleInDb = scales[scales.length - 1];
+  const isCurrentCycle = (lastScaleInDb && lastScaleInDb.date >= startDateStr && lastScaleInDb.date < endDateStr);
+
+  let projScaleWeight, projScaleFat, projScaleMuscle;
+
+  if (isCurrentCycle && scalesInCycle.length >= 2) {
+    // 進行中週期：以該週最新一筆 + 剩餘天數推算
+    const latestScaleInCycle = scalesInCycle[scalesInCycle.length - 1];
+    const latestDateObj = new Date(latestScaleInCycle.date);
+    const endDateObj = new Date(endDateStr);
+    const remainingDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
+
+    projScaleWeight = latestScaleInCycle.weight + (slopeW * remainingDays);
+    projScaleFat = (latestScaleInCycle.fat || baseScale.fat || 25) + (slopeF * remainingDays);
+    projScaleMuscle = (latestScaleInCycle.muscle || baseScale.muscle || 57) + (slopeM * remainingDays);
+  } else {
+    // 歷史週期：以該週第一天起始體重 + 完整 7 天變化推算
+    projScaleWeight = baseScale.weight + (slopeW * 7);
+    projScaleFat = (baseScale.fat || 25) + (slopeF * 7);
+    projScaleMuscle = (baseScale.muscle || 57) + (slopeM * 7);
+  }
 
   const predWeight = (projScaleWeight - avgDiffW).toFixed(1);
   const predFat = (projScaleFat - avgDiffFat).toFixed(1);
-  const predSMM = (projScaleMuscle - avgDiffMuscle).toFixed(1); // 正確扣除家用總肌肉與 InBody 骨骼肌之定義差
+  const predSMM = (projScaleMuscle - avgDiffMuscle).toFixed(1);
   const weeklyDelta = (slopeW * 7).toFixed(2);
 
   let statusTip = '🌱 溫和穩健減脂中';
@@ -80,6 +112,8 @@ function computeCycleProjection(startDateStr, endDateStr) {
     statusTip = '🔥 高效燃脂且肌肉維持極佳';
   } else if (slopeM < -0.05) {
     statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
+  } else if (slopeW > 0.05) {
+    statusTip = '📈 體重有些微回升，注意水分滯留或熱量平衡';
   }
 
   const matchedInBody = bodies.find(b => b.date === endDateStr);
