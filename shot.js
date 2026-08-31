@@ -1,7 +1,6 @@
 // Mojo Project
-// 3. shot.js (支援三合一預測模型與完整誤差標註)
+// 3. shot.js (支援三模型全指標預測矩陣與表格排版)
 
-// 最小二乘法線性回歸
 function calculateLinearSlope(dataPoints) {
   const n = dataPoints.length;
   if (n < 2) return 0;
@@ -17,7 +16,6 @@ function calculateLinearSlope(dataPoints) {
   return (n * sumXY - sumX * sumY) / denominator;
 }
 
-// 三重統計預測核心
 function computeCycleProjection(startDateStr, endDateStr) {
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
@@ -64,71 +62,111 @@ function computeCycleProjection(startDateStr, endDateStr) {
   const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
   const mList = scalesInCycle.map(s => s.muscle).filter(m => m > 0);
 
-  // --- 模型 1：線性回歸 (Linear Regression) ---
-  const slopeW1 = scalesInCycle.length >= 2 ? calculateLinearSlope(wList) : -0.1;
-  const slopeF1 = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
-  const slopeM1 = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
+  // --- 模型 A：線性回歸 (Linear Regression) ---
+  const slopeW_A = scalesInCycle.length >= 2 ? calculateLinearSlope(wList) : -0.1;
+  const slopeF_A = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
+  const slopeM_A = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
 
-  // --- 模型 2：移動平均動量 (Moving Average Momentum) ---
-  let slopeW2 = slopeW1;
+  // --- 模型 B：動量均線 (Moving Average Momentum) ---
+  let slopeW_B = slopeW_A, slopeF_B = slopeF_A, slopeM_B = slopeM_A;
   if (scalesInCycle.length >= 3) {
     const half = Math.floor(scalesInCycle.length / 2);
-    const avgFirst = scalesInCycle.slice(0, half).reduce((a, b) => a + b.weight, 0) / half;
-    const avgSecond = scalesInCycle.slice(half).reduce((a, b) => a + b.weight, 0) / (scalesInCycle.length - half);
-    slopeW2 = (avgSecond - avgFirst) / (scalesInCycle.length - half);
+    const avgW1 = scalesInCycle.slice(0, half).reduce((a, b) => a + b.weight, 0) / half;
+    const avgW2 = scalesInCycle.slice(half).reduce((a, b) => a + b.weight, 0) / (scalesInCycle.length - half);
+    slopeW_B = (avgW2 - avgW1) / (scalesInCycle.length - half);
+
+    if (fList.length >= 3) {
+      const avgF1 = fList.slice(0, half).reduce((a, b) => a + b, 0) / half;
+      const avgF2 = fList.slice(half).reduce((a, b) => a + b, 0) / (fList.length - half);
+      slopeF_B = (avgF2 - avgF1) / (fList.length - half);
+    }
+    if (mList.length >= 3) {
+      const avgM1 = mList.slice(0, half).reduce((a, b) => a + b, 0) / half;
+      const avgM2 = mList.slice(half).reduce((a, b) => a + b, 0) / (mList.length - half);
+      slopeM_B = (avgM2 - avgM1) / (mList.length - half);
+    }
   }
 
-  // --- 模型 3：端點衰減投射 (End-to-End Decay) ---
-  let slopeW3 = slopeW1;
+  // --- 模型 C：端點投射 (End-to-End Decay) ---
+  let slopeW_C = slopeW_A, slopeF_C = slopeF_A, slopeM_C = slopeM_A;
   if (scalesInCycle.length >= 2) {
-    const firstW = scalesInCycle[0].weight;
-    const lastW = scalesInCycle[scalesInCycle.length - 1].weight;
-    const daysPassed = Math.max(1, (new Date(scalesInCycle[scalesInCycle.length - 1].date) - new Date(scalesInCycle[0].date)) / (1000 * 60 * 60 * 24));
-    slopeW3 = (lastW - firstW) / daysPassed;
+    const firstItem = scalesInCycle[0];
+    const lastItem = scalesInCycle[scalesInCycle.length - 1];
+    const daysPassed = Math.max(1, (new Date(lastItem.date) - new Date(firstItem.date)) / (1000 * 60 * 60 * 24));
+    
+    slopeW_C = (lastItem.weight - firstItem.weight) / daysPassed;
+    if (lastItem.fat && firstItem.fat) slopeF_C = (lastItem.fat - firstItem.fat) / daysPassed;
+    if (lastItem.muscle && firstItem.muscle) slopeM_C = (lastItem.muscle - firstItem.muscle) / daysPassed;
   }
 
-  let m1_w, m2_w, m3_w, m_fat, m_smm;
+  let A = {}, B = {}, C = {};
 
   if (isCurrentCycle && scalesInCycle.length >= 2) {
     const latestScaleInCycle = scalesInCycle[scalesInCycle.length - 1];
     const latestDateObj = new Date(latestScaleInCycle.date);
     const endDateObj = new Date(endDateStr);
-    const remainingDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
+    const remDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
 
-    m1_w = (latestScaleInCycle.weight + (slopeW1 * remainingDays) - avgDiffW).toFixed(1);
-    m2_w = (latestScaleInCycle.weight + (slopeW2 * remainingDays) - avgDiffW).toFixed(1);
-    m3_w = (latestScaleInCycle.weight + (slopeW3 * remainingDays) - avgDiffW).toFixed(1);
-    
-    m_fat = ((latestScaleInCycle.fat || baseScale.fat || 25) + (slopeF1 * remainingDays) - avgDiffFat).toFixed(1);
-    m_smm = ((latestScaleInCycle.muscle || baseScale.muscle || 57) + (slopeM1 * remainingDays) - avgDiffMuscle).toFixed(1);
+    const baseW = latestScaleInCycle.weight;
+    const baseF = latestScaleInCycle.fat || baseScale.fat || 25;
+    const baseM = latestScaleInCycle.muscle || baseScale.muscle || 57;
+
+    A = {
+      w: (baseW + (slopeW_A * remDays) - avgDiffW).toFixed(1),
+      fat: (baseF + (slopeF_A * remDays) - avgDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_A * remDays) - avgDiffMuscle).toFixed(1)
+    };
+    B = {
+      w: (baseW + (slopeW_B * remDays) - avgDiffW).toFixed(1),
+      fat: (baseF + (slopeF_B * remDays) - avgDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_B * remDays) - avgDiffMuscle).toFixed(1)
+    };
+    C = {
+      w: (baseW + (slopeW_C * remDays) - avgDiffW).toFixed(1),
+      fat: (baseF + (slopeF_C * remDays) - avgDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_C * remDays) - avgDiffMuscle).toFixed(1)
+    };
   } else {
-    m1_w = (baseScale.weight + (slopeW1 * 7) - avgDiffW).toFixed(1);
-    m2_w = (baseScale.weight + (slopeW2 * 7) - avgDiffW).toFixed(1);
-    m3_w = (baseScale.weight + (slopeW3 * 7) - avgDiffW).toFixed(1);
+    const baseW = baseScale.weight;
+    const baseF = baseScale.fat || 25;
+    const baseM = baseScale.muscle || 57;
 
-    m_fat = ((baseScale.fat || 25) + (slopeF1 * 7) - avgDiffFat).toFixed(1);
-    m_smm = ((baseScale.muscle || 57) + (slopeM1 * 7) - avgDiffMuscle).toFixed(1);
+    A = {
+      w: (baseW + (slopeW_A * 7) - avgDiffW).toFixed(1),
+      fat: (baseF + (slopeF_A * 7) - avgDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_A * 7) - avgDiffMuscle).toFixed(1)
+    };
+    B = {
+      w: (baseW + (slopeW_B * 7) - avgDiffW).toFixed(1),
+      fat: (baseF + (slopeF_B * 7) - avgDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_B * 7) - avgDiffMuscle).toFixed(1)
+    };
+    C = {
+      w: (baseW + (slopeW_C * 7) - avgDiffW).toFixed(1),
+      fat: (baseF + (slopeF_C * 7) - avgDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_C * 7) - avgDiffMuscle).toFixed(1)
+    };
   }
 
-  const weeklyDelta = (slopeW1 * 7).toFixed(2);
+  const weeklyDelta = (slopeW_A * 7).toFixed(2);
   let statusTip = '🌱 溫和穩健減脂中';
-  if (slopeW1 < -0.15 && slopeM1 >= -0.02) {
+  if (slopeW_A < -0.15 && slopeM_A >= -0.02) {
     statusTip = '🔥 高效燃脂且肌肉維持極佳';
-  } else if (slopeM1 < -0.05) {
+  } else if (slopeM_A < -0.05) {
     statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
-  } else if (slopeW1 > 0.05) {
+  } else if (slopeW_A > 0.05) {
     statusTip = '📈 體重有些微回升，注意水分滯留或熱量平衡';
   }
 
   const matchedInBody = bodies.find(b => b.date === endDateStr);
 
   return {
-    m1_w,
-    m2_w,
-    m3_w,
-    predWeight: m1_w,
-    predFat: m_fat,
-    predSMM: m_smm,
+    modelA: A,
+    modelB: B,
+    modelC: C,
+    predWeight: A.w,
+    predFat: A.fat,
+    predSMM: A.smm,
     weeklyDelta,
     statusTip,
     actualInBody: matchedInBody || null
@@ -220,28 +258,56 @@ function renderShotList() {
     if (proj) {
       let actualCompHtml = '';
       if (proj.actualInBody) {
-        const diffW = (proj.actualInBody.weight - parseFloat(proj.predWeight)).toFixed(1);
-        const diffF = (proj.actualInBody.pbf - parseFloat(proj.predFat)).toFixed(1);
-        const diffM = (proj.actualInBody.smm - parseFloat(proj.predSMM)).toFixed(1);
+        const diffW = (proj.actualInBody.weight - parseFloat(proj.modelA.w)).toFixed(1);
+        const diffF = (proj.actualInBody.pbf - parseFloat(proj.modelA.fat)).toFixed(1);
+        const diffM = (proj.actualInBody.smm - parseFloat(proj.modelA.smm)).toFixed(1);
 
-        actualCompHtml = `<div style="margin-top:6px; padding-top:6px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600; line-height:1.6;">
-          🎯 實際 InBody 驗證 (${nextShotDateStr})：<br>
-          • 體重：<strong>${proj.actualInBody.weight} kg</strong> (${diffW >= 0 ? '+' + diffW : diffW} kg)<br>
-          • 骨骼肌：<strong>${proj.actualInBody.smm} kg</strong> (${diffM >= 0 ? '+' + diffM : diffM} kg)<br>
-          • 體脂率：<strong>${proj.actualInBody.pbf} %</strong> (${diffF >= 0 ? '+' + diffF : diffF} %)
+        actualCompHtml = `<div style="margin-top:8px; padding-top:6px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600; line-height:1.6;">
+          🎯 <strong>實際 InBody 驗證 (${nextShotDateStr})</strong>：<br>
+          • 體重：<strong>${proj.actualInBody.weight} kg</strong> (${diffW >= 0 ? '+' + diffW : diffW}kg)<br>
+          • 體脂率：<strong>${proj.actualInBody.pbf} %</strong> (${diffF >= 0 ? '+' + diffF : diffF}%)<br>
+          • 骨骼肌：<strong>${proj.actualInBody.smm} kg</strong> (${diffM >= 0 ? '+' + diffM : diffM}kg)
         </div>`;
       } else {
-        actualCompHtml = `<div style="margin-top:4px; color:#64748b; font-size:0.75rem;">
+        actualCompHtml = `<div style="margin-top:6px; color:#64748b; font-size:0.75rem;">
           ⏳ 週期進行中或等待 ${nextShotDateStr} InBody 校準驗證
         </div>`;
       }
 
-      reviewHtml = `<div style="margin-top:6px; padding:10px 12px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.6;">
-        <strong>🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</strong><br>
-        • 週變化速率：${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg/週<br>
-        • <strong>三模型體重預測</strong>：<br>
-        &nbsp;&nbsp;[A.線性回歸] <strong>${proj.m1_w} kg</strong> ｜ [B.動量均線] <strong>${proj.m2_w} kg</strong> ｜ [C.端點投射] <strong>${proj.m3_w} kg</strong><br>
-        • 週期預測體態：骨骼肌 ~<strong>${proj.predSMM} kg</strong> ｜ 體脂 ~<strong>${proj.predFat} %</strong>
+      reviewHtml = `<div style="margin-top:8px; padding:10px 12px; background:#f0fdf4; border-radius:10px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.5;">
+        <div style="font-weight:bold; margin-bottom:6px;">🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</div>
+        
+        <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.78rem; background:#ffffff; border-radius:6px; overflow:hidden; border:1px solid #dcfce7; margin-bottom:6px;">
+          <thead>
+            <tr style="background:#dcfce7; color:#166534;">
+              <th style="padding:4px 6px; border:1px solid #bbf7d0;">預測模型</th>
+              <th style="padding:4px 6px; border:1px solid #bbf7d0;">體重 (kg)</th>
+              <th style="padding:4px 6px; border:1px solid #bbf7d0;">體脂 (%)</th>
+              <th style="padding:4px 6px; border:1px solid #bbf7d0;">骨骼肌 (kg)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#1e3a8a;">A. 線性回歸</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelA.w}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelA.fat}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelA.smm}</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#0d9488;">B. 動量均線</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelB.w}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelB.fat}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelB.smm}</td>
+            </tr>
+            <tr>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#b45309;">C. 端點投射</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelC.w}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelC.fat}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelC.smm}</td>
+            </tr>
+          </tbody>
+        </table>
+
         ${actualCompHtml}
       </div>`;
     }
