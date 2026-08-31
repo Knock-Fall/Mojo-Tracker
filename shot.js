@@ -1,7 +1,7 @@
 // Mojo Project
-// 3. shot.js (修正歷史週期區間隔離與錨定計算)
+// 3. shot.js (支援三合一預測模型與完整誤差標註)
 
-// 通用線性回歸斜率運算
+// 最小二乘法線性回歸
 function calculateLinearSlope(dataPoints) {
   const n = dataPoints.length;
   if (n < 2) return 0;
@@ -17,12 +17,12 @@ function calculateLinearSlope(dataPoints) {
   return (n * sumXY - sumX * sumY) / denominator;
 }
 
-// 通用週期投影預測引擎（修復歷史隔離與起始基準）
+// 三重統計預測核心
 function computeCycleProjection(startDateStr, endDateStr) {
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
 
-  // 1. 計算全域歷史偏差 (家用 - InBody)
+  // 1. 全域偏差補償 (家用 - InBody)
   let avgDiffW = -0.34, avgDiffFat = 1.38, avgDiffMuscle = 22.5;
   let pairs = [];
   scales.forEach(s => {
@@ -48,80 +48,87 @@ function computeCycleProjection(startDateStr, endDateStr) {
     if (countM > 0) avgDiffMuscle = diffMTotal / countM;
   }
 
-  // 2. 嚴格過濾該 7 天週期內的家用數據 (不被未來或最新資料污染)
+  // 2. 篩選該 7 天週期家用數據
   const scalesInCycle = scales.filter(s => s.date >= startDateStr && s.date <= endDateStr);
-  
-  // 若該週期內無足夠數據，則抓取 startDateStr 當天或最靠近的前一筆作為起點
-  let baseScale = null;
-  if (scalesInCycle.length > 0) {
-    baseScale = scalesInCycle[0];
-  } else {
+  let baseScale = scalesInCycle.length > 0 ? scalesInCycle[0] : null;
+  if (!baseScale) {
     const beforeScales = scales.filter(s => s.date <= startDateStr);
-    if (beforeScales.length > 0) {
-      baseScale = beforeScales[beforeScales.length - 1];
-    }
+    if (beforeScales.length > 0) baseScale = beforeScales[beforeScales.length - 1];
   }
-
   if (!baseScale) return null;
 
-  // 計算該週期內的趨勢斜率
-  let slopeW = 0, slopeF = 0, slopeM = 0;
-  if (scalesInCycle.length >= 2) {
-    const wList = scalesInCycle.map(s => s.weight);
-    const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
-    const mList = scalesInCycle.map(s => s.muscle).filter(m => m > 0);
-
-    slopeW = calculateLinearSlope(wList);
-    slopeF = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
-    slopeM = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
-  } else {
-    // 若該週只有1筆或沒有，參考前後趨勢平均值
-    slopeW = -0.1; // 預設穩健每週 -0.7kg 斜率
-  }
-
-  // 判斷是否為「當前進行中週期」還是「過去已結束週期」
   const lastScaleInDb = scales[scales.length - 1];
   const isCurrentCycle = (lastScaleInDb && lastScaleInDb.date >= startDateStr && lastScaleInDb.date < endDateStr);
 
-  let projScaleWeight, projScaleFat, projScaleMuscle;
+  const wList = scalesInCycle.map(s => s.weight);
+  const fList = scalesInCycle.map(s => s.fat).filter(f => f > 0);
+  const mList = scalesInCycle.map(s => s.muscle).filter(m => m > 0);
+
+  // --- 模型 1：線性回歸 (Linear Regression) ---
+  const slopeW1 = scalesInCycle.length >= 2 ? calculateLinearSlope(wList) : -0.1;
+  const slopeF1 = fList.length >= 2 ? calculateLinearSlope(fList) : 0;
+  const slopeM1 = mList.length >= 2 ? calculateLinearSlope(mList) : 0;
+
+  // --- 模型 2：移動平均動量 (Moving Average Momentum) ---
+  let slopeW2 = slopeW1;
+  if (scalesInCycle.length >= 3) {
+    const half = Math.floor(scalesInCycle.length / 2);
+    const avgFirst = scalesInCycle.slice(0, half).reduce((a, b) => a + b.weight, 0) / half;
+    const avgSecond = scalesInCycle.slice(half).reduce((a, b) => a + b.weight, 0) / (scalesInCycle.length - half);
+    slopeW2 = (avgSecond - avgFirst) / (scalesInCycle.length - half);
+  }
+
+  // --- 模型 3：端點衰減投射 (End-to-End Decay) ---
+  let slopeW3 = slopeW1;
+  if (scalesInCycle.length >= 2) {
+    const firstW = scalesInCycle[0].weight;
+    const lastW = scalesInCycle[scalesInCycle.length - 1].weight;
+    const daysPassed = Math.max(1, (new Date(scalesInCycle[scalesInCycle.length - 1].date) - new Date(scalesInCycle[0].date)) / (1000 * 60 * 60 * 24));
+    slopeW3 = (lastW - firstW) / daysPassed;
+  }
+
+  let m1_w, m2_w, m3_w, m_fat, m_smm;
 
   if (isCurrentCycle && scalesInCycle.length >= 2) {
-    // 進行中週期：以該週最新一筆 + 剩餘天數推算
     const latestScaleInCycle = scalesInCycle[scalesInCycle.length - 1];
     const latestDateObj = new Date(latestScaleInCycle.date);
     const endDateObj = new Date(endDateStr);
     const remainingDays = Math.max(0, Math.round((endDateObj - latestDateObj) / (1000 * 60 * 60 * 24)));
 
-    projScaleWeight = latestScaleInCycle.weight + (slopeW * remainingDays);
-    projScaleFat = (latestScaleInCycle.fat || baseScale.fat || 25) + (slopeF * remainingDays);
-    projScaleMuscle = (latestScaleInCycle.muscle || baseScale.muscle || 57) + (slopeM * remainingDays);
+    m1_w = (latestScaleInCycle.weight + (slopeW1 * remainingDays) - avgDiffW).toFixed(1);
+    m2_w = (latestScaleInCycle.weight + (slopeW2 * remainingDays) - avgDiffW).toFixed(1);
+    m3_w = (latestScaleInCycle.weight + (slopeW3 * remainingDays) - avgDiffW).toFixed(1);
+    
+    m_fat = ((latestScaleInCycle.fat || baseScale.fat || 25) + (slopeF1 * remainingDays) - avgDiffFat).toFixed(1);
+    m_smm = ((latestScaleInCycle.muscle || baseScale.muscle || 57) + (slopeM1 * remainingDays) - avgDiffMuscle).toFixed(1);
   } else {
-    // 歷史週期：以該週第一天起始體重 + 完整 7 天變化推算
-    projScaleWeight = baseScale.weight + (slopeW * 7);
-    projScaleFat = (baseScale.fat || 25) + (slopeF * 7);
-    projScaleMuscle = (baseScale.muscle || 57) + (slopeM * 7);
+    m1_w = (baseScale.weight + (slopeW1 * 7) - avgDiffW).toFixed(1);
+    m2_w = (baseScale.weight + (slopeW2 * 7) - avgDiffW).toFixed(1);
+    m3_w = (baseScale.weight + (slopeW3 * 7) - avgDiffW).toFixed(1);
+
+    m_fat = ((baseScale.fat || 25) + (slopeF1 * 7) - avgDiffFat).toFixed(1);
+    m_smm = ((baseScale.muscle || 57) + (slopeM1 * 7) - avgDiffMuscle).toFixed(1);
   }
 
-  const predWeight = (projScaleWeight - avgDiffW).toFixed(1);
-  const predFat = (projScaleFat - avgDiffFat).toFixed(1);
-  const predSMM = (projScaleMuscle - avgDiffMuscle).toFixed(1);
-  const weeklyDelta = (slopeW * 7).toFixed(2);
-
+  const weeklyDelta = (slopeW1 * 7).toFixed(2);
   let statusTip = '🌱 溫和穩健減脂中';
-  if (slopeW < -0.15 && slopeM >= -0.02) {
+  if (slopeW1 < -0.15 && slopeM1 >= -0.02) {
     statusTip = '🔥 高效燃脂且肌肉維持極佳';
-  } else if (slopeM < -0.05) {
+  } else if (slopeM1 < -0.05) {
     statusTip = '⚠️ 肌肉有些微下滑趨勢，請加強蛋白質與阻抗訓練';
-  } else if (slopeW > 0.05) {
+  } else if (slopeW1 > 0.05) {
     statusTip = '📈 體重有些微回升，注意水分滯留或熱量平衡';
   }
 
   const matchedInBody = bodies.find(b => b.date === endDateStr);
 
   return {
-    predWeight,
-    predFat,
-    predSMM,
+    m1_w,
+    m2_w,
+    m3_w,
+    predWeight: m1_w,
+    predFat: m_fat,
+    predSMM: m_smm,
     weeklyDelta,
     statusTip,
     actualInBody: matchedInBody || null
@@ -216,19 +223,25 @@ function renderShotList() {
         const diffW = (proj.actualInBody.weight - parseFloat(proj.predWeight)).toFixed(1);
         const diffF = (proj.actualInBody.pbf - parseFloat(proj.predFat)).toFixed(1);
         const diffM = (proj.actualInBody.smm - parseFloat(proj.predSMM)).toFixed(1);
-        actualCompHtml = `<div style="margin-top:4px; padding-top:4px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600;">
-          🎯 實際 InBody 驗證 (${nextShotDateStr})：體重 ${proj.actualInBody.weight}kg (${diffW >= 0 ? '+' + diffW : diffW}kg) ｜ 骨骼肌 ${proj.actualInBody.smm}kg (${diffM >= 0 ? '+' + diffM : diffM}kg) ｜ 體脂 ${proj.actualInBody.pbf}%
+
+        actualCompHtml = `<div style="margin-top:6px; padding-top:6px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600; line-height:1.6;">
+          🎯 實際 InBody 驗證 (${nextShotDateStr})：<br>
+          • 體重：<strong>${proj.actualInBody.weight} kg</strong> (${diffW >= 0 ? '+' + diffW : diffW} kg)<br>
+          • 骨骼肌：<strong>${proj.actualInBody.smm} kg</strong> (${diffM >= 0 ? '+' + diffM : diffM} kg)<br>
+          • 體脂率：<strong>${proj.actualInBody.pbf} %</strong> (${diffF >= 0 ? '+' + diffF : diffF} %)
         </div>`;
       } else {
-        actualCompHtml = `<div style="margin-top:2px; color:#64748b; font-size:0.75rem;">
+        actualCompHtml = `<div style="margin-top:4px; color:#64748b; font-size:0.75rem;">
           ⏳ 週期進行中或等待 ${nextShotDateStr} InBody 校準驗證
         </div>`;
       }
 
-      reviewHtml = `<div style="margin-top:6px; padding:8px 10px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.5;">
+      reviewHtml = `<div style="margin-top:6px; padding:10px 12px; background:#f0fdf4; border-radius:8px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.6;">
         <strong>🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</strong><br>
         • 週變化速率：${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg/週<br>
-        • 週期預測 InBody：體重 ~<strong>${proj.predWeight} kg</strong> ｜ 骨骼肌 ~<strong>${proj.predSMM} kg</strong> ｜ 體脂 ~<strong>${proj.predFat} %</strong>
+        • <strong>三模型體重預測</strong>：<br>
+        &nbsp;&nbsp;[A.線性回歸] <strong>${proj.m1_w} kg</strong> ｜ [B.動量均線] <strong>${proj.m2_w} kg</strong> ｜ [C.端點投射] <strong>${proj.m3_w} kg</strong><br>
+        • 週期預測體態：骨骼肌 ~<strong>${proj.predSMM} kg</strong> ｜ 體脂 ~<strong>${proj.predFat} %</strong>
         ${actualCompHtml}
       </div>`;
     }
