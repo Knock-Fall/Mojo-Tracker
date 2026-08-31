@@ -491,14 +491,17 @@ function renderComparisonAnalysis() {
     const proj = (typeof computeCycleProjection === 'function') ? computeCycleProjection(latestShot.date, nextShotDateStr) : null;
 
     if (proj) {
-      html += `<div style="margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
-        <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:4px;">
-          🔮 猛健樂週期預測 (${latestShot.date} ~ ${nextShotDateStr})
+      html += `<div style="margin-top: 10px; padding: 12px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
+        <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:6px;">
+          🔮 猛健樂週期三模型預測 (${latestShot.date} ~ ${nextShotDateStr})
         </div>
-        <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.6;">
-          • 下次施打預測 InBody 體重：<strong>${proj.predWeight} kg</strong><br>
-          • 下次施打預測 InBody 體脂：<strong>${proj.predFat} %</strong><br>
+        <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.7;">
+          • <strong>下次施打預測 InBody 體重</strong>：<br>
+          &nbsp;&nbsp;├ <strong>A. 線性回歸</strong>：<strong>${proj.m1_w} kg</strong><br>
+          &nbsp;&nbsp;├ <strong>B. 動量均線</strong>：<strong>${proj.m2_w} kg</strong><br>
+          &nbsp;&nbsp;└ <strong>C. 端點投射</strong>：<strong>${proj.m3_w} kg</strong><br>
           • 下次施打預測 骨骼肌重 (SMM)：<strong>${proj.predSMM} kg</strong><br>
+          • 下次施打預測 InBody 體脂：<strong>${proj.predFat} %</strong><br>
           • 週期變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong><br>
           <span style="display:inline-block; margin-top:3px; color:#0369a1; font-weight:600;">評估：${proj.statusTip}</span>
         </div>
