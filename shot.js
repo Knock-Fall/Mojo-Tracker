@@ -1,5 +1,5 @@
 // Mojo Project
-// 3. shot.js (支援三模型全指標預測矩陣與表格排版)
+// 3. shot.js (支援睡醒/睡前雙時段週期平均統計與三模型矩陣)
 
 function calculateLinearSlope(dataPoints) {
   const n = dataPoints.length;
@@ -14,6 +14,56 @@ function calculateLinearSlope(dataPoints) {
   const denominator = (n * sumXX - sumX * sumX);
   if (denominator === 0) return 0;
   return (n * sumXY - sumX * sumY) / denominator;
+}
+
+// 週期晨起與睡前體重統計分析
+function computeCycleTimingStats(startDateStr, endDateStr, prevStartDateStr, prevEndDateStr) {
+  const scales = window.MojoState.scaleLogs || [];
+  const currentScales = scales.filter(s => s.date >= startDateStr && s.date <= endDateStr);
+
+  const morningScales = [];
+  const eveningScales = [];
+
+  currentScales.forEach(s => {
+    const timeStr = s.time || '08:00';
+    const hour = parseInt(timeStr.split(':')[0], 10);
+    // 04:00 ~ 12:59 判定為睡醒晨起，其餘（18:00~03:59等）判定為晚間睡前
+    if (hour >= 4 && hour < 13) {
+      morningScales.push(s.weight);
+    } else if (hour >= 18 || hour < 4) {
+      eveningScales.push(s.weight);
+    } else {
+      morningScales.push(s.weight); // 日間預設歸入晨間基準
+    }
+  });
+
+  const avgMorning = morningScales.length ? (morningScales.reduce((a, b) => a + b, 0) / morningScales.length) : null;
+  const avgEvening = eveningScales.length ? (eveningScales.reduce((a, b) => a + b, 0) / eveningScales.length) : null;
+  const overnightDrop = (avgMorning !== null && avgEvening !== null) ? (avgEvening - avgMorning) : null;
+
+  // 計算與上週期的晨起對比
+  let wowMorningChange = null;
+  if (prevStartDateStr && prevEndDateStr && avgMorning !== null) {
+    const prevScales = scales.filter(s => s.date >= prevStartDateStr && s.date <= prevEndDateStr);
+    const prevMornings = [];
+    prevScales.forEach(s => {
+      const hour = parseInt((s.time || '08:00').split(':')[0], 10);
+      if (hour >= 4 && hour < 13) prevMornings.push(s.weight);
+    });
+    if (prevMornings.length) {
+      const prevAvgM = prevMornings.reduce((a, b) => a + b, 0) / prevMornings.length;
+      wowMorningChange = (avgMorning - prevAvgM).toFixed(2);
+    }
+  }
+
+  return {
+    avgMorning: avgMorning !== null ? avgMorning.toFixed(2) : null,
+    mCount: morningScales.length,
+    avgEvening: avgEvening !== null ? avgEvening.toFixed(2) : null,
+    eCount: eveningScales.length,
+    overnightDrop: overnightDrop !== null ? overnightDrop.toFixed(2) : null,
+    wowMorningChange: wowMorningChange
+  };
 }
 
 function computeCycleProjection(startDateStr, endDateStr) {
@@ -243,7 +293,7 @@ function renderShotList() {
   list.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   let html = '';
-  list.forEach((s) => {
+  list.forEach((s, idx) => {
     const shotDateObj = new Date(s.date);
     const nextDateObj = new Date(shotDateObj);
     nextDateObj.setDate(nextDateObj.getDate() + 7);
@@ -253,8 +303,17 @@ function renderShotList() {
     const dNext = String(nextDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
+    // 取得前一週期的時間範圍（供週對週對比）
+    let prevStart = null, prevEnd = null;
+    if (idx + 1 < list.length) {
+      prevStart = list[idx + 1].date;
+      prevEnd = s.date;
+    }
+
+    const timingStats = computeCycleTimingStats(s.date, nextShotDateStr, prevStart, prevEnd);
     let reviewHtml = '';
     const proj = computeCycleProjection(s.date, nextShotDateStr);
+
     if (proj) {
       let actualCompHtml = '';
       if (proj.actualInBody) {
@@ -274,9 +333,25 @@ function renderShotList() {
         </div>`;
       }
 
+      // 組合睡醒與睡前平均看板
+      let timingHtml = '';
+      if (timingStats.avgMorning || timingStats.avgEvening) {
+        const mText = timingStats.avgMorning ? `<strong>${timingStats.avgMorning} kg</strong> (${timingStats.mCount}次)` : '--';
+        const eText = timingStats.avgEvening ? `<strong>${timingStats.avgEvening} kg</strong> (${timingStats.eCount}次)` : '--';
+        const dropText = timingStats.overnightDrop ? ` ｜ 隔夜差: <strong>-${timingStats.overnightDrop} kg</strong>` : '';
+        const wowText = timingStats.wowMorningChange ? ` ｜ 比上劑晨起: <strong>${parseFloat(timingStats.wowMorningChange) <= 0 ? timingStats.wowMorningChange : '+' + timingStats.wowMorningChange} kg</strong>` : '';
+
+        timingHtml = `<div style="margin-bottom:8px; padding:6px 8px; background:#eff6ff; border-radius:6px; border:1px solid #bfdbfe; font-size:0.76rem; color:#1e40af; line-height:1.5;">
+          📊 <strong>該劑家用時段平均</strong>：<br>
+          🌅 晨起平均: ${mText} ｜ 🌙 睡前平均: ${eText}${dropText}${wowText}
+        </div>`;
+      }
+
       reviewHtml = `<div style="margin-top:8px; padding:10px 12px; background:#f0fdf4; border-radius:10px; border:1px solid #bbf7d0; font-size:0.78rem; color:#166534; line-height:1.5;">
         <div style="font-weight:bold; margin-bottom:6px;">🔮 該劑 7 天趨勢回顧 (${s.date} ~ ${nextShotDateStr})：</div>
         
+        ${timingHtml}
+
         <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.78rem; background:#ffffff; border-radius:6px; overflow:hidden; border:1px solid #dcfce7; margin-bottom:6px;">
           <thead>
             <tr style="background:#dcfce7; color:#166534;">
