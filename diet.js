@@ -187,25 +187,34 @@ async function analyzeFoodImage() {
   const userHint = document.getElementById('aiHintText').value.trim();
   let hintPrompt = "";
   if (userHint) {
-    hintPrompt = `\n提示：「${userHint}」`;
+    hintPrompt = `\n用戶提示：「${userHint}」`;
   }
 
-  const promptText = `你是專業營養師。分析照片並繁中命名食物，嚴格預估五大營養素：${hintPrompt}
+  const promptText = `你是專業營養師。請直接分析照片並估算繁體中文食物名稱與五大營養素。${hintPrompt}
+嚴格只輸出 JSON 物件，格式如下：
 {"food": "食物名稱與份量", "cal": 數字, "pro": 數字, "carbs": 數字, "fat": 數字, "fiber": 數字}`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }]
+        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
-    let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
-    const result = JSON.parse(rawText);
+    let rawText = resData.candidates[0].content.parts[0].text.trim();
+    
+    // 正則過濾純 JSON 區塊
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('模型未回傳有效的 JSON 格式');
+    
+    const result = JSON.parse(jsonMatch[0]);
 
     document.getElementById('dietContent').value = result.food || userHint || '';
     document.getElementById('dietCal').value = result.cal ?? 0;
@@ -463,7 +472,6 @@ function renderDiet() {
   const targetFiber = 28;
   const targetWater = Math.round(latestWeight * 35);
 
-  // 綜合淨熱量與實際赤字運算
   const netCalories = totalC - totalBurn;
   const actualDeficit = tdee - netCalories;
 
