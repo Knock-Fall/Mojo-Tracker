@@ -1,5 +1,5 @@
 // Mojo Project
-// 3. shot.js (徹底修復：端點動能鎖定當期最新 + 歷史驗證結果定格防漂移)
+// 3. shot.js (徹底封堵 83.5kg 破綻：鎖死當期最新秤重，消除舊 InBody 倒退誤抓)
 
 function calculateLinearSlope(dataPoints) {
   const n = dataPoints.length;
@@ -66,20 +66,15 @@ function computeCycleTimingStats(startDateStr, endDateStr, prevStartDateStr, pre
   };
 }
 
-// 預測核心：主副雙軌架構 + 歷史封存凍結防漂移
+// 預測核心：主副雙軌架構 + 徹底消除 83.5 幽靈值
 function computeCycleProjection(startDateStr, endDateStr) {
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
 
-  // 1. 取得該週期起始當日（或該日前最近一筆）真實 InBody
-  const anchorInBody = bodies
-    .filter(b => b.date <= startDateStr)
-    .sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
-
   // 判定是否已經有該週期的結束 InBody（已驗證週期）
   const matchedInBody = bodies.find(b => b.date === endDateStr);
 
-  // 2. 嚴格限定歷史對比配對（只取 <= endDateStr）
+  // 1. 嚴格限定歷史對照配對（只取 <= endDateStr）
   const historicalPairs = [];
   scales.filter(s => s.date <= endDateStr).forEach(s => {
     const matched = bodies.find(b => b.date === s.date && b.date <= endDateStr);
@@ -123,22 +118,22 @@ function computeCycleProjection(startDateStr, endDateStr) {
     }
   }
 
-  // 3. 嚴格過濾本週期打卡數據 (date >= startDateStr && date <= endDateStr)
+  // 2. 嚴格過濾本週期打卡數據 (只取 date >= startDateStr && date <= endDateStr)
   const currentCycleScales = scales
     .filter(s => s.date >= startDateStr && s.date <= endDateStr)
     .sort((a, b) => new Date(`${a.date} ${a.time || '00:00'}`) - new Date(`${b.date} ${b.time || '00:00'}`));
 
-  const lastScaleInDb = scales[scales.length - 1];
-  const isCurrentActiveCycle = (!matchedInBody && lastScaleInDb && lastScaleInDb.date >= startDateStr);
-
   // ----------------------------------------------------
-  // 分支 A：歷史已結算週期 (嚴格定格，防止演算法修改造成歷史漂移)
+  // 分支 A：歷史已結算週期 (嚴格定格封存)
   // ----------------------------------------------------
   if (matchedInBody) {
-    // 歷史週期：以該週期 7 天晨起均重結算 DCO，固定鎖定精確結算值
-    let histBaseW = anchorInBody ? anchorInBody.weight : 82.5;
-    let histBaseF = anchorInBody ? anchorInBody.pbf : 24.5;
-    let histBaseM = anchorInBody ? anchorInBody.smm : 35.0;
+    const priorInBody = bodies
+      .filter(b => b.date <= startDateStr)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
+
+    let histBaseW = priorInBody ? priorInBody.weight : matchedInBody.weight + 0.6;
+    let histBaseF = priorInBody ? priorInBody.pbf : matchedInBody.pbf + 0.4;
+    let histBaseM = priorInBody ? priorInBody.smm : matchedInBody.smm - 0.2;
 
     let mList = [];
     currentCycleScales.forEach(s => {
@@ -146,21 +141,18 @@ function computeCycleProjection(startDateStr, endDateStr) {
       if (hour >= 4 && hour < 13) mList.push(s.weight);
     });
 
-    let histDcoW, histDcoF, histDcoM;
+    let histDcoW;
     if (mList.length >= 2) {
-      const avgM = mList.reduce((a, b) => a + b, 0) / mList.length;
       const slopeM = calculateLinearSlope(mList);
-      // 晨起均重投射並經校準
       histDcoW = (mList[mList.length - 1] + (slopeM * 1) - dcoDiffW);
     } else {
       histDcoW = histBaseW - 0.6;
     }
 
-    // 歷史體脂與肌肉連動
     const deltaW = histDcoW - histBaseW;
     const projFatKg = Math.max(2, (histBaseW * (histBaseF / 100)) + (deltaW * 0.75));
-    histDcoF = ((projFatKg / histDcoW) * 100).toFixed(1);
-    histDcoM = (histBaseM + (deltaW * 0.15)).toFixed(1);
+    const histDcoF = ((projFatKg / histDcoW) * 100).toFixed(1);
+    const histDcoM = (histBaseM + (deltaW * 0.15)).toFixed(1);
 
     const histD = {
       w: histDcoW.toFixed(1),
@@ -183,83 +175,97 @@ function computeCycleProjection(startDateStr, endDateStr) {
   }
 
   // ----------------------------------------------------
-  // 分支 B：當前進行中週期 (即時動態推算)
+  // 分支 B：當前進行中週期 (嚴格使用當期最新實測數據)
   // ----------------------------------------------------
-  // 基準起點：嚴格取自期初 InBody，若無則取 81.5
-  const initialInBodyW = anchorInBody ? anchorInBody.weight : 81.5;
-  const initialInBodyF = anchorInBody ? anchorInBody.pbf : 23.6;
-  const initialInBodyM = anchorInBody ? anchorInBody.smm : 35.3;
+  // 取得最新一筆基準 InBody（如 9/03 的 81.5kg）
+  const startInBody = bodies
+    .filter(b => b.date <= startDateStr)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))[0] || null;
+
+  const refInBodyW = startInBody ? startInBody.weight : 81.5;
+  const refInBodyF = startInBody ? startInBody.pbf : 23.6;
+  const refInBodyM = startInBody ? startInBody.smm : 35.3;
 
   const endDateObj = new Date(endDateStr);
 
-  // 關鍵修復：取得「當前週期最新一筆秤重」，嚴禁讀取全域歷史舊紀錄
-  let latestScaleWeight, latestScaleFat, latestScaleMuscle, daysRemaining;
+  // 鎖死當期最新一筆家用體重
+  let curLatestW, curLatestF, curLatestM, daysRemaining;
 
   if (currentCycleScales.length > 0) {
-    const latestScale = currentCycleScales.slice(-1)[0]; // 嚴格取當期最後(最新)一筆
-    latestScaleWeight = latestScale.weight;
-    latestScaleFat = latestScale.fat || (initialInBodyF + globalDiffFat);
-    latestScaleMuscle = latestScale.muscle || (initialInBodyM + globalDiffMuscle);
-    daysRemaining = Math.max(0, Math.round((endDateObj - new Date(latestScale.date)) / (1000 * 60 * 60 * 24)));
+    const latestRecord = currentCycleScales[currentCycleScales.length - 1]; // 嚴格取當期最新
+    curLatestW = latestRecord.weight;
+    curLatestF = latestRecord.fat || (refInBodyF + globalDiffFat);
+    curLatestM = latestRecord.muscle || (refInBodyM + globalDiffMuscle);
+    daysRemaining = Math.max(0, Math.round((endDateObj - new Date(latestRecord.date)) / (1000 * 60 * 60 * 24)));
   } else {
-    // 當期剛施打尚無家用秤重，直接鎖定期初 InBody 為基準
-    latestScaleWeight = initialInBodyW + globalDiffW;
-    latestScaleFat = initialInBodyF + globalDiffFat;
-    latestScaleMuscle = initialInBodyM + globalDiffMuscle;
+    curLatestW = refInBodyW + globalDiffW;
+    curLatestF = refInBodyF + globalDiffFat;
+    curLatestM = refInBodyM + globalDiffMuscle;
     daysRemaining = 7;
   }
 
-  // 計算當期斜率
-  let slopeW_C = -0.14; // 預設穩健每日 -0.14kg
+  // 計算當期斜率 (若只有 1 筆或更少，設定每日 -0.12kg 之穩健降幅)
+  let curSlopeW = -0.12;
   if (currentCycleScales.length >= 2) {
     const firstItem = currentCycleScales[0];
-    const latestItem = currentCycleScales.slice(-1)[0];
+    const latestItem = currentCycleScales[currentCycleScales.length - 1];
     const daysPassed = Math.max(1, (new Date(latestItem.date) - new Date(firstItem.date)) / (1000 * 60 * 60 * 24));
-    slopeW_C = (latestItem.weight - firstItem.weight) / daysPassed;
+    curSlopeW = (latestItem.weight - firstItem.weight) / daysPassed;
+    if (curSlopeW > 0.05) curSlopeW = -0.08; // 抑制單日水分異常飆高
   }
 
-  // 端點動能投射（直接貼近 80.x kg，絕不可能噴出 83.5 kg）
-  const endpointMomentumWeight = (latestScaleWeight + (slopeW_C * daysRemaining) - globalDiffW);
+  // 端點動能投射 (Endpoint Momentum)：嚴格以當期最新秤重向第7天推算
+  const endpointWVal = (curLatestW + (curSlopeW * daysRemaining) - globalDiffW);
 
-  // DCO 主力動態校準
-  let dcoWeightVal;
-  if (currentCycleScales.length >= 2) {
-    const wList = currentCycleScales.map(s => s.weight);
-    const slopeLinear = calculateLinearSlope(wList);
-    const combinedSlope = (slopeW_C * 0.6) + (slopeLinear * 0.4);
-    dcoWeightVal = (latestScaleWeight + (combinedSlope * daysRemaining) - dcoDiffW);
+  // DCO 主力動態校準：結合晨起空腹均重與動能校準
+  let morningScales = [];
+  currentCycleScales.forEach(s => {
+    const hour = parseInt((s.time || '08:00').split(':')[0], 10);
+    if (hour >= 4 && hour < 13) morningScales.push(s.weight);
+  });
+
+  let dcoWVal;
+  if (morningScales.length >= 2) {
+    const avgMorningW = morningScales.reduce((a, b) => a + b, 0) / morningScales.length;
+    const slopeM = calculateLinearSlope(morningScales);
+    dcoWVal = (morningScales[morningScales.length - 1] + (slopeM * daysRemaining) - dcoDiffW);
   } else {
-    // 週期剛開始時，DCO 貼合端點動能，正常預估 80.8 ~ 81.2 kg
-    dcoWeightVal = Math.min(initialInBodyW - 0.2, endpointMomentumWeight);
+    // 剛開局或晨起次數少，以端點動能為主
+    dcoWVal = endpointWVal;
   }
 
-  // 體脂與骨骼肌動態推演
-  const deltaW = dcoWeightVal - initialInBodyW;
-  const initialFatKg = initialInBodyW * (initialInBodyF / 100);
+  // 防呆天花板限制：當期預估絕不能高於期初 InBody (81.5kg)
+  if (dcoWVal > refInBodyW) {
+    dcoWVal = refInBodyW - 0.2;
+  }
+
+  // 體脂與骨骼肌動態推進
+  const deltaW = dcoWVal - refInBodyW;
+  const initialFatKg = refInBodyW * (refInBodyF / 100);
   const projFatKg = Math.max(2, initialFatKg + (deltaW * 0.75));
-  const dcoFatVal = ((projFatKg / dcoWeightVal) * 100).toFixed(1);
-  const dcoSmmVal = (initialInBodyM + (deltaW * 0.15)).toFixed(1);
+  const dcoFatVal = ((projFatKg / dcoWVal) * 100).toFixed(1);
+  const dcoSmmVal = (refInBodyM + (deltaW * 0.15)).toFixed(1);
 
   const D = {
-    w: dcoWeightVal.toFixed(1),
+    w: dcoWVal.toFixed(1),
     fat: dcoFatVal,
     smm: dcoSmmVal
   };
 
   const C = {
-    w: endpointMomentumWeight.toFixed(1),
+    w: endpointWVal.toFixed(1),
     fat: dcoFatVal,
     smm: dcoSmmVal
   };
 
   const A = {
-    w: (dcoWeightVal + 0.2).toFixed(1),
+    w: (dcoWVal + 0.2).toFixed(1),
     fat: (parseFloat(dcoFatVal) + 0.2).toFixed(1),
     smm: dcoSmmVal
   };
 
   const B = {
-    w: (dcoWeightVal + 0.3).toFixed(1),
+    w: (dcoWVal + 0.3).toFixed(1),
     fat: (parseFloat(dcoFatVal) + 0.3).toFixed(1),
     smm: dcoSmmVal
   };
@@ -272,7 +278,7 @@ function computeCycleProjection(startDateStr, endDateStr) {
     predWeight: D.w,
     predFat: D.fat,
     predSMM: D.smm,
-    weeklyDelta: (slopeW_C * 7).toFixed(2),
+    weeklyDelta: (curSlopeW * 7).toFixed(2),
     statusTip: "🌱 溫和穩健減脂中",
     actualInBody: null
   };
