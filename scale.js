@@ -84,14 +84,19 @@ async function analyzeScaleImage() {
             { text: promptText },
             { inlineData: { mimeType: "image/jpeg", data: base64ScaleImage } }
           ]
-        }]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
-    let rawText = resData.candidates[0].content.parts[0].text.trim().replace(/```json/g, '').replace(/```/g, '').trim();
-    const res = JSON.parse(rawText);
+    let rawText = resData.candidates[0].content.parts[0].text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('模型未回傳有效的 JSON 格式');
+    const res = JSON.parse(jsonMatch[0]);
 
     if (res.date) document.getElementById('scaleDate').value = String(res.date).replace(/\//g, '-').slice(0, 10);
     if (res.time) {
@@ -493,7 +498,7 @@ function renderComparisonAnalysis() {
     if (proj) {
       html += `<div style="margin-top: 10px; padding: 12px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
         <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:8px;">
-          🔮 猛健樂週期三模型預測 (${latestShot.date} ~ ${nextShotDateStr})
+          🔮 猛健樂週期四大模型預測 (${latestShot.date} ~ ${nextShotDateStr})
         </div>
 
         <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.8rem; background:#ffffff; border-radius:6px; overflow:hidden; border:1px solid #bfdbfe; margin-bottom:8px;">
@@ -523,6 +528,12 @@ function renderComparisonAnalysis() {
               <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelC.w}</td>
               <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelC.fat}</td>
               <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelC.smm}</td>
+            </tr>
+            <tr style="background:#fefce8;">
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">✨ D. DCO動態校準</td>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">${proj.modelD.w}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">${proj.modelD.fat}</td>
+              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">${proj.modelD.smm}</td>
             </tr>
           </tbody>
         </table>
