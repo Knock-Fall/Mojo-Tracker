@@ -1,10 +1,10 @@
 // Mojo Project
-// 3. shot.js (支援睡醒/睡前雙時段週期平均統計與三模型矩陣)
+// 3. shot.js (支援四模型包含 DCO 動態校準模型矩陣)
 
 function calculateLinearSlope(dataPoints) {
   const n = dataPoints.length;
   if (n < 2) return 0;
-  let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
   for (let i = 0; i < n; i++) {
     sumX += i;
     sumY += dataPoints[i];
@@ -27,13 +27,12 @@ function computeCycleTimingStats(startDateStr, endDateStr, prevStartDateStr, pre
   currentScales.forEach(s => {
     const timeStr = s.time || '08:00';
     const hour = parseInt(timeStr.split(':')[0], 10);
-    // 04:00 ~ 12:59 判定為睡醒晨起，其餘（18:00~03:59等）判定為晚間睡前
     if (hour >= 4 && hour < 13) {
       morningScales.push(s.weight);
     } else if (hour >= 18 || hour < 4) {
       eveningScales.push(s.weight);
     } else {
-      morningScales.push(s.weight); // 日間預設歸入晨間基準
+      morningScales.push(s.weight);
     }
   });
 
@@ -41,7 +40,6 @@ function computeCycleTimingStats(startDateStr, endDateStr, prevStartDateStr, pre
   const avgEvening = eveningScales.length ? (eveningScales.reduce((a, b) => a + b, 0) / eveningScales.length) : null;
   const overnightDrop = (avgMorning !== null && avgEvening !== null) ? (avgEvening - avgMorning) : null;
 
-  // 計算與上週期的晨起對比
   let wowMorningChange = null;
   if (prevStartDateStr && prevEndDateStr && avgMorning !== null) {
     const prevScales = scales.filter(s => s.date >= prevStartDateStr && s.date <= prevEndDateStr);
@@ -66,16 +64,17 @@ function computeCycleTimingStats(startDateStr, endDateStr, prevStartDateStr, pre
   };
 }
 
+// 四大統計預測模型核心（含 DCO 動態校準）
 function computeCycleProjection(startDateStr, endDateStr) {
   const scales = window.MojoState.scaleLogs || [];
   const bodies = window.MojoState.bodyLogs || [];
 
-  // 1. 全域偏差補償 (家用 - InBody)
+  // 1. 全域靜態偏差
   let avgDiffW = -0.34, avgDiffFat = 1.38, avgDiffMuscle = 22.5;
   let pairs = [];
   scales.forEach(s => {
     const matched = bodies.find(b => b.date === s.date);
-    if (matched) pairs.push({ s, b: matched });
+    if (matched) pairs.push({ s, b: matched, date: s.date });
   });
 
   if (pairs.length > 0) {
@@ -96,7 +95,26 @@ function computeCycleProjection(startDateStr, endDateStr) {
     if (countM > 0) avgDiffMuscle = diffMTotal / countM;
   }
 
-  // 2. 篩選該 7 天週期家用數據
+  // 2. DCO 動態時間距離指數加權偏差計算 (Exponential Recency Weights)
+  let dcoDiffW = avgDiffW, dcoDiffFat = avgDiffFat, dcoDiffMuscle = avgDiffMuscle;
+  if (pairs.length > 0) {
+    pairs.sort((a, b) => new Date(a.date) - new Date(b.date));
+    let totalWeight = 0, weightedDiffW = 0, weightedDiffFat = 0, weightedDiffM = 0;
+    pairs.forEach((p, idx) => {
+      const recencyWeight = Math.pow(1.5, idx); // 越近的權重指數放大
+      totalWeight += recencyWeight;
+      weightedDiffW += (p.s.weight - p.b.weight) * recencyWeight;
+      if (p.s.fat && p.b.pbf) weightedDiffFat += (p.s.fat - p.b.pbf) * recencyWeight;
+      if (p.s.muscle && p.b.smm) weightedDiffM += (p.s.muscle - p.b.smm) * recencyWeight;
+    });
+    if (totalWeight > 0) {
+      dcoDiffW = weightedDiffW / totalWeight;
+      dcoDiffFat = weightedDiffFat / totalWeight;
+      dcoDiffMuscle = weightedDiffM / totalWeight;
+    }
+  }
+
+  // 3. 篩選該 7 天週期家用數據
   const scalesInCycle = scales.filter(s => s.date >= startDateStr && s.date <= endDateStr);
   let baseScale = scalesInCycle.length > 0 ? scalesInCycle[0] : null;
   if (!baseScale) {
@@ -143,13 +161,18 @@ function computeCycleProjection(startDateStr, endDateStr) {
     const firstItem = scalesInCycle[0];
     const lastItem = scalesInCycle[scalesInCycle.length - 1];
     const daysPassed = Math.max(1, (new Date(lastItem.date) - new Date(firstItem.date)) / (1000 * 60 * 60 * 24));
-    
     slopeW_C = (lastItem.weight - firstItem.weight) / daysPassed;
     if (lastItem.fat && firstItem.fat) slopeF_C = (lastItem.fat - firstItem.fat) / daysPassed;
     if (lastItem.muscle && firstItem.muscle) slopeM_C = (lastItem.muscle - firstItem.muscle) / daysPassed;
   }
 
-  let A = {}, B = {}, C = {};
+  // --- 模型 D：DCO 動態校準模型 (Dynamic Calibration Offset) ---
+  // 核心特性：以線性回歸與動量均線的加權混合為基底，結合動態衰減時間距離偏差值校準
+  const slopeW_D = (slopeW_A * 0.6) + (slopeW_B * 0.4);
+  const slopeF_D = (slopeF_A * 0.6) + (slopeF_B * 0.4);
+  const slopeM_D = (slopeM_A * 0.6) + (slopeM_B * 0.4);
+
+  let A = {}, B = {}, C = {}, D = {};
 
   if (isCurrentCycle && scalesInCycle.length >= 2) {
     const latestScaleInCycle = scalesInCycle[scalesInCycle.length - 1];
@@ -176,6 +199,11 @@ function computeCycleProjection(startDateStr, endDateStr) {
       fat: (baseF + (slopeF_C * remDays) - avgDiffFat).toFixed(1),
       smm: (baseM + (slopeM_C * remDays) - avgDiffMuscle).toFixed(1)
     };
+    D = {
+      w: (baseW + (slopeW_D * remDays) - dcoDiffW).toFixed(1),
+      fat: (baseF + (slopeF_D * remDays) - dcoDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_D * remDays) - dcoDiffMuscle).toFixed(1)
+    };
   } else {
     const baseW = baseScale.weight;
     const baseF = baseScale.fat || 25;
@@ -196,6 +224,11 @@ function computeCycleProjection(startDateStr, endDateStr) {
       fat: (baseF + (slopeF_C * 7) - avgDiffFat).toFixed(1),
       smm: (baseM + (slopeM_C * 7) - avgDiffMuscle).toFixed(1)
     };
+    D = {
+      w: (baseW + (slopeW_D * 7) - dcoDiffW).toFixed(1),
+      fat: (baseF + (slopeF_D * 7) - dcoDiffFat).toFixed(1),
+      smm: (baseM + (slopeM_D * 7) - dcoDiffMuscle).toFixed(1)
+    };
   }
 
   const weeklyDelta = (slopeW_A * 7).toFixed(2);
@@ -214,9 +247,10 @@ function computeCycleProjection(startDateStr, endDateStr) {
     modelA: A,
     modelB: B,
     modelC: C,
-    predWeight: A.w,
-    predFat: A.fat,
-    predSMM: A.smm,
+    modelD: D,
+    predWeight: D.w,
+    predFat: D.fat,
+    predSMM: D.smm,
     weeklyDelta,
     statusTip,
     actualInBody: matchedInBody || null
@@ -303,7 +337,6 @@ function renderShotList() {
     const dNext = String(nextDateObj.getDate()).padStart(2, '0');
     const nextShotDateStr = `${yNext}-${mNext}-${dNext}`;
 
-    // 取得前一週期的時間範圍（供週對週對比）
     let prevStart = null, prevEnd = null;
     if (idx + 1 < list.length) {
       prevStart = list[idx + 1].date;
@@ -317,15 +350,16 @@ function renderShotList() {
     if (proj) {
       let actualCompHtml = '';
       if (proj.actualInBody) {
-        const diffW = (proj.actualInBody.weight - parseFloat(proj.modelA.w)).toFixed(1);
-        const diffF = (proj.actualInBody.pbf - parseFloat(proj.modelA.fat)).toFixed(1);
-        const diffM = (proj.actualInBody.smm - parseFloat(proj.modelA.smm)).toFixed(1);
+        // 以 DCO 動態校準模型作為主要基準進行誤差比較
+        const diffW = (proj.actualInBody.weight - parseFloat(proj.modelD.w)).toFixed(1);
+        const diffF = (proj.actualInBody.pbf - parseFloat(proj.modelD.fat)).toFixed(1);
+        const diffM = (proj.actualInBody.smm - parseFloat(proj.modelD.smm)).toFixed(1);
 
         actualCompHtml = `<div style="margin-top:8px; padding-top:6px; border-top:1px dashed #cbd5e1; color:#0f766e; font-weight:600; line-height:1.6;">
           🎯 <strong>實際 InBody 驗證 (${nextShotDateStr})</strong>：<br>
-          • 體重：<strong>${proj.actualInBody.weight} kg</strong> (${diffW >= 0 ? '+' + diffW : diffW}kg)<br>
-          • 體脂率：<strong>${proj.actualInBody.pbf} %</strong> (${diffF >= 0 ? '+' + diffF : diffF}%)<br>
-          • 骨骼肌：<strong>${proj.actualInBody.smm} kg</strong> (${diffM >= 0 ? '+' + diffM : diffM}kg)
+          • 體重：<strong>${proj.actualInBody.weight} kg</strong> (比DCO ${diffW >= 0 ? '+' + diffW : diffW}kg)<br>
+          • 體脂率：<strong>${proj.actualInBody.pbf} %</strong> (比DCO ${diffF >= 0 ? '+' + diffF : diffF}%)<br>
+          • 骨骼肌：<strong>${proj.actualInBody.smm} kg</strong> (比DCO ${diffM >= 0 ? '+' + diffM : diffM}kg)
         </div>`;
       } else {
         actualCompHtml = `<div style="margin-top:6px; color:#64748b; font-size:0.75rem;">
@@ -333,7 +367,6 @@ function renderShotList() {
         </div>`;
       }
 
-      // 組合睡醒與睡前平均看板
       let timingHtml = '';
       if (timingStats.avgMorning || timingStats.avgEvening) {
         const mText = timingStats.avgMorning ? `<strong>${timingStats.avgMorning} kg</strong> (${timingStats.mCount}次)` : '--';
@@ -379,6 +412,12 @@ function renderShotList() {
               <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelC.w}</td>
               <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelC.fat}</td>
               <td style="padding:4px 6px; border:1px solid #bbf7d0;">${proj.modelC.smm}</td>
+            </tr>
+            <tr style="background:#fefce8;">
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#713f12;">✨ D. DCO動態校準</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#713f12;">${proj.modelD.w}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#713f12;">${proj.modelD.fat}</td>
+              <td style="padding:4px 6px; border:1px solid #bbf7d0; font-weight:bold; color:#713f12;">${proj.modelD.smm}</td>
             </tr>
           </tbody>
         </table>
