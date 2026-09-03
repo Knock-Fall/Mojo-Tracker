@@ -470,7 +470,6 @@ function renderComparisonAnalysis() {
     if (avgDiffMuscle !== null) {
       html += `• <strong>肌肉量／骨骼肌偏差</strong>：家用總肌肉量平均比 InBody 骨骼肌重 <strong>${avgDiffMuscle >= 0 ? '+' + avgDiffMuscle : avgDiffMuscle} kg</strong><br>`;
     }
-    html += `<small style="color:var(--sub); display:inline-block; margin-top:3px;">說明：家用顯示全身總肌肉組織（含水分），InBody 顯示純骨骼肌 (SMM)，演算法已自動校準差值。</small>`;
   } else {
     const latestScale = scales[scales.length - 1];
     const latestBody = bodies[bodies.length - 1];
@@ -496,51 +495,14 @@ function renderComparisonAnalysis() {
     const proj = (typeof computeCycleProjection === 'function') ? computeCycleProjection(latestShot.date, nextShotDateStr) : null;
 
     if (proj) {
-      html += `<div style="margin-top: 10px; padding: 12px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe;">
-        <div style="color:#1e40af; font-weight:bold; font-size:0.9rem; margin-bottom:8px;">
-          🔮 猛健樂週期四大模型預測 (${latestShot.date} ~ ${nextShotDateStr})
+      html += `<div style="margin-top: 10px; padding: 10px; background: #eff6ff; border-radius: 8px; border: 1px solid #bfdbfe;">
+        <div style="color:#1e40af; font-weight:bold; font-size:0.85rem; margin-bottom:4px;">
+          🔮 本週猛健樂週期結算預測 (${latestShot.date} ~ ${nextShotDateStr})
         </div>
-
-        <table style="width:100%; border-collapse:collapse; text-align:center; font-size:0.8rem; background:#ffffff; border-radius:6px; overflow:hidden; border:1px solid #bfdbfe; margin-bottom:8px;">
-          <thead>
-            <tr style="background:#dbeafe; color:#1e40af;">
-              <th style="padding:5px; border:1px solid #bfdbfe;">模型</th>
-              <th style="padding:5px; border:1px solid #bfdbfe;">體重 (kg)</th>
-              <th style="padding:5px; border:1px solid #bfdbfe;">體脂 (%)</th>
-              <th style="padding:5px; border:1px solid #bfdbfe;">骨骼肌 (kg)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#1e3a8a;">A. 線性回歸</td>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelA.w}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelA.fat}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelA.smm}</td>
-            </tr>
-            <tr>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#0d9488;">B. 動量均線</td>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelB.w}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelB.fat}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelB.smm}</td>
-            </tr>
-            <tr>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#b45309;">C. 端點投射</td>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:600;">${proj.modelC.w}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelC.fat}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe;">${proj.modelC.smm}</td>
-            </tr>
-            <tr style="background:#fefce8;">
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">✨ D. DCO動態校準</td>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">${proj.modelD.w}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">${proj.modelD.fat}</td>
-              <td style="padding:5px; border:1px solid #bfdbfe; font-weight:bold; color:#713f12;">${proj.modelD.smm}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div style="font-size:0.8rem; color:#1e3a8a; line-height:1.5;">
-          • 週變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong><br>
-          <span style="display:inline-block; margin-top:2px; color:#0369a1; font-weight:600;">評估：${proj.statusTip}</span>
+        <div style="font-size:0.82rem; color:#1e3a8a; line-height:1.6;">
+          • 預測 InBody 體重：<strong style="font-size:0.92rem; color:#0f766e;">${proj.modelD.w} kg</strong> <span style="font-size:0.75rem; color:#64748b;">(端點動能：${proj.modelC.w} kg)</span><br>
+          • 預測 InBody 體脂：<strong>${proj.modelD.fat} %</strong> ｜ 骨骼肌：<strong>${proj.modelD.smm} kg</strong><br>
+          • 週期變化率：每週預估 <strong>${parseFloat(proj.weeklyDelta) <= 0 ? proj.weeklyDelta : '+' + proj.weeklyDelta} kg</strong>
         </div>
       </div>`;
     }
