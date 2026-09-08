@@ -1,5 +1,5 @@
 // Mojo Project
-// 1. main.js (初始化與全域狀態管理)
+// 1. main.js (初始化、全域狀態、API Key 與雲端同步中心，保持單一檔案結構)
 
 window.MojoState = {
   bodyLogs: [],
@@ -10,6 +10,182 @@ window.MojoState = {
   waterLogs: {},
   workoutLogs: []
 };
+
+// 雲端同步 GAS 網址與設定
+const GAS_SYNC_URL = "https://script.google.com/macros/s/AKfycbz_G1kXy1h4Yc1_f_example/exec";
+
+function getSecretToken() {
+  return localStorage.getItem('my_sync_secret') || 'default_secret';
+}
+
+function setupSecretToken() {
+  const cur = getSecretToken();
+  const val = prompt('請設定 Google Apps Script 通行金鑰 (Secret Token)：', cur);
+  if (val !== null) {
+    localStorage.setItem('my_sync_secret', val.trim());
+    alert('金鑰已儲存！');
+  }
+}
+
+function getActiveApiKey() {
+  try {
+    const list = JSON.parse(localStorage.getItem('my_gemini_api_keys') || '[]');
+    const active = list.find(k => k.active);
+    if (active && active.key) return active.key;
+  } catch(e) {}
+  return localStorage.getItem('gemini_api_key') || '';
+}
+
+function openKeyModal() {
+  const modal = document.getElementById('apiKeyModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    renderKeyList();
+  }
+}
+
+function closeKeyModal() {
+  const modal = document.getElementById('apiKeyModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderKeyList() {
+  const container = document.getElementById('apiKeyListContainer');
+  if (!container) return;
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem('my_gemini_api_keys') || '[]');
+  } catch(e) {}
+
+  if (list.length === 0) {
+    const single = localStorage.getItem('gemini_api_key');
+    if (single) {
+      list.push({ name: '主要金鑰', key: single, active: true });
+      localStorage.setItem('my_gemini_api_keys', JSON.stringify(list));
+    }
+  }
+
+  let html = '';
+  list.forEach((item, idx) => {
+    const masked = item.key.length > 8 ? `${item.key.slice(0, 4)}...${item.key.slice(-4)}` : '****';
+    const activeBadge = item.active ? '<span style="color:#059669; font-weight:bold; font-size:0.75rem;">[使用中]</span>' : '';
+    html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #cbd5e1; font-size:0.8rem;">
+      <div>
+        <strong>${item.name || '金鑰 ' + (idx + 1)}</strong> ${activeBadge}<br>
+        <span style="color:var(--sub); font-family:monospace;">${masked}</span>
+      </div>
+      <div style="display:flex; gap:4px;">
+        ${!item.active ? `<button class="action-btn btn-edit" type="button" onclick="setActiveKey(${idx})">啟用</button>` : ''}
+        <button class="action-btn btn-del" type="button" onclick="deleteApiKey(${idx})">刪除</button>
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html || '<p style="color:var(--sub); font-size:0.8rem; text-align:center;">尚未新增 API Key</p>';
+}
+
+function addNewApiKey() {
+  const nameVal = document.getElementById('newKeyName').value.trim();
+  const keyVal = document.getElementById('newKeyValue').value.trim();
+  if (!keyVal) return alert('請貼上 API Key');
+
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('my_gemini_api_keys') || '[]'); } catch(e) {}
+  
+  const isFirst = list.length === 0;
+  list.push({ name: nameVal || `金鑰 ${list.length + 1}`, key: keyVal, active: isFirst });
+  localStorage.setItem('my_gemini_api_keys', JSON.stringify(list));
+  if (isFirst) localStorage.setItem('gemini_api_key', keyVal);
+
+  document.getElementById('newKeyName').value = '';
+  document.getElementById('newKeyValue').value = '';
+  renderKeyList();
+  alert('API Key 新增成功！');
+}
+
+function setActiveKey(idx) {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('my_gemini_api_keys') || '[]'); } catch(e) {}
+  list.forEach((k, i) => k.active = (i === idx));
+  localStorage.setItem('my_gemini_api_keys', JSON.stringify(list));
+  localStorage.setItem('gemini_api_key', list[idx].key);
+  renderKeyList();
+}
+
+function deleteApiKey(idx) {
+  if (confirm('確定刪除此 API Key？')) {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem('my_gemini_api_keys') || '[]'); } catch(e) {}
+    list.splice(idx, 1);
+    if (list.length > 0 && !list.some(k => k.active)) list[0].active = true;
+    localStorage.setItem('my_gemini_api_keys', JSON.stringify(list));
+    renderKeyList();
+  }
+}
+
+async function uploadToCloud(type, data) {
+  if (!GAS_SYNC_URL || GAS_SYNC_URL.includes('example')) return;
+  const secret = getSecretToken();
+  try {
+    await fetch(GAS_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ secret, type, data })
+    });
+  } catch(e) {
+    console.error('雲端同步失敗:', e);
+  }
+}
+
+async function syncFromCloud() {
+  if (!GAS_SYNC_URL || GAS_SYNC_URL.includes('example')) {
+    return alert('請先在 main.js 中設定您的 Google Apps Script 部署網址！');
+  }
+  const secret = getSecretToken();
+  try {
+    const res = await fetch(`${GAS_SYNC_URL}?secret=${encodeURIComponent(secret)}`);
+    const json = await res.json();
+    if (json.status === 'success' && json.data) {
+      if (json.data.BODY) {
+        window.MojoState.bodyLogs = json.data.BODY;
+        localStorage.setItem('my_body_logs', JSON.stringify(json.data.BODY));
+      }
+      if (json.data.SCALE) {
+        window.MojoState.scaleLogs = json.data.SCALE;
+        localStorage.setItem('my_scale_logs', JSON.stringify(json.data.SCALE));
+      }
+      if (json.data.FITDAYS) {
+        window.MojoState.fitdaysLogs = json.data.FITDAYS;
+        localStorage.setItem('my_fitdays_logs', JSON.stringify(json.data.FITDAYS));
+      }
+      if (json.data.SHOT) {
+        window.MojoState.shotLogs = json.data.SHOT;
+        localStorage.setItem('my_shot_logs', JSON.stringify(json.data.SHOT));
+      }
+      if (json.data.DIET) {
+        window.MojoState.dietLogs = json.data.DIET;
+        localStorage.setItem('my_diet_logs', JSON.stringify(json.data.DIET));
+      }
+      if (json.data.WATER) {
+        let wObj = {};
+        json.data.WATER.forEach(w => { if (w.date && w.data) wObj[w.date] = w.data; });
+        window.MojoState.waterLogs = wObj;
+        localStorage.setItem('my_water_logs', JSON.stringify(wObj));
+      }
+      if (json.data.WORKOUT) {
+        window.MojoState.workoutLogs = json.data.WORKOUT;
+        localStorage.setItem('my_workout_logs', JSON.stringify(json.data.WORKOUT));
+      }
+
+      alert('雲端資料同步完成！');
+      location.reload();
+    } else {
+      alert('同步失敗：' + (json.message || '金鑰不符合'));
+    }
+  } catch(e) {
+    alert('無法連線到雲端後台：' + e.message);
+  }
+}
 
 function getLocalTodayStr() {
   const d = new Date();
@@ -24,9 +200,7 @@ function initDefaultDates() {
   const dateIds = ['bodyDate', 'scaleDate', 'fdDate', 'shotDate', 'dietDate'];
   dateIds.forEach(id => {
     const el = document.getElementById(id);
-    if (el && !el.value) {
-      el.value = todayStr;
-    }
+    if (el && !el.value) el.value = todayStr;
   });
 
   const now = new Date();
@@ -66,7 +240,7 @@ function loadLocalState() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. 動態注入模組化 UI
+  // 動態載入 Fitdays UI
   if (typeof initFitdaysUI === 'function') initFitdaysUI();
 
   initDefaultDates();
