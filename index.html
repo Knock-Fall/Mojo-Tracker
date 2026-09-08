@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80974">
+  <link rel="stylesheet" href="style.css?v=80975">
 </head>
 <body>
 
@@ -21,13 +21,13 @@
 
 <div class="container">
   
-  <!-- 全站統一系統與雲端管理工具列 -->
-  <div class="card" style="padding: 10px 16px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-    <span style="font-size: 0.85rem; color: #0369a1; font-weight: 600;">☁️ 系統與雲端管理</span>
-    <div style="display: flex; gap: 6px;">
-      <button class="btn-sync" type="button" onclick="syncFromCloud()">從雲端載入</button>
-      <button class="btn-sync" type="button" style="background:#8b5cf6;" onclick="openKeyModal()">⚙️ API Key</button>
-      <button class="btn-sync" type="button" style="background:#64748b;" onclick="setupSecretToken()">雲端金鑰</button>
+  <!-- 全站統一系統與雲端管理工具列 (修復按鈕重疊) -->
+  <div class="card" style="padding: 12px 14px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+    <span style="font-size: 0.85rem; color: #0369a1; font-weight: 700;">☁️ 系統與雲端管理</span>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+      <button class="action-btn btn-sync" type="button" style="margin: 0;" onclick="syncFromCloud()">從雲端載入</button>
+      <button class="action-btn" type="button" style="margin: 0; background:#8b5cf6; color:#fff;" onclick="openKeyModal()">⚙️ API Key</button>
+      <button class="action-btn" type="button" style="margin: 0; background:#64748b; color:#fff;" onclick="setupSecretToken()">雲端金鑰</button>
     </div>
   </div>
   
@@ -140,11 +140,100 @@
       </div>
     </div>
 
-    <!-- [品牌B] Fitdays 區塊 -->
+    <!-- [品牌B] Fitdays 區塊 (由 fitdays.js 注入) -->
     <div id="fitdaysScaleContainer" style="display: none;"></div>
 
-    <!-- [模組化] InBody 區塊容器 -->
-    <div id="inbodyModuleContainer"></div>
+    <!-- ⭐️ 完整 InBody 記錄全方位數據 (實體標籤，確保絕不丟失) ⭐️ -->
+    <div class="card">
+      <div class="card-title">
+        <span>📝 記錄 InBody 全方位數據</span>
+      </div>
+
+      <label for="inbodyImage" class="btn-upload">
+        📷 點擊此處拍照／上傳 InBody 報告照片
+      </label>
+      <input type="file" id="inbodyImage" accept="image/*" style="display: none;" onchange="previewAndAnalyzeInBody(this)">
+      <img id="inbodyImagePreview" class="preview-box">
+      <button id="inbodyAiBtn" class="btn btn-primary" type="button" style="display: none; margin-bottom: 15px;" onclick="analyzeInBodyImage()">✨ 開始 AI 辨識 InBody 數據</button>
+      
+      <div class="form-group">
+        <label>測量日期</label>
+        <input type="date" id="bodyDate">
+      </div>
+
+      <div class="section-box">
+        <div class="section-subtitle">1. 身體組成分析</div>
+        <div class="grid-2">
+          <div class="form-group"><label>總體重 (kg) *</label><input type="number" step="0.1" id="bodyWeight" placeholder="必填"></div>
+          <div class="form-group"><label>身體總水分 (L/kg)</label><input type="number" step="0.1" id="bodyTBW" placeholder="0.0"></div>
+          <div class="form-group"><label>蛋白質 (kg)</label><input type="number" step="0.1" id="bodyProtein" placeholder="0.0"></div>
+          <div class="form-group"><label>礦物質 (kg)</label><input type="number" step="0.1" id="bodyMinerals" placeholder="0.0"></div>
+        </div>
+      </div>
+
+      <div class="section-box">
+        <div class="section-subtitle">2. 肌肉脂肪分析</div>
+        <div class="grid-2">
+          <div class="form-group"><label>骨骼肌重 SMM (kg)</label><input type="number" step="0.1" id="bodySMM" placeholder="0.0"></div>
+          <div class="form-group"><label>體脂肪重 BFM (kg)</label><input type="number" step="0.1" id="bodyBFM" placeholder="0.0"></div>
+        </div>
+      </div>
+
+      <div class="section-box">
+        <div class="section-subtitle">3. 肥胖分析</div>
+        <div class="grid-2">
+          <div class="form-group"><label>BMI (kg/m²)</label><input type="number" step="0.1" id="bodyBMI" placeholder="0.0"></div>
+          <div class="form-group"><label>體脂肪率 PBF (%)</label><input type="number" step="0.1" id="bodyPBF" placeholder="0.0"></div>
+          <div class="form-group"><label>腰臀圍比 (WHR)</label><input type="number" step="0.01" id="bodyWHR" placeholder="0.00"></div>
+          <div class="form-group"><label>內臟脂肪等級</label><input type="number" id="bodyVFL" placeholder="0"></div>
+        </div>
+      </div>
+
+      <div class="section-box">
+        <div class="section-subtitle">4. 部位肌肉分析 (重量 kg / 比例 %)</div>
+        <div class="grid-3" style="margin-bottom: 8px;">
+          <div class="segment-card"><h4>右上肢</h4><input type="number" step="0.01" id="m_ra_kg" placeholder="kg"><input type="number" step="0.1" id="m_ra_pct" placeholder="%"></div>
+          <div class="segment-card"><h4>軀幹</h4><input type="number" step="0.01" id="m_tr_kg" placeholder="kg"><input type="number" step="0.1" id="m_tr_pct" placeholder="%"></div>
+          <div class="segment-card"><h4>左上肢</h4><input type="number" step="0.01" id="m_la_kg" placeholder="kg"><input type="number" step="0.1" id="m_la_pct" placeholder="%"></div>
+        </div>
+        <div class="grid-2">
+          <div class="segment-card"><h4>右下肢</h4><input type="number" step="0.01" id="m_rl_kg" placeholder="kg"><input type="number" step="0.1" id="m_rl_pct" placeholder="%"></div>
+          <div class="segment-card"><h4>左下肢</h4><input type="number" step="0.01" id="m_ll_kg" placeholder="kg"><input type="number" step="0.1" id="m_ll_pct" placeholder="%"></div>
+        </div>
+      </div>
+
+      <div class="section-box">
+        <div class="section-subtitle">5. 部位脂肪分析 (重量 kg / 比例 %)</div>
+        <div class="grid-3" style="margin-bottom: 8px;">
+          <div class="segment-card"><h4>右上肢</h4><input type="number" step="0.01" id="f_ra_kg" placeholder="kg"><input type="number" step="0.1" id="f_ra_pct" placeholder="%"></div>
+          <div class="segment-card"><h4>軀幹</h4><input type="number" step="0.01" id="f_tr_kg" placeholder="kg"><input type="number" step="0.1" id="f_tr_pct" placeholder="%"></div>
+          <div class="segment-card"><h4>左上肢</h4><input type="number" step="0.01" id="f_la_kg" placeholder="kg"><input type="number" step="0.1" id="f_la_pct" placeholder="%"></div>
+        </div>
+        <div class="grid-2">
+          <div class="segment-card"><h4>右下肢</h4><input type="number" step="0.01" id="f_rl_kg" placeholder="kg"><input type="number" step="0.1" id="f_rl_pct" placeholder="%"></div>
+          <div class="segment-card"><h4>左下肢</h4><input type="number" step="0.01" id="f_ll_kg" placeholder="kg"><input type="number" step="0.1" id="f_ll_pct" placeholder="%"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" type="button" onclick="saveBodyData()">儲存完整 InBody 數據</button>
+    </div>
+
+    <!-- ⭐️ InBody 趨勢分析圖表 (實體標籤) ⭐️ -->
+    <div class="card">
+      <div class="card-title">📈 InBody 數據趨勢分析</div>
+      <div class="chart-tabs" id="bodyChartTabs">
+        <button class="chart-tab-btn active" type="button" onclick="switchChartMode('core', this)">核心體態 (雙軸)</button>
+        <button class="chart-tab-btn" type="button" onclick="switchChartMode('comp', this)">身體組成</button>
+        <button class="chart-tab-btn" type="button" onclick="switchChartMode('muscle_seg', this)">部位肌肉 (kg)</button>
+        <button class="chart-tab-btn" type="button" onclick="switchChartMode('fat_seg', this)">部位脂肪 (kg)</button>
+        <button class="chart-tab-btn" type="button" onclick="switchChartMode('obesity', this)">肥胖與內臟</button>
+      </div>
+      <div class="chart-scroll-wrapper">
+        <div id="bodyChartContainer" class="chart-scroll-inner">
+          <canvas id="bodyChart"></canvas>
+        </div>
+      </div>
+    </div>
 
     <!-- 猛健樂施打歷程與週期回顧 -->
     <div class="card">
@@ -159,8 +248,11 @@
       <div class="pagination-box" id="scalePagination"></div>
     </div>
 
-    <!-- InBody 歷史清單容器 -->
-    <div id="bodyLogListContainer"></div>
+    <!-- ⭐️ InBody 歷史體態紀錄 (實體標籤) ⭐️ -->
+    <div class="card">
+      <div class="card-title">📊 InBody 歷史體態紀錄</div>
+      <div id="bodyLogList"></div>
+    </div>
   </div>
 
   <!-- 飲食與運動 TAB -->
@@ -178,7 +270,7 @@
       </div>
     </div>
 
-    <!-- ⭐️ 猛健樂週期飲食與赤字週均獨立圖卡 ⭐️ -->
+    <!-- 猛健樂週期飲食與赤字週均獨立圖卡 -->
     <div class="card" style="border-left: 5px solid #ec4899; background: #fff8fa; border: 1px solid #fbcfe8; padding: 12px 14px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
         <strong style="color: #9d174d; font-size: 0.9rem;">💉 猛健樂週期飲食與赤字週均</strong>
@@ -401,7 +493,7 @@
     </div>
   </div>
 
-  <div class="version-footer">版本驗證代碼：<strong>MK-80974</strong></div>
+  <div class="version-footer">版本驗證代碼：<strong>MK-80975</strong></div>
 </div>
 
 <!-- 視覺化 API Key 管理 Modal 彈窗 -->
@@ -422,12 +514,12 @@
   </div>
 </div>
 
-<script src="shot.js?v=80974"></script>
-<script src="scale.js?v=80974"></script>
-<script src="fitdays.js?v=80974"></script>
-<script src="body.js?v=80974"></script>
-<script src="body-chart.js?v=80974"></script>
-<script src="diet.js?v=80974"></script>
-<script src="main.js?v=80974"></script>
+<script src="shot.js?v=80975"></script>
+<script src="scale.js?v=80975"></script>
+<script src="fitdays.js?v=80975"></script>
+<script src="body.js?v=80975"></script>
+<script src="body-chart.js?v=80975"></script>
+<script src="diet.js?v=80975"></script>
+<script src="main.js?v=80975"></script>
 </body>
 </html>
