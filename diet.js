@@ -1,5 +1,5 @@
 // Mojo Project
-// 7. diet.js (完整版：飲食、水分、運動、赤字看板與雙軌週均計算)
+// 7. diet.js (MK-80974: 飲食、水分、運動、熱量赤字與猛健樂施打週期週均看板)
 
 let base64FoodImage = '';
 
@@ -255,10 +255,8 @@ function deleteWorkoutLog(id) {
   }
 }
 
-// 雙軌週期週均計算：支援猛健樂 7 天施打週期 VS 自然日曆週 (週一至週日)
+// 猛健樂施打週期飲食與赤字週均計算
 function renderCycleNutritionAverages(currentDateStr) {
-  const cardBlock = document.getElementById('cycleAvgCardBlock');
-  const titleEl = document.getElementById('cycleAvgTitle');
   const badgeEl = document.getElementById('cycleAvgBadge');
   const subEl = document.getElementById('cycleAvgSub');
   const deficitEl = document.getElementById('cycleAvgDeficit');
@@ -267,21 +265,15 @@ function renderCycleNutritionAverages(currentDateStr) {
   const inEl = document.getElementById('cycleAvgCalIn');
   const burnEl = document.getElementById('cycleAvgBurn');
 
-  if (!cardBlock || !badgeEl) return;
+  if (!badgeEl) return;
 
-  // 1. 嚴格檢查是否啟用猛健樂追蹤
-  const userUsesMounjaro = (typeof isMounjaroEnabled === 'function') ? isMounjaroEnabled() : true;
   const shots = (window.MojoState.shotLogs || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  // 只有在「勾選啟用」且「有施打紀錄」時才跑猛健樂週期
-  const isMounjaroTrack = userUsesMounjaro && (shots.length > 0);
-
+  
+  let matchedShot = null;
   let startDateStr = '';
   let endDateStr = '';
 
-  if (isMounjaroTrack) {
-    // A 軌：猛健樂 7 天施打週期
-    let matchedShot = null;
+  if (shots.length > 0) {
     for (let i = 0; i < shots.length; i++) {
       const sDate = shots[i].date;
       const parts = sDate.split('-').map(Number);
@@ -306,42 +298,17 @@ function renderCycleNutritionAverages(currentDateStr) {
       eObj.setDate(eObj.getDate() + 7);
       endDateStr = `${eObj.getFullYear()}-${String(eObj.getMonth() + 1).padStart(2, '0')}-${String(eObj.getDate()).padStart(2, '0')}`;
     }
-
-    titleEl.innerText = '💉 猛健樂週期飲食與赤字週均';
-    titleEl.style.color = '#9d174d';
-    cardBlock.style.borderLeftColor = '#ec4899';
-    cardBlock.style.background = '#fff8fa';
-    cardBlock.style.borderColor = '#fbcfe8';
-    badgeEl.className = 'badge badge-shot';
-    badgeEl.style.background = '';
-    badgeEl.style.color = '';
-    badgeEl.innerText = `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
-
   } else {
-    // B 軌：自然日曆週（週一 ～ 週日）
     const parts = currentDateStr.split('-').map(Number);
-    const curDate = new Date(parts[0], parts[1] - 1, parts[2]);
-    const dayOfWeek = curDate.getDay(); // 0(日), 1(一), 2(二)...
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-    const mondayObj = new Date(curDate);
-    mondayObj.setDate(mondayObj.getDate() + diffToMonday);
-    const sundayObj = new Date(mondayObj);
-    sundayObj.setDate(sundayObj.getDate() + 6);
-
-    startDateStr = `${mondayObj.getFullYear()}-${String(mondayObj.getMonth() + 1).padStart(2, '0')}-${String(mondayObj.getDate()).padStart(2, '0')}`;
-    endDateStr = `${sundayObj.getFullYear()}-${String(sundayObj.getMonth() + 1).padStart(2, '0')}-${String(sundayObj.getDate()).padStart(2, '0')}`;
-
-    titleEl.innerText = '📅 自然減脂週均 (週一至週日)';
-    titleEl.style.color = '#0369a1';
-    cardBlock.style.borderLeftColor = '#0284c7';
-    cardBlock.style.background = '#f0f9ff';
-    cardBlock.style.borderColor = '#bae6fd';
-    badgeEl.className = 'badge';
-    badgeEl.style.background = '#e0f2fe';
-    badgeEl.style.color = '#0369a1';
-    badgeEl.innerText = `自然週 (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
+    const curObj = new Date(parts[0], parts[1] - 1, parts[2]);
+    const sObj = new Date(curObj);
+    sObj.setDate(sObj.getDate() - 6);
+    startDateStr = `${sObj.getFullYear()}-${String(sObj.getMonth() + 1).padStart(2, '0')}-${String(sObj.getDate()).padStart(2, '0')}`;
+    endDateStr = currentDateStr;
   }
+
+  const doseLabel = matchedShot ? `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})` : `近7日 (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
+  badgeEl.innerText = doseLabel;
 
   const bodies = window.MojoState.bodyLogs || [];
   const latestBody = bodies.length ? bodies[bodies.length - 1] : null;
@@ -389,7 +356,7 @@ function renderCycleNutritionAverages(currentDateStr) {
   }
 
   if (recordedDays === 0) {
-    subEl.innerHTML = `統計基準：本週尚無飲食數據 ｜ <span style="color:#64748b;">待紀錄</span>`;
+    subEl.innerHTML = `統計基準：本週期尚無飲食數據 ｜ <span style="color:#64748b;">待紀錄</span>`;
     deficitEl.innerText = '--';
     proEl.innerText = '--';
     waterEl.innerText = '--';
@@ -413,7 +380,7 @@ function renderCycleNutritionAverages(currentDateStr) {
     statusBadge = '<span style="color:#d97706; font-weight:bold;">🌱 溫和赤字</span>';
     deficitEl.style.color = '#d97706';
   } else {
-    statusBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 本週熱量盈餘</span>';
+    statusBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 週期熱量盈餘</span>';
     deficitEl.style.color = '#dc2626';
   }
 
