@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80968">
+  <link rel="stylesheet" href="style.css?v=80971">
 </head>
 <body>
 
@@ -48,6 +48,7 @@
           <label>劑量 (mg)</label>
           <select id="shotDose">
             <option value="2.5mg">2.5 mg</option>
+            <option value="3.0mg">3.0 mg</option>
             <option value="5.0mg">5.0 mg</option>
             <option value="7.5mg">7.5 mg</option>
             <option value="10.0mg">10.0 mg</option>
@@ -58,7 +59,7 @@
       </div>
       <div class="form-group">
         <label>備註 / 施打部位</label>
-        <input type="text" id="shotNote" placeholder="例：肚臍右側、食慾控制佳">
+        <input type="text" id="shotNote" placeholder="例：右手臂、食慾控制佳">
       </div>
       <button class="btn btn-shot-submit" type="button" onclick="saveShot()">記錄本次施打</button>
     </div>
@@ -139,7 +140,7 @@
       </div>
     </div>
 
-    <!-- [品牌B] Fitdays 區塊 (由 fitdays.js 模板自動注入) -->
+    <!-- [品牌B] Fitdays 區塊 -->
     <div id="fitdaysScaleContainer" style="display: none;"></div>
 
     <!-- InBody 全方位數據輸入 -->
@@ -287,7 +288,7 @@
       <button class="btn btn-primary" type="button" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
-    <!-- InBody 趨勢分析 (完整還原 chart-tabs 與容器) -->
+    <!-- InBody 趨勢分析 -->
     <div class="card">
       <div class="card-title">📈 InBody 數據趨勢分析</div>
       <div class="chart-tabs" id="bodyChartTabs">
@@ -336,6 +337,9 @@
         <button class="action-btn btn-sync" type="button" onclick="resetDietDateToToday()">今天</button>
       </div>
     </div>
+
+    <!-- ⭐️ 新增：本週猛健樂週期飲食與赤字週均看板 -->
+    <div id="cycleAverageCard"></div>
 
     <div class="card">
       <div class="card-title">
@@ -604,7 +608,7 @@
   </div>
 
   <div class="version-footer">
-    版本驗證代碼：<strong>MK-80968</strong>
+    版本驗證代碼：<strong>MK-80971</strong>
   </div>
 
 </div>
@@ -636,12 +640,12 @@
   </div>
 </div>
 
-<script src="shot.js?v=80968"></script>
-<script src="scale.js?v=80968"></script>
-<script src="fitdays.js?v=80968"></script>
-<script src="body.js?v=80968"></script>
-<script src="body-chart.js?v=80968"></script>
-<script src="diet.js?v=80968"></script>
-<script src="main.js?v=80968"></script>
+<script src="shot.js?v=80971"></script>
+<script src="scale.js?v=80971"></script>
+<script src="fitdays.js?v=80971"></script>
+<script src="body.js?v=80971"></script>
+<script src="body-chart.js?v=80971"></script>
+<script src="diet.js?v=80971"></script>
+<script src="main.js?v=80971"></script>
 </body>
 </html>
