@@ -1,231 +1,121 @@
 // Mojo Project
-// 7. diet.js
-let base64DietImage = '';
+// 7. diet.js (飲食、水分、運動、熱量赤字與猛健樂施打週期週均看板)
 
-// 預設運動項目庫
-const DEFAULT_WORKOUTS = [
-  '🏋️ 重訓 (胸背/上半身)',
-  '🏋️ 重訓 (腿臀/下半身)',
-  '🏃 慢跑 / 跑步機',
-  '🚶 快走 / 戶外散步',
-  '🚴 室內腳踏車 / 飛輪',
-  '🏊 游泳',
-  '⚡ 高強度間歇 (HIIT)',
-  '🧘 瑜珈 / 伸展放鬆'
-];
+let base64FoodImage = '';
 
-function getWorkoutCategories() {
-  try {
-    const custom = localStorage.getItem('my_custom_workout_categories');
-    if (custom) return JSON.parse(custom);
-  } catch(e) {}
-  return DEFAULT_WORKOUTS;
+function getSelectedDietDate() {
+  return document.getElementById('dietDate')?.value || getLocalTodayStr();
 }
 
-function initWorkoutDropdown() {
-  const select = document.getElementById('workoutTypeSelect');
-  if (!select) return;
-  const categories = getWorkoutCategories();
-  
-  let html = '';
-  categories.forEach(item => {
-    html += `<option value="${item}">${item}</option>`;
-  });
-  html += `<option value="__NEW__">➕ 自訂新增運動項目...</option>`;
-  select.innerHTML = html;
-}
-
-function handleWorkoutSelectChange(select) {
-  const box = document.getElementById('newWorkoutItemBox');
-  if (!box) return;
-  if (select.value === '__NEW__') {
-    box.style.display = 'block';
-    document.getElementById('newWorkoutNameInput').focus();
-  } else {
-    box.style.display = 'none';
-  }
-}
-
-function addNewWorkoutCategory() {
-  const input = document.getElementById('newWorkoutNameInput');
-  if (!input) return;
-  const val = input.value.trim();
-  if (!val) return alert('請輸入運動項目名稱');
-
-  let list = getWorkoutCategories();
-  if (!list.includes(val)) {
-    list.push(val);
-    localStorage.setItem('my_custom_workout_categories', JSON.stringify(list));
-  }
-  initWorkoutDropdown();
-  document.getElementById('workoutTypeSelect').value = val;
-  document.getElementById('newWorkoutItemBox').style.display = 'none';
-  input.value = '';
-}
-
-function saveWorkout() {
-  const queryDate = document.getElementById('dietDate').value;
-  let type = document.getElementById('workoutTypeSelect').value;
-  if (type === '__NEW__') {
-    type = document.getElementById('newWorkoutNameInput').value.trim() || '自訂運動';
-  }
-  const duration = parseInt(document.getElementById('workoutDuration').value) || 0;
-  const cal = parseInt(document.getElementById('workoutCal').value) || 0;
-  const note = document.getElementById('workoutNote').value.trim();
-
-  if (!cal && !duration) return alert('請輸入運動時長或消耗熱量');
-
-  const item = {
-    date: queryDate,
-    type: type,
-    duration: duration,
-    cal: cal,
-    note: note
-  };
-
-  const list = window.MojoState.workoutLogs || [];
-  list.unshift(item);
-  window.MojoState.workoutLogs = list;
-  localStorage.setItem('my_workout_logs', JSON.stringify(list));
-  uploadToCloud('WORKOUT', item);
-
-  document.getElementById('workoutDuration').value = '';
-  document.getElementById('workoutCal').value = '';
-  document.getElementById('workoutNote').value = '';
-  document.getElementById('newWorkoutItemBox').style.display = 'none';
-
-  renderDiet();
-  alert(`運動消耗 (${type} - ${cal} kcal) 已記錄！`);
-}
-
-function deleteWorkout(index) {
-  if (confirm('確定要刪除這筆運動紀錄嗎？')) {
-    const list = window.MojoState.workoutLogs || [];
-    list.splice(index, 1);
-    window.MojoState.workoutLogs = list;
-    localStorage.setItem('my_workout_logs', JSON.stringify(list));
-    renderDiet();
-  }
-}
-
-function compressDietImage(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = new Image();
-      img.onload = function() {
-        let w = img.width, h = img.height;
-        if (w > 800) {
-          h = Math.round((h * 800) / w);
-          w = 800;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
-        resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function changeDietDateBy(offsetDays) {
-  const input = document.getElementById('dietDate');
-  if (!input) return;
-  const cur = input.value ? new Date(input.value) : new Date();
-  cur.setDate(cur.getDate() + offsetDays);
-  const y = cur.getFullYear();
-  const m = String(cur.getMonth() + 1).padStart(2, '0');
-  const d = String(cur.getDate()).padStart(2, '0');
-  input.value = `${y}-${m}-${d}`;
+function changeDietDateBy(offset) {
+  const cur = getSelectedDietDate();
+  const d = new Date(cur);
+  d.setDate(d.getDate() + offset);
+  const nextDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('dietDate').value = nextDate;
   renderDiet();
 }
 
 function resetDietDateToToday() {
-  const input = document.getElementById('dietDate');
-  if (input) {
-    input.value = getLocalTodayStr();
-    renderDiet();
+  document.getElementById('dietDate').value = getLocalTodayStr();
+  renderDiet();
+}
+
+function addWaterRecord(type, amount) {
+  const dStr = getSelectedDietDate();
+  let wLogs = window.MojoState.waterLogs || {};
+  if (!wLogs[dStr]) wLogs[dStr] = { pure: 0, tea: 0 };
+
+  if (type === 'pure') wLogs[dStr].pure = (wLogs[dStr].pure || 0) + amount;
+  if (type === 'tea') wLogs[dStr].tea = (wLogs[dStr].tea || 0) + amount;
+
+  window.MojoState.waterLogs = wLogs;
+  localStorage.setItem('my_water_logs', JSON.stringify(wLogs));
+  uploadToCloud('WATER', { date: dStr, data: wLogs[dStr] });
+  renderDiet();
+}
+
+function addCustomWater(type) {
+  const inputId = type === 'pure' ? 'customWaterPure' : 'customWaterTea';
+  const val = parseInt(document.getElementById(inputId).value);
+  if (val && val > 0) {
+    addWaterRecord(type, val);
+    document.getElementById(inputId).value = '';
   }
 }
 
-async function previewAndAnalyze(input) {
+function resetWaterRecord() {
+  const dStr = getSelectedDietDate();
+  let wLogs = window.MojoState.waterLogs || {};
+  wLogs[dStr] = { pure: 0, tea: 0 };
+  window.MojoState.waterLogs = wLogs;
+  localStorage.setItem('my_water_logs', JSON.stringify(wLogs));
+  uploadToCloud('WATER', { date: dStr, data: wLogs[dStr] });
+  renderDiet();
+}
+
+function previewAndAnalyze(input) {
   const file = input.files[0];
   if (file) {
-    try {
-      const res = await compressDietImage(file);
-      const preview = document.getElementById('imagePreview');
-      preview.src = res.dataUrl;
-      preview.style.display = 'block';
-      base64DietImage = res.base64;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('imagePreview').src = e.target.result;
+      document.getElementById('imagePreview').style.display = 'block';
       document.getElementById('aiHintBox').style.display = 'block';
       document.getElementById('aiBtn').style.display = 'block';
-    } catch(e) {
-      console.error(e);
-    }
+      base64FoodImage = e.target.result.split(',')[1];
+    };
+    reader.readAsDataURL(file);
   }
 }
 
 async function analyzeFoodImage() {
   let apiKey = (typeof getActiveApiKey === 'function') ? getActiveApiKey() : localStorage.getItem('gemini_api_key');
   if (!apiKey) {
-    setupApiKey();
-    apiKey = (typeof getActiveApiKey === 'function') ? getActiveApiKey() : localStorage.getItem('gemini_api_key');
-    if (!apiKey) return alert('未輸入 API Key，無法進行分析');
+    if (typeof openKeyModal === 'function') openKeyModal();
+    return alert('請先設定 Gemini API Key！');
   }
 
   const aiBtn = document.getElementById('aiBtn');
   aiBtn.disabled = true;
-  aiBtn.innerText = '⚡ AI 估算中...';
+  aiBtn.innerText = '⚡ AI 估算飲食中...';
 
-  const userHint = document.getElementById('aiHintText').value.trim();
-  let hintPrompt = "";
-  if (userHint) {
-    hintPrompt = `\n用戶提示：「${userHint}」`;
-  }
-
-  const promptText = `你是專業營養師。請直接分析照片並估算繁體中文食物名稱與五大營養素。${hintPrompt}
-嚴格只輸出 JSON 物件，格式如下：
-{"food": "食物名稱與份量", "cal": 數字, "pro": 數字, "carbs": 數字, "fat": 數字, "fiber": 數字}`;
+  const hint = document.getElementById('aiHintText').value.trim();
+  const promptText = `請分析食物照片，提供熱量與營養素估算純 JSON：
+{"foodName":"食物名稱","cal":數字,"protein":數字,"carbs":數字,"fat":數字,"fiber":數字}${hint ? ' (使用者備註: ' + hint + ')' : ''}`;
 
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: "image/jpeg", data: base64DietImage } }] }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
+        contents: [{
+          parts: [
+            { text: promptText },
+            { inlineData: { mimeType: "image/jpeg", data: base64FoodImage } }
+          ]
+        }],
+        generationConfig: { responseMimeType: "application/json" }
       })
     });
     const resData = await response.json();
     if (resData.error) throw new Error(resData.error.message);
 
     let rawText = resData.candidates[0].content.parts[0].text.trim();
-    
-    // 正則過濾純 JSON 區塊
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('模型未回傳有效的 JSON 格式');
-    
-    const result = JSON.parse(jsonMatch[0]);
+    if (!jsonMatch) throw new Error('模型未回傳有效的 JSON格式');
+    const res = JSON.parse(jsonMatch[0]);
 
-    document.getElementById('dietContent').value = result.food || userHint || '';
-    document.getElementById('dietCal').value = result.cal ?? 0;
-    document.getElementById('dietPro').value = result.pro ?? 0;
-    document.getElementById('dietCarbs').value = result.carbs ?? 0;
-    document.getElementById('dietFat').value = result.fat ?? 0;
-    document.getElementById('dietFiber').value = result.fiber ?? 0;
+    if (res.foodName) document.getElementById('dietContent').value = res.foodName;
+    if (res.cal) document.getElementById('dietCal').value = res.cal;
+    if (res.protein) document.getElementById('dietPro').value = res.protein;
+    if (res.carbs) document.getElementById('dietCarbs').value = res.carbs;
+    if (res.fat) document.getElementById('dietFat').value = res.fat;
+    if (res.fiber) document.getElementById('dietFiber').value = res.fiber;
 
-    alert('⚡ AI 估算完成！已自動填入熱量與五大營養素。');
-  } catch (err) {
-    alert('分析失敗：' + err.message);
+    alert(`✨ 飲食分析完成！\n品名：${res.foodName}\n熱量：${res.cal} kcal ｜ 蛋白質：${res.protein}g`);
+  } catch(e) {
+    alert('AI 辨識失敗：' + e.message);
   } finally {
     aiBtn.disabled = false;
     aiBtn.innerText = '✨ 開始 AI 分析熱量與五大營養';
@@ -233,24 +123,34 @@ async function analyzeFoodImage() {
 }
 
 function saveDiet() {
-  const queryDate = document.getElementById('dietDate').value;
-  const d = {
-    date: queryDate,
-    type: document.getElementById('dietType').value,
-    content: document.getElementById('dietContent').value,
-    cal: parseInt(document.getElementById('dietCal').value) || 0,
-    pro: parseFloat(document.getElementById('dietPro').value) || 0,
-    carbs: parseFloat(document.getElementById('dietCarbs').value) || 0,
-    fat: parseFloat(document.getElementById('dietFat').value) || 0,
-    fiber: parseFloat(document.getElementById('dietFiber').value) || 0
+  const dStr = getSelectedDietDate();
+  const type = document.getElementById('dietType').value;
+  const content = document.getElementById('dietContent').value.trim();
+  const cal = parseFloat(document.getElementById('dietCal').value) || 0;
+  const pro = parseFloat(document.getElementById('dietPro').value) || 0;
+  const carbs = parseFloat(document.getElementById('dietCarbs').value) || 0;
+  const fat = parseFloat(document.getElementById('dietFat').value) || 0;
+  const fiber = parseFloat(document.getElementById('dietFiber').value) || 0;
+
+  if (!content) return alert('請輸入食物內容');
+
+  const item = {
+    id: Date.now().toString(),
+    date: dStr,
+    type,
+    content,
+    cal,
+    protein: pro,
+    carbs,
+    fat,
+    fiber
   };
-  if(!d.content) return alert('請輸入食物內容');
-  
-  const list = window.MojoState.dietLogs || [];
-  list.unshift(d);
+
+  let list = window.MojoState.dietLogs || [];
+  list.push(item);
   window.MojoState.dietLogs = list;
   localStorage.setItem('my_diet_logs', JSON.stringify(list));
-  uploadToCloud('DIET', d);
+  uploadToCloud('DIET', item);
 
   document.getElementById('dietContent').value = '';
   document.getElementById('dietCal').value = '';
@@ -258,419 +158,390 @@ function saveDiet() {
   document.getElementById('dietCarbs').value = '';
   document.getElementById('dietFat').value = '';
   document.getElementById('dietFiber').value = '';
-  document.getElementById('foodImage').value = '';
-  document.getElementById('aiHintText').value = '';
-  document.getElementById('aiHintBox').style.display = 'none';
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('aiBtn').style.display = 'none';
 
   renderDiet();
-  alert(`餐點已成功加入 ${queryDate} 的紀錄！`);
 }
 
-function editDiet(index) {
-  const list = window.MojoState.dietLogs || [];
-  const item = list[index];
-  if (!item) return;
-
-  const newType = prompt('修改餐別（早餐、午餐、晚餐、點心/補充）：', item.type || '午餐');
-  if (newType === null) return;
-  const newContent = prompt('修改食物名稱：', item.content || '');
-  if (newContent === null) return;
-  const newCal = prompt('修改熱量 (kcal)：', item.cal || 0);
-  if (newCal === null) return;
-  const newPro = prompt('修改蛋白質 (g)：', item.pro || 0);
-  if (newPro === null) return;
-  const newCarbs = prompt('修改碳水化合物 (g)：', item.carbs || 0);
-  if (newCarbs === null) return;
-  const newFat = prompt('修改脂肪 (g)：', item.fat || 0);
-  if (newFat === null) return;
-  const newFiber = prompt('修改膳食纖維 (g)：', item.fiber || 0);
-  if (newFiber === null) return;
-
-  list[index].type = newType.trim();
-  list[index].content = newContent.trim();
-  list[index].cal = parseInt(newCal) || 0;
-  list[index].pro = parseFloat(newPro) || 0;
-  list[index].carbs = parseFloat(newCarbs) || 0;
-  list[index].fat = parseFloat(newFat) || 0;
-  list[index].fiber = parseFloat(newFiber) || 0;
-
-  localStorage.setItem('my_diet_logs', JSON.stringify(list));
-  uploadToCloud('DIET', list[index]);
-  renderDiet();
-}
-
-function deleteDiet(index) {
-  if (confirm('確定要刪除這筆飲食紀錄嗎？')) {
-    const list = window.MojoState.dietLogs || [];
-    list.splice(index, 1);
+function deleteDietLog(id) {
+  if (confirm('確定要刪除這筆飲食紀錄？')) {
+    let list = window.MojoState.dietLogs || [];
+    list = list.filter(d => d.id !== id);
+    window.MojoState.dietLogs = list;
     localStorage.setItem('my_diet_logs', JSON.stringify(list));
     renderDiet();
   }
 }
 
-function addWaterRecord(type, amount) {
-  const queryDate = document.getElementById('dietDate').value;
-  if (!window.MojoState.waterLogs) window.MojoState.waterLogs = {};
-  if (!window.MojoState.waterLogs[queryDate] || typeof window.MojoState.waterLogs[queryDate] !== 'object') {
-    const oldVal = typeof window.MojoState.waterLogs[queryDate] === 'number' ? window.MojoState.waterLogs[queryDate] : 0;
-    window.MojoState.waterLogs[queryDate] = { pure: oldVal, tea: 0 };
-  }
-
-  if (type === 'pure') {
-    window.MojoState.waterLogs[queryDate].pure = (Number(window.MojoState.waterLogs[queryDate].pure) || 0) + amount;
+function handleWorkoutSelectChange(selectEl) {
+  const box = document.getElementById('newWorkoutItemBox');
+  if (selectEl.value === 'custom_new') {
+    box.style.display = 'block';
   } else {
-    window.MojoState.waterLogs[queryDate].tea = (Number(window.MojoState.waterLogs[queryDate].tea) || 0) + amount;
+    box.style.display = 'none';
   }
+}
 
-  localStorage.setItem('my_water_logs', JSON.stringify(window.MojoState.waterLogs));
-  uploadToCloud('WATER', { date: queryDate, data: window.MojoState.waterLogs[queryDate] });
+function addNewWorkoutCategory() {
+  const input = document.getElementById('newWorkoutNameInput');
+  const name = input.value.trim();
+  if (!name) return alert('請輸入運動名稱');
+
+  let list = JSON.parse(localStorage.getItem('custom_workout_types') || '[]');
+  if (!list.includes(name)) {
+    list.push(name);
+    localStorage.setItem('custom_workout_types', JSON.stringify(list));
+  }
+  input.value = '';
+  document.getElementById('newWorkoutItemBox').style.display = 'none';
+  initWorkoutOptions(name);
+}
+
+function initWorkoutOptions(selected) {
+  const sel = document.getElementById('workoutTypeSelect');
+  if (!sel) return;
+  const defaults = ['重量訓練', '有氧跑步', '快走 / 健走', '單車 / 飛輪', '游泳', '高強度間歇 HIIT'];
+  let custom = JSON.parse(localStorage.getItem('custom_workout_types') || '[]');
+  const all = [...defaults, ...custom];
+
+  let html = '';
+  all.forEach(item => {
+    html += `<option value="${item}" ${item === selected ? 'selected' : ''}>${item}</option>`;
+  });
+  html += `<option value="custom_new">➕ 自訂新項目...</option>`;
+  sel.innerHTML = html;
+}
+
+function saveWorkout() {
+  const dStr = getSelectedDietDate();
+  const type = document.getElementById('workoutTypeSelect').value;
+  const duration = parseInt(document.getElementById('workoutDuration').value) || 0;
+  const cal = parseFloat(document.getElementById('workoutCal').value) || 0;
+  const note = document.getElementById('workoutNote').value.trim();
+
+  if (!cal || cal <= 0) return alert('請輸入預估消耗熱量 (kcal)');
+
+  const item = {
+    id: Date.now().toString(),
+    date: dStr,
+    type,
+    duration,
+    cal,
+    note
+  };
+
+  let list = window.MojoState.workoutLogs || [];
+  list.push(item);
+  window.MojoState.workoutLogs = list;
+  localStorage.setItem('my_workout_logs', JSON.stringify(list));
+  uploadToCloud('WORKOUT', item);
+
+  document.getElementById('workoutDuration').value = '';
+  document.getElementById('workoutCal').value = '';
+  document.getElementById('workoutNote').value = '';
+
   renderDiet();
 }
 
-function addCustomWater(type) {
-  const inputId = (type === 'pure') ? 'customWaterPure' : 'customWaterTea';
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  const val = parseInt(input.value);
-  if (!val || val <= 0) return alert('請輸入有效的水量數值 (ml)');
-  addWaterRecord(type, val);
-  input.value = '';
-}
-
-function resetWaterRecord() {
-  const queryDate = document.getElementById('dietDate').value;
-  if (confirm(`確定要將 ${queryDate} 的純水與茶飲水分紀錄歸零嗎？`)) {
-    if (!window.MojoState.waterLogs) window.MojoState.waterLogs = {};
-    window.MojoState.waterLogs[queryDate] = { pure: 0, tea: 0 };
-    localStorage.setItem('my_water_logs', JSON.stringify(window.MojoState.waterLogs));
-    uploadToCloud('WATER', { date: queryDate, data: { pure: 0, tea: 0 } });
+function deleteWorkoutLog(id) {
+  if (confirm('確定要刪除這筆運動紀錄？')) {
+    let list = window.MojoState.workoutLogs || [];
+    list = list.filter(w => w.id !== id);
+    window.MojoState.workoutLogs = list;
+    localStorage.setItem('my_workout_logs', JSON.stringify(list));
     renderDiet();
   }
 }
 
-function generateNutritionSuggestions(diffPro, diffFiber, diffCal, pureRatio, diffWater) {
-  let suggestions = [];
+// ⭐️ 核心新增：猛健樂施打週期飲食與赤字平均看板
+function renderCycleNutritionAverages(currentDateStr) {
+  const cardContainer = document.getElementById('cycleAverageCard');
+  if (!cardContainer) return;
 
-  if (diffPro > 5) {
-    const eggQty = Math.max(1, Math.round(diffPro / 7));
-    const chickenQty = Math.max(1, Math.round(diffPro / 23));
-    const soyQty = Math.max(1, Math.round(diffPro / 14));
-    suggestions.push({ emoji: '🍗', title: '即食雞胸肉', desc: `約需 ${chickenQty} 份 (~${chickenQty * 23}g 蛋白)` });
-    suggestions.push({ emoji: '🥚', title: '茶葉蛋 / 水煮蛋', desc: `約需 ${eggQty} 顆 (~${eggQty * 7}g 蛋白)` });
-    suggestions.push({ emoji: '🥛', title: '無糖高纖豆漿', desc: `約需 ${soyQty} 瓶 (400ml/瓶)` });
+  const shots = (window.MojoState.shotLogs || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (shots.length === 0) {
+    cardContainer.innerHTML = '';
+    return;
   }
 
-  if (diffFiber > 3) {
-    const vegQty = Math.max(1, Math.round(diffFiber / 3));
-    const appleQty = Math.max(1, Math.round(diffFiber / 4));
-    suggestions.push({ emoji: '🥦', title: '燙青菜 / 綠花椰', desc: `約需 ${vegQty} 份 (~${vegQty * 3}g 纖維)` });
-    suggestions.push({ emoji: '🍎', title: '帶皮蘋果 / 奇異果', desc: `約需 ${appleQty} 顆 (~${appleQty * 4}g 纖維)` });
+  // 尋找當前所選日期涵蓋在猛健樂哪一個週期 (7天區間)
+  let matchedCycle = null;
+  for (let i = 0; i < shots.length; i++) {
+    const sDate = shots[i].date;
+    const startObj = new Date(sDate);
+    const endObj = new Date(startObj);
+    endObj.setDate(endObj.getDate() + 7);
+    const eDate = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
+
+    if (currentDateStr >= sDate && currentDateStr <= eDate) {
+      matchedCycle = { shot: shots[i], startDate: sDate, endDate: eDate };
+      break;
+    }
   }
 
-  if (diffWater > 200 || (pureRatio < 50 && diffWater >= 0)) {
-    suggestions.push({ emoji: '💧', title: '溫純白開水', desc: `尚缺 ${Math.max(300, Math.round(diffWater))} ml` });
+  // 若所選日期超出任何已記錄週期，預設匹配最新一劑施打週期
+  if (!matchedCycle) {
+    const sDate = shots[0].date;
+    const startObj = new Date(sDate);
+    const endObj = new Date(startObj);
+    endObj.setDate(endObj.getDate() + 7);
+    const eDate = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
+    matchedCycle = { shot: shots[0], startDate: sDate, endDate: eDate };
   }
 
-  if (diffCal > 600) {
-    suggestions.push({ emoji: '🥑', title: '綜合堅果 / 酪梨', desc: `補 1 小把堅果 (~160kcal)` });
+  // 統計該週期內的每天飲食、運動、水分
+  const allDiets = window.MojoState.dietLogs || [];
+  const allWorkouts = window.MojoState.workoutLogs || [];
+  const allWater = window.MojoState.waterLogs || {};
+
+  // 取最新 InBody 或 81.5kg 推算 TDEE
+  const bodies = window.MojoState.bodyLogs || [];
+  const refWeight = bodies.length ? bodies[bodies.length - 1].weight : 81.5;
+  const tdee = Math.round(refWeight * 28);
+
+  const cycleDays = [];
+  const curObj = new Date(matchedCycle.startDate);
+  const endObj = new Date(matchedCycle.endDate);
+
+  while (curObj <= endObj) {
+    const dStr = `${curObj.getFullYear()}-${String(curObj.getMonth() + 1).padStart(2, '0')}-${String(curObj.getDate()).padStart(2, '0')}`;
+    cycleDays.push(dStr);
+    curObj.setDate(curObj.getDate() + 1);
   }
 
-  return suggestions;
+  let recordedDaysCount = 0;
+  let totalCalIn = 0;
+  let totalBurn = 0;
+  let totalProtein = 0;
+  let totalWater = 0;
+
+  cycleDays.forEach(dStr => {
+    const dayDiets = allDiets.filter(d => d.date === dStr);
+    const dayWorkouts = allWorkouts.filter(w => w.date === dStr);
+    const dayWaterObj = allWater[dStr] || { pure: 0, tea: 0 };
+    const dayWater = (dayWaterObj.pure || 0) + (dayWaterObj.tea || 0);
+
+    const hasData = dayDiets.length > 0 || dayWorkouts.length > 0 || dayWater > 0;
+    if (hasData) {
+      recordedDaysCount++;
+      let dayCal = 0, dayPro = 0;
+      dayDiets.forEach(d => {
+        dayCal += (d.cal || 0);
+        dayPro += (d.protein || 0);
+      });
+      let dayBurn = 0;
+      dayWorkouts.forEach(w => {
+        dayBurn += (w.cal || 0);
+      });
+
+      totalCalIn += dayCal;
+      totalBurn += dayBurn;
+      totalProtein += dayPro;
+      totalWater += dayWater;
+    }
+  });
+
+  if (recordedDaysCount === 0) {
+    cardContainer.innerHTML = `
+      <div class="card" style="border-left: 5px solid #ec4899; background: #fff5f8; padding: 12px 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: #be185d; font-size: 0.88rem;">💉 本週期每週平均 (${matchedCycle.startDate} ~ ${matchedCycle.endDate})</strong>
+          <span class="badge badge-shot">${matchedCycle.shot.dose}</span>
+        </div>
+        <div style="font-size: 0.8rem; color: #9d174d; margin-top: 4px;">本週期內尚無飲食或運動紀錄，記錄後將自動計算週平均赤字。</div>
+      </div>
+    `;
+    return;
+  }
+
+  const avgCalIn = Math.round(totalCalIn / recordedDaysCount);
+  const avgBurn = Math.round(totalBurn / recordedDaysCount);
+  const avgNetCal = avgCalIn - avgBurn;
+  const avgDeficit = avgNetCal - tdee;
+  const avgPro = (totalProtein / recordedDaysCount).toFixed(1);
+  const avgWater = Math.round(totalWater / recordedDaysCount);
+
+  let deficitBadge = '';
+  if (avgDeficit <= -500) {
+    deficitBadge = '<span style="color:#16a34a; font-weight:bold;">🔥 赤字優異 (≤ -500)</span>';
+  } else if (avgDeficit < 0) {
+    deficitBadge = '<span style="color:#d97706; font-weight:bold;">🌱 溫和赤字</span>';
+  } else {
+    deficitBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 週期熱量盈餘</span>';
+  }
+
+  cardContainer.innerHTML = `
+    <div class="card" style="border-left: 5px solid #ec4899; background: #fff8fa; border: 1px solid #fbcfe8; padding: 12px 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <strong style="color: #9d174d; font-size: 0.88rem;">💉 猛健樂週期飲食與赤字週均</strong>
+        <span class="badge badge-shot">${matchedCycle.shot.dose} (${matchedCycle.startDate.slice(5)}~${matchedCycle.endDate.slice(5)})</span>
+      </div>
+
+      <div style="font-size: 0.75rem; color: #be185d; margin-bottom: 8px;">
+        統計基準：已記錄 ${recordedDaysCount} / 7 天 ｜ ${deficitBadge}
+      </div>
+
+      <div class="grid-3" style="gap: 6px; text-align: center;">
+        <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
+          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均實際赤字</small>
+          <strong style="font-size: 0.95rem; color: ${avgDeficit <= -500 ? '#16a34a' : (avgDeficit < 0 ? '#b45309' : '#dc2626')};">
+            ${avgDeficit > 0 ? '+' + avgDeficit : avgDeficit}
+          </strong> <span style="font-size:0.7rem; color:var(--sub);">kcal</span>
+        </div>
+
+        <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
+          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均蛋白質</small>
+          <strong style="font-size: 0.95rem; color: #059669;">${avgPro}</strong> <span style="font-size:0.7rem; color:var(--sub);">g</span>
+        </div>
+
+        <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
+          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均總水分</small>
+          <strong style="font-size: 0.95rem; color: #0284c7;">${avgWater}</strong> <span style="font-size:0.7rem; color:var(--sub);">ml</span>
+        </div>
+      </div>
+
+      <div style="font-size: 0.75rem; color: #64748b; margin-top: 8px; line-height: 1.4; border-top: 1px dashed #fbcfe8; padding-top: 6px; display: flex; justify-content: space-between;">
+        <span>🍽️ 週期日均攝取：<strong>${avgCalIn}</strong> kcal</span>
+        <span>🏋️ 週期日均運動：<strong>${avgBurn}</strong> kcal</span>
+      </div>
+    </div>
+  `;
 }
 
 function renderDiet() {
-  const dietDateInput = document.getElementById('dietDate');
-  if (!dietDateInput) return;
-  const queryDate = dietDateInput.value;
-  
-  initWorkoutDropdown();
+  const dStr = getSelectedDietDate();
+  initWorkoutOptions();
 
-  // 1. 計算飲食攝取
-  let totalC = 0, totalP = 0, totalCarbs = 0, totalFat = 0, totalFiber = 0, dietHtml = '';
-  const curDiets = window.MojoState.dietLogs || [];
+  // 渲染猛健樂週期週均看板
+  renderCycleNutritionAverages(dStr);
 
-  curDiets.forEach((item, originalIndex) => {
-    const itemDate = String(item.date || '').replace(/\//g, '-');
-    if (itemDate === queryDate) {
-      const c = Number(item.cal) || 0;
-      const p = Number(item.pro) || 0;
-      const carbs = Number(item.carbs) || 0;
-      const fat = Number(item.fat) || 0;
-      const fiber = Number(item.fiber) || 0;
-      totalC += c;
-      totalP += p;
-      totalCarbs += carbs;
-      totalFat += fat;
-      totalFiber += fiber;
-      dietHtml += `<div class="log-item">
-        <div class="log-info">
-          <strong>[${item.type || '餐點'}] ${item.content || ''}</strong><br>
-          <small style="color:var(--sub);">${c} kcal ｜ 蛋 ${p.toFixed(1)}g ｜ 碳 ${carbs.toFixed(1)}g ｜ 脂 ${fat.toFixed(1)}g ｜ 纖 ${fiber.toFixed(1)}g</small>
-        </div>
-        <div class="log-actions">
-          <button class="action-btn btn-edit" type="button" onclick="editDiet(${originalIndex})">編輯</button>
-          <button class="action-btn btn-del" type="button" onclick="deleteDiet(${originalIndex})">刪除</button>
-        </div>
-      </div>`;
-    }
+  // 1. 最新體重連動目標
+  const bodies = window.MojoState.bodyLogs || [];
+  const latestBody = bodies.length ? bodies[bodies.length - 1] : null;
+  const refWeight = latestBody ? latestBody.weight : 81.5;
+
+  const tdee = Math.round(refWeight * 28);
+  const targetCal = tdee - 500;
+  const targetPro = Math.round(refWeight * 1.6);
+  const targetCarbs = Math.round(refWeight * 2.0);
+  const targetFat = Math.round(refWeight * 0.6);
+  const targetFiber = 28;
+  const targetWater = Math.round(refWeight * 35);
+
+  document.getElementById('inbodyWeightRef').innerText = `依最新體重 ${refWeight}kg 連動`;
+  document.getElementById('tdeeRef').innerText = `TDEE 消耗: ${tdee} kcal`;
+  document.getElementById('calTarget').innerText = targetCal;
+  document.getElementById('proTarget').innerText = targetPro;
+  document.getElementById('carbsTarget').innerText = targetCarbs;
+  document.getElementById('fatTarget').innerText = targetFat;
+  document.getElementById('fiberTarget').innerText = targetFiber;
+  document.getElementById('waterTarget').innerText = targetWater;
+
+  // 2. 累計攝取
+  const diets = (window.MojoState.dietLogs || []).filter(d => d.date === dStr);
+  let curCal = 0, curPro = 0, curCarbs = 0, curFat = 0, curFiber = 0;
+  diets.forEach(d => {
+    curCal += (d.cal || 0);
+    curPro += (d.protein || 0);
+    curCarbs += (d.carbs || 0);
+    curFat += (d.fat || 0);
+    curFiber += (d.fiber || 0);
   });
 
+  document.getElementById('calCurrent').innerText = curCal;
+  document.getElementById('proCurrent').innerText = curPro.toFixed(1);
+  document.getElementById('carbsCurrent').innerText = curCarbs.toFixed(1);
+  document.getElementById('fatCurrent').innerText = curFat.toFixed(1);
+  document.getElementById('fiberCurrent').innerText = curFiber.toFixed(1);
+
+  document.getElementById('calRemainTxt').innerText = `剩餘：${Math.max(0, targetCal - curCal)} kcal`;
+  document.getElementById('proRemainTxt').innerText = `剩餘：${Math.max(0, targetPro - curPro).toFixed(1)} g`;
+  document.getElementById('carbsRemainTxt').innerText = `剩餘：${Math.max(0, targetCarbs - curCarbs).toFixed(1)} g`;
+  document.getElementById('fatRemainTxt').innerText = `剩餘：${Math.max(0, targetFat - curFat).toFixed(1)} g`;
+  document.getElementById('fiberRemainTxt').innerText = `剩餘：${Math.max(0, targetFiber - curFiber).toFixed(1)} g`;
+
+  document.getElementById('calProgress').style.width = `${Math.min(100, (curCal / targetCal) * 100)}%`;
+  document.getElementById('proProgress').style.width = `${Math.min(100, (curPro / targetPro) * 100)}%`;
+  document.getElementById('carbsProgress').style.width = `${Math.min(100, (curCarbs / targetCarbs) * 100)}%`;
+  document.getElementById('fatProgress').style.width = `${Math.min(100, (curFat / targetFat) * 100)}%`;
+  document.getElementById('fiberProgress').style.width = `${Math.min(100, (curFiber / targetFiber) * 100)}%`;
+
+  // 3. 運動消耗與淨赤字
+  const workouts = (window.MojoState.workoutLogs || []).filter(w => w.date === dStr);
+  let curBurn = 0;
+  workouts.forEach(w => curBurn += (w.cal || 0));
+
+  const netCal = curCal - curBurn;
+  const actualDeficit = netCal - tdee;
+
+  document.getElementById('summaryCalIn').innerText = curCal;
+  document.getElementById('summaryCalBurn').innerText = curBurn;
+  document.getElementById('summaryNetCal').innerText = netCal;
+  document.getElementById('deficitCurrent').innerText = actualDeficit;
+
+  const defEl = document.getElementById('deficitStatus');
+  if (actualDeficit <= -500) {
+    defEl.innerHTML = '<span style="color:#16a34a;font-weight:bold;">🔥 完美達到熱量赤字 (≥ 500 kcal)</span>';
+  } else if (actualDeficit < 0) {
+    defEl.innerHTML = '<span style="color:#d97706;font-weight:bold;">🌱 溫和赤字中 (不足 500 kcal)</span>';
+  } else {
+    defEl.innerHTML = '<span style="color:#dc2626;font-weight:bold;">⚠️ 今日熱量盈餘，注意控制</span>';
+  }
+
+  // 4. 水分看板
+  const wObj = (window.MojoState.waterLogs || {})[dStr] || { pure: 0, tea: 0 };
+  const totalWater = (wObj.pure || 0) + (wObj.tea || 0);
+  document.getElementById('waterTotalVal').innerText = totalWater;
+
+  const purePct = totalWater > 0 ? ((wObj.pure / totalWater) * 100).toFixed(0) : 0;
+  document.getElementById('waterBreakdownTxt').innerText = `純水: ${wObj.pure} ml (${purePct}%) ｜ 茶/咖啡: ${wObj.tea} ml`;
+
+  const pureRatio = totalWater > 0 ? (wObj.pure / totalWater) : 0;
+  const ratioEl = document.getElementById('waterRatioStatus');
+  if (pureRatio >= 0.5) {
+    ratioEl.innerHTML = '<span style="color:#059669;font-weight:bold;">純水比例健康 (≥50%)</span>';
+  } else {
+    ratioEl.innerHTML = '<span style="color:#d97706;font-weight:bold;">茶飲偏多，建議補充白開水</span>';
+  }
+
+  const pureBar = totalWater > 0 ? (wObj.pure / targetWater) * 100 : 0;
+  const teaBar = totalWater > 0 ? (wObj.tea / targetWater) * 100 : 0;
+  document.getElementById('pureWaterProgress').style.width = `${Math.min(100, pureBar)}%`;
+  document.getElementById('teaWaterProgress').style.width = `${Math.min(100 - Math.min(100, pureBar), teaBar)}%`;
+
+  // 5. 渲染清單
   const dietListEl = document.getElementById('dietLogList');
-  if (dietListEl) dietListEl.innerHTML = dietHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無餐點紀錄</p>';
-
-  // 2. 計算體能訓練消耗
-  let totalBurn = 0, workoutHtml = '';
-  const curWorkouts = window.MojoState.workoutLogs || [];
-  curWorkouts.forEach((w, idx) => {
-    const wDate = String(w.date || '').replace(/\//g, '-');
-    if (wDate === queryDate) {
-      const bCal = Number(w.cal) || 0;
-      totalBurn += bCal;
-      const durText = w.duration ? `${w.duration} 分鐘 ｜ ` : '';
-      const noteText = w.note ? `<br><small style="color:var(--sub);">${w.note}</small>` : '';
-      workoutHtml += `<div class="log-item">
+  if (dietListEl) {
+    let dHtml = '';
+    diets.forEach(d => {
+      dHtml += `<div class="log-item">
         <div class="log-info">
-          <strong>${w.type}</strong><br>
-          <small style="color:#4338ca; font-weight:600;">${durText}消耗 -${bCal} kcal</small>${noteText}
+          <strong>[${d.type}] ${d.content}</strong> ｜ ${d.cal} kcal<br>
+          <small style="color:var(--sub)">蛋白: ${d.protein}g ｜ 碳水: ${d.carbs}g ｜ 脂肪: ${d.fat}g ｜ 纖維: ${d.fiber}g</small>
         </div>
         <div class="log-actions">
-          <button class="action-btn btn-del" type="button" onclick="deleteWorkout(${idx})">刪除</button>
+          <button class="action-btn btn-del" type="button" onclick="deleteDietLog('${d.id}')">刪除</button>
         </div>
       </div>`;
-    }
-  });
+    });
+    dietListEl.innerHTML = dHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無飲食紀錄</p>';
+  }
 
   const workoutListEl = document.getElementById('workoutLogList');
-  if (workoutListEl) workoutListEl.innerHTML = workoutHtml ? `<div style="font-size:0.85rem; font-weight:bold; color:#4338ca; margin-bottom:6px;">📋 今日訓練明細：</div>` + workoutHtml : '';
-
-  // 3. 雙軌搜尋該日前最新體重
-  let latestWeight = 80;
-  let weightSourceLabel = '預設基準';
-  const bodies = (window.MojoState.bodyLogs || []).filter(b => b.date <= queryDate);
-  const scales = (window.MojoState.scaleLogs || []).filter(s => s.date <= queryDate);
-
-  let candidateRecords = [];
-  bodies.forEach(b => candidateRecords.push({ date: b.date, time: '00:00', weight: Number(b.weight), type: 'InBody' }));
-  scales.forEach(s => candidateRecords.push({ date: s.date, time: s.time || '00:00', weight: Number(s.weight), type: '家用' }));
-
-  if (candidateRecords.length > 0) {
-    candidateRecords.sort((a, b) => new Date(`${b.date} ${b.time}`) - new Date(`${a.date} ${a.time}`));
-    latestWeight = candidateRecords[0].weight;
-    weightSourceLabel = `${candidateRecords[0].type} ${latestWeight}kg`;
-  } else if ((window.MojoState.bodyLogs || []).length > 0) {
-    latestWeight = Number(window.MojoState.bodyLogs[0].weight) || 80;
-    weightSourceLabel = `首筆 InBody ${latestWeight}kg`;
-  }
-
-  const tdee = Math.round(latestWeight * 28);
-  const targetCalories = tdee - 500;
-  const targetProtein = Math.round(latestWeight * 1.6);
-  const targetCarbs = Math.round(latestWeight * 2.0);
-  const targetFat = Math.round(latestWeight * 0.6);
-  const targetFiber = 28;
-  const targetWater = Math.round(latestWeight * 35);
-
-  const netCalories = totalC - totalBurn;
-  const actualDeficit = tdee - netCalories;
-
-  const sumInEl = document.getElementById('summaryCalIn');
-  const sumBurnEl = document.getElementById('summaryCalBurn');
-  const sumNetEl = document.getElementById('summaryNetCal');
-  if (sumInEl) sumInEl.innerText = totalC;
-  if (sumBurnEl) sumBurnEl.innerText = totalBurn;
-  if (sumNetEl) sumNetEl.innerText = netCalories;
-
-  const deficitCurEl = document.getElementById('deficitCurrent');
-  const tdeeRefEl = document.getElementById('tdeeRef');
-  const deficitStatusEl = document.getElementById('deficitStatus');
-
-  if (deficitCurEl) deficitCurEl.innerText = (actualDeficit > 0 ? `-${actualDeficit}` : `+${Math.abs(actualDeficit)}`);
-  if (tdeeRefEl) tdeeRefEl.innerText = `TDEE 消耗: ${tdee} kcal`;
-
-  if (deficitStatusEl) {
-    if (actualDeficit >= 400 && actualDeficit <= 700) {
-      deficitStatusEl.innerText = '🎯 完美燃脂赤字 (含運動扣除)';
-      deficitStatusEl.style.color = '#059669';
-    } else if (actualDeficit > 700) {
-      deficitStatusEl.innerText = '⚠️ 赤字偏大，運動後請適度補充蛋白質/碳水';
-      deficitStatusEl.style.color = '#d97706';
-    } else if (actualDeficit > 0) {
-      deficitStatusEl.innerText = '🌱 溫和赤字中 (進度良好)';
-      deficitStatusEl.style.color = '#2563eb';
-    } else {
-      deficitStatusEl.innerText = '⛔ 熱量盈餘 (已超過今日消耗)';
-      deficitStatusEl.style.color = '#dc2626';
-    }
-  }
-
-  // 4. 水分更新
-  const wLogs = window.MojoState.waterLogs || {};
-  let dayWater = wLogs[queryDate] || { pure: 0, tea: 0 };
-  if (typeof dayWater === 'number') dayWater = { pure: dayWater, tea: 0 };
-
-  const pureW = Number(dayWater.pure) || 0;
-  const teaW = Number(dayWater.tea) || 0;
-  const totalW = pureW + teaW;
-
-  const waterTotalEl = document.getElementById('waterTotalVal');
-  const waterTargetEl = document.getElementById('waterTarget');
-  if (waterTotalEl) waterTotalEl.innerText = totalW;
-  if (waterTargetEl) waterTargetEl.innerText = targetWater;
-
-  const purePct = Math.min(100, Math.round((pureW / targetWater) * 100));
-  const teaPct = Math.min(100 - purePct, Math.round((teaW / targetWater) * 100));
-
-  const pureProgEl = document.getElementById('pureWaterProgress');
-  const teaProgEl = document.getElementById('teaWaterProgress');
-  if (pureProgEl) pureProgEl.style.width = purePct + '%';
-  if (teaProgEl) teaProgEl.style.width = teaPct + '%';
-
-  const pureRatio = totalW > 0 ? Math.round((pureW / totalW) * 100) : 0;
-  const waterBreakdownEl = document.getElementById('waterBreakdownTxt');
-  if (waterBreakdownEl) {
-    waterBreakdownEl.innerText = `純水: ${pureW} ml (${pureRatio}%) ｜ 茶/咖啡: ${teaW} ml`;
-  }
-
-  const ratioStatusEl = document.getElementById('waterRatioStatus');
-  if (ratioStatusEl) {
-    if (totalW === 0) {
-      ratioStatusEl.innerText = '建議純水 ≥ 50%';
-      ratioStatusEl.style.color = '#0369a1';
-    } else if (pureRatio >= 50) {
-      ratioStatusEl.innerText = '✅ 純水比例良好';
-      ratioStatusEl.style.color = '#059669';
-    } else {
-      ratioStatusEl.innerText = '⚠️ 茶飲偏多，多補純水';
-      ratioStatusEl.style.color = '#d97706';
-    }
-  }
-
-  // 5. 五大營養素進度條
-  const calCurEl = document.getElementById('calCurrent');
-  const calTarEl = document.getElementById('calTarget');
-  const inbodyRefEl = document.getElementById('inbodyWeightRef');
-  if (calCurEl) calCurEl.innerText = totalC;
-  if (calTarEl) calTarEl.innerText = targetCalories;
-  if (inbodyRefEl) inbodyRefEl.innerText = `依最新基準 ${weightSourceLabel} 連動`;
-
-  const calPct = Math.min(100, Math.round((totalC / targetCalories) * 100));
-  const calProgEl = document.getElementById('calProgress');
-  if (calProgEl) {
-    calProgEl.style.width = calPct + '%';
-    calProgEl.style.backgroundColor = totalC > targetCalories ? '#ef4444' : '#3b82f6';
-  }
-
-  const calDiff = targetCalories - totalC;
-  const calRemEl = document.getElementById('calRemainTxt');
-  if (calRemEl) {
-    calRemEl.innerText = calDiff >= 0 ? `剩餘：${calDiff} kcal` : `超標：${Math.abs(calDiff)} kcal`;
-    calRemEl.style.color = calDiff >= 0 ? 'var(--sub)' : '#ef4444';
-  }
-
-  const proCurEl = document.getElementById('proCurrent');
-  const proTarEl = document.getElementById('proTarget');
-  if (proCurEl) proCurEl.innerText = totalP.toFixed(1);
-  if (proTarEl) proTarEl.innerText = targetProtein;
-
-  const proPct = Math.min(100, Math.round((totalP / targetProtein) * 100));
-  const proProgEl = document.getElementById('proProgress');
-  if (proProgEl) {
-    proProgEl.style.width = proPct + '%';
-    proProgEl.style.backgroundColor = '#10b981';
-  }
-
-  const proDiff = (targetProtein - totalP).toFixed(1);
-  const proRemEl = document.getElementById('proRemainTxt');
-  if (proRemEl) {
-    proRemEl.innerText = proDiff >= 0 ? `剩餘：${proDiff} g` : `已達標 (+${Math.abs(proDiff)}g)`;
-    proRemEl.style.color = proDiff <= 0 ? '#10b981' : 'var(--sub)';
-  }
-
-  const carbsCurEl = document.getElementById('carbsCurrent');
-  const carbsTarEl = document.getElementById('carbsTarget');
-  if (carbsCurEl) carbsCurEl.innerText = totalCarbs.toFixed(1);
-  if (carbsTarEl) carbsTarEl.innerText = targetCarbs;
-
-  const carbsPct = Math.min(100, Math.round((totalCarbs / targetCarbs) * 100));
-  const carbsProgEl = document.getElementById('carbsProgress');
-  if (carbsProgEl) {
-    carbsProgEl.style.width = carbsPct + '%';
-    carbsProgEl.style.backgroundColor = '#ea580c';
-  }
-
-  const carbsDiff = (targetCarbs - totalCarbs).toFixed(1);
-  const carbsRemEl = document.getElementById('carbsRemainTxt');
-  if (carbsRemEl) {
-    carbsRemEl.innerText = carbsDiff >= 0 ? `剩餘：${carbsDiff} g` : `超標：${Math.abs(carbsDiff)} g`;
-    carbsRemEl.style.color = carbsDiff >= 0 ? 'var(--sub)' : '#ef4444';
-  }
-
-  const fatCurEl = document.getElementById('fatCurrent');
-  const fatTarEl = document.getElementById('fatTarget');
-  if (fatCurEl) fatCurEl.innerText = totalFat.toFixed(1);
-  if (fatTarEl) fatTarEl.innerText = targetFat;
-
-  const fatPct = Math.min(100, Math.round((totalFat / targetFat) * 100));
-  const fatProgEl = document.getElementById('fatProgress');
-  if (fatProgEl) {
-    fatProgEl.style.width = fatPct + '%';
-    fatProgEl.style.backgroundColor = '#eab308';
-  }
-
-  const fatDiff = (targetFat - totalFat).toFixed(1);
-  const fatRemEl = document.getElementById('fatRemainTxt');
-  if (fatRemEl) {
-    fatRemEl.innerText = fatDiff >= 0 ? `剩餘：${fatDiff} g` : `超標：${Math.abs(fatDiff)} g`;
-    fatRemEl.style.color = fatDiff >= 0 ? 'var(--sub)' : '#ef4444';
-  }
-
-  const fiberCurEl = document.getElementById('fiberCurrent');
-  const fiberTarEl = document.getElementById('fiberTarget');
-  if (fiberCurEl) fiberCurEl.innerText = totalFiber.toFixed(1);
-  if (fiberTarEl) fiberTarEl.innerText = targetFiber;
-
-  const fiberPct = Math.min(100, Math.round((totalFiber / targetFiber) * 100));
-  const fiberProgEl = document.getElementById('fiberProgress');
-  if (fiberProgEl) {
-    fiberProgEl.style.width = fiberPct + '%';
-    fiberProgEl.style.backgroundColor = '#14b8a6';
-  }
-
-  const fiberDiff = (targetFiber - totalFiber).toFixed(1);
-  const fiberRemEl = document.getElementById('fiberRemainTxt');
-  if (fiberRemEl) {
-    fiberRemEl.innerText = fiberDiff >= 0 ? `剩餘：${fiberDiff} g` : `已達標 (+${Math.abs(fiberDiff)}g)`;
-    fiberRemEl.style.color = fiberDiff <= 0 ? '#14b8a6' : 'var(--sub)';
-  }
-
-  // 6. 智慧建議卡片
-  const suggestCard = document.getElementById('nutritionSuggestCard');
-  const suggestBox = document.getElementById('suggestContent');
-  if (suggestCard && suggestBox) {
-    const listSuggestions = generateNutritionSuggestions(
-      parseFloat(proDiff),
-      parseFloat(fiberDiff),
-      calDiff,
-      pureRatio,
-      targetWater - totalW
-    );
-
-    if (listSuggestions.length > 0) {
-      let sHtml = '<div class="suggest-box">';
-      listSuggestions.forEach(s => {
-        sHtml += `<div class="suggest-item">
-          <div class="suggest-emoji">${s.emoji}</div>
-          <div class="suggest-title">${s.title}</div>
-          <div class="suggest-desc">${s.desc}</div>
-        </div>`;
-      });
-      sHtml += '</div>';
-      suggestBox.innerHTML = sHtml;
-      suggestCard.style.display = 'block';
-    } else {
-      suggestCard.style.display = 'none';
-    }
+  if (workoutListEl) {
+    let wHtml = '';
+    workouts.forEach(w => {
+      wHtml += `<div class="log-item">
+        <div class="log-info">
+          <strong>🏋️ ${w.type}</strong> (${w.duration ? w.duration + '分鐘' : '無時長'}) ｜ <span style="color:#ef4444;font-weight:bold;">-${w.cal} kcal</span><br>
+          <small style="color:var(--sub)">${w.note ? w.note : '無備註'}</small>
+        </div>
+        <div class="log-actions">
+          <button class="action-btn btn-del" type="button" onclick="deleteWorkoutLog('${w.id}')">刪除</button>
+        </div>
+      </div>`;
+    });
+    workoutListEl.innerHTML = wHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無運動紀錄</p>';
   }
 }
