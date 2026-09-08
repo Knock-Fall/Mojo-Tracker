@@ -1,4 +1,4 @@
-/* Mojo Project - style.css (MK-80974) */
+/* Mojo Project - style.css (MK-80976) */
 
 :root {
   --primary: #0284c7;
@@ -17,6 +17,7 @@
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -91,6 +92,7 @@ header h1 {
   padding: 14px;
   margin-bottom: 14px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  overflow: hidden;
 }
 
 .card-title {
@@ -103,14 +105,19 @@ header h1 {
 }
 
 .form-group {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .form-group label {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--sub);
-  margin-bottom: 3px;
+  margin-bottom: 6px;
+  line-height: 1.2;
 }
 
 input[type="text"],
@@ -119,12 +126,23 @@ input[type="date"],
 input[type="time"],
 select {
   width: 100%;
+  min-height: 42px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   background: #fff;
   color: var(--text);
+  line-height: normal;
+  display: block;
+  -webkit-appearance: none;
+}
+
+select {
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%2364748b" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 30px;
 }
 
 input:focus, select:focus {
@@ -132,22 +150,31 @@ input:focus, select:focus {
   border-color: var(--primary);
 }
 
+/* 強化網格佈局防重疊 */
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
 }
 
 .grid-3 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  align-items: start;
+}
+
+.grid-2 > .form-group,
+.grid-3 > .form-group {
+  min-width: 0;
+  margin-bottom: 8px;
 }
 
 .btn {
   display: block;
   width: 100%;
-  padding: 10px;
+  padding: 11px;
   border: none;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -213,16 +240,20 @@ input:focus, select:focus {
 
 .action-btn {
   border: none;
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .btn-edit { background: #e0f2fe; color: #0369a1; }
 .btn-del { background: #fee2e2; color: #b91c1c; }
-.btn-sync { background: var(--primary); color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
+.btn-sync { background: var(--primary); color: #fff; }
 
 .badge {
   padding: 3px 6px;
@@ -301,6 +332,7 @@ input:focus, select:focus {
   font-size: 0.75rem;
   padding: 4px;
   margin-bottom: 2px;
+  min-height: 32px;
 }
 
 .nutrition-card {
