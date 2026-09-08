@@ -1,5 +1,5 @@
 // Mojo Project
-// 5. body.js (MK-80975: InBody 全方位數據輸入、AI 辨識與歷史體態紀錄)
+// 5. body.js (MK-80976: InBody 全方位數據輸入、AI 辨識與歷史體態紀錄)
 
 let base64InBodyImage = '';
 
