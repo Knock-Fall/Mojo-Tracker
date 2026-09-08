@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與健康管理</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80976">
+  <link rel="stylesheet" href="style.css?v=80977">
 </head>
 <body>
 
@@ -23,12 +23,13 @@
   
   <!-- 全站統一系統與雲端管理工具列 -->
   <div class="card" style="padding: 10px 14px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-    <!-- 乾淨俐落的 iOS 膠囊開關 -->
-    <label class="switch-label">
-      <input type="checkbox" id="chkUseMounjaro" style="display:none;" onchange="toggleMounjaroMode(this.checked)">
-      <span class="switch-control"></span>
-      <span class="switch-text" id="chkMounjaroText">💉 啟用猛健樂</span>
-    </label>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 0.85rem; color: #0369a1; font-weight: 600;">☁️ 系統管理</span>
+      <!-- 乾淨俐落的模式切換鈕，保證在 iOS 上不變形 -->
+      <button id="btnToggleMounjaro" type="button" onclick="toggleMounjaroMode()" style="padding: 5px 10px; font-size: 0.78rem; font-weight: bold; border-radius: 20px; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.2s;">
+        載入中...
+      </button>
+    </div>
 
     <div style="display: flex; gap: 6px;">
       <button class="btn-sync" type="button" onclick="syncFromCloud()">從雲端載入</button>
@@ -40,7 +41,7 @@
   <!-- 體態與健康 TAB -->
   <div id="tab-inbody" class="tab-content active">
     
-    <!-- 猛健樂施打紀錄 -->
+    <!-- 猛健樂施打紀錄卡片 -->
     <div id="mounjaroShotInputCard" class="card" style="border-left: 5px solid var(--shot);">
       <div class="card-title">
         <span>💉 猛健樂 (Mounjaro) 施打紀錄</span>
@@ -183,7 +184,7 @@
       </div>
     </div>
 
-    <!-- ⭐️ 週均獨立圖卡（可動態切換猛健樂週期與日曆週） ⭐️ -->
+    <!-- ⭐️ 週均獨立圖卡 ⭐️ -->
     <div id="cycleAvgCardBlock" class="card" style="border-left: 5px solid #ec4899; background: #fff8fa; border: 1px solid #fbcfe8; padding: 12px 14px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
         <strong id="cycleAvgTitle" style="color: #9d174d; font-size: 0.9rem;">💉 猛健樂週期飲食與赤字週均</strong>
@@ -406,7 +407,7 @@
     </div>
   </div>
 
-  <div class="version-footer">版本驗證代碼：<strong>MK-80976</strong></div>
+  <div class="version-footer">版本驗證代碼：<strong>MK-80977</strong></div>
 </div>
 
 <div class="modal-overlay" id="apiKeyModal">
@@ -426,12 +427,12 @@
   </div>
 </div>
 
-<script src="shot.js?v=80976"></script>
-<script src="scale.js?v=80976"></script>
-<script src="fitdays.js?v=80976"></script>
-<script src="body.js?v=80976"></script>
-<script src="body-chart.js?v=80976"></script>
-<script src="diet.js?v=80976"></script>
-<script src="main.js?v=80976"></script>
+<script src="shot.js?v=80977"></script>
+<script src="scale.js?v=80977"></script>
+<script src="fitdays.js?v=80977"></script>
+<script src="body.js?v=80977"></script>
+<script src="body-chart.js?v=80977"></script>
+<script src="diet.js?v=80977"></script>
+<script src="main.js?v=80977"></script>
 </body>
 </html>
