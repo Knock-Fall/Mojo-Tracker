@@ -1,5 +1,5 @@
 // Mojo Project
-// 7. diet.js (MK-80976: 修正自然週與猛健樂週切換時的字串日期運算)
+// 7. diet.js (MK-80977: 徹底修正猛健樂/自然日曆週判定與日期精確換算)
 
 let base64FoodImage = '';
 
@@ -272,12 +272,14 @@ function renderCycleNutritionAverages(currentDateStr) {
   const userUsesMounjaro = (typeof isMounjaroEnabled === 'function') ? isMounjaroEnabled() : true;
   const shots = (window.MojoState.shotLogs || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  let isMounjaroTrack = userUsesMounjaro && shots.length > 0;
+  // 關鍵判斷：使用者必須「開啟猛健樂模式」而且「有施打紀錄」，才走猛健樂週期
+  const isMounjaroTrack = userUsesMounjaro && (shots.length > 0);
+
   let startDateStr = '';
   let endDateStr = '';
 
   if (isMounjaroTrack) {
-    // 猛健樂 7 天週期
+    // A 軌：猛健樂 7 天施打週期
     let matchedShot = null;
     for (let i = 0; i < shots.length; i++) {
       const sDate = shots[i].date;
@@ -308,13 +310,14 @@ function renderCycleNutritionAverages(currentDateStr) {
     titleEl.style.color = '#9d174d';
     cardBlock.style.borderLeftColor = '#ec4899';
     cardBlock.style.background = '#fff8fa';
+    cardBlock.style.borderColor = '#fbcfe8';
     badgeEl.className = 'badge badge-shot';
     badgeEl.style.background = '';
     badgeEl.style.color = '';
     badgeEl.innerText = `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
 
   } else {
-    // 自然日曆週（週一 ～ 週日）
+    // B 軌：自然日曆週（週一 ～ 週日）
     const parts = currentDateStr.split('-').map(Number);
     const curDate = new Date(parts[0], parts[1] - 1, parts[2]);
     const dayOfWeek = curDate.getDay(); // 0(日), 1(一), ..., 6(六)
@@ -332,6 +335,7 @@ function renderCycleNutritionAverages(currentDateStr) {
     titleEl.style.color = '#0369a1';
     cardBlock.style.borderLeftColor = '#0284c7';
     cardBlock.style.background = '#f0f9ff';
+    cardBlock.style.borderColor = '#bae6fd';
     badgeEl.className = 'badge';
     badgeEl.style.background = '#e0f2fe';
     badgeEl.style.color = '#0369a1';
