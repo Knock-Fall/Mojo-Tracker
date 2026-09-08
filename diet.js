@@ -1,5 +1,5 @@
 // Mojo Project
-// 7. diet.js (飲食、水分、運動、赤字看板與雙軌週均計算)
+// 7. diet.js (MK-80976: 修正自然週與猛健樂週切換時的字串日期運算)
 
 let base64FoodImage = '';
 
@@ -9,7 +9,8 @@ function getSelectedDietDate() {
 
 function changeDietDateBy(offset) {
   const cur = getSelectedDietDate();
-  const d = new Date(cur);
+  const parts = cur.split('-').map(Number);
+  const d = new Date(parts[0], parts[1] - 1, parts[2]);
   d.setDate(d.getDate() + offset);
   const nextDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   document.getElementById('dietDate').value = nextDate;
@@ -254,6 +255,7 @@ function deleteWorkoutLog(id) {
   }
 }
 
+// ⭐️ 雙軌週期週均計算：支援猛健樂 7 天施打週期 VS 自然日曆週 (週一至週日)
 function renderCycleNutritionAverages(currentDateStr) {
   const cardBlock = document.getElementById('cycleAvgCardBlock');
   const titleEl = document.getElementById('cycleAvgTitle');
@@ -275,10 +277,12 @@ function renderCycleNutritionAverages(currentDateStr) {
   let endDateStr = '';
 
   if (isMounjaroTrack) {
+    // 猛健樂 7 天週期
     let matchedShot = null;
     for (let i = 0; i < shots.length; i++) {
       const sDate = shots[i].date;
-      const sObj = new Date(sDate);
+      const parts = sDate.split('-').map(Number);
+      const sObj = new Date(parts[0], parts[1] - 1, parts[2]);
       const eObj = new Date(sObj);
       eObj.setDate(eObj.getDate() + 7);
       const eDate = `${eObj.getFullYear()}-${String(eObj.getMonth() + 1).padStart(2, '0')}-${String(eObj.getDate()).padStart(2, '0')}`;
@@ -293,7 +297,8 @@ function renderCycleNutritionAverages(currentDateStr) {
     if (!matchedShot) {
       matchedShot = shots[0];
       startDateStr = matchedShot.date;
-      const sObj = new Date(startDateStr);
+      const parts = startDateStr.split('-').map(Number);
+      const sObj = new Date(parts[0], parts[1] - 1, parts[2]);
       const eObj = new Date(sObj);
       eObj.setDate(eObj.getDate() + 7);
       endDateStr = `${eObj.getFullYear()}-${String(eObj.getMonth() + 1).padStart(2, '0')}-${String(eObj.getDate()).padStart(2, '0')}`;
@@ -309,8 +314,10 @@ function renderCycleNutritionAverages(currentDateStr) {
     badgeEl.innerText = `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
 
   } else {
-    const curDate = new Date(currentDateStr);
-    const dayOfWeek = curDate.getDay();
+    // 自然日曆週（週一 ～ 週日）
+    const parts = currentDateStr.split('-').map(Number);
+    const curDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    const dayOfWeek = curDate.getDay(); // 0(日), 1(一), ..., 6(六)
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
 
     const mondayObj = new Date(curDate);
@@ -321,7 +328,7 @@ function renderCycleNutritionAverages(currentDateStr) {
     startDateStr = `${mondayObj.getFullYear()}-${String(mondayObj.getMonth() + 1).padStart(2, '0')}-${String(mondayObj.getDate()).padStart(2, '0')}`;
     endDateStr = `${sundayObj.getFullYear()}-${String(sundayObj.getMonth() + 1).padStart(2, '0')}-${String(sundayObj.getDate()).padStart(2, '0')}`;
 
-    titleEl.innerText = '📅 本週飲食與赤字週均 (週一至週日)';
+    titleEl.innerText = '📅 自然減脂週均 (週一至週日)';
     titleEl.style.color = '#0369a1';
     cardBlock.style.borderLeftColor = '#0284c7';
     cardBlock.style.background = '#f0f9ff';
@@ -340,8 +347,11 @@ function renderCycleNutritionAverages(currentDateStr) {
   const allWorkouts = window.MojoState.workoutLogs || [];
   const allWater = window.MojoState.waterLogs || {};
 
-  let s = new Date(startDateStr);
-  const e = new Date(endDateStr);
+  const sParts = startDateStr.split('-').map(Number);
+  const eParts = endDateStr.split('-').map(Number);
+  let s = new Date(sParts[0], sParts[1] - 1, sParts[2]);
+  const e = new Date(eParts[0], eParts[1] - 1, eParts[2]);
+
   let recordedDays = 0;
   let totalIn = 0;
   let totalBurn = 0;
