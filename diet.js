@@ -1,5 +1,5 @@
 // Mojo Project
-// 7. diet.js (修復週均蛋白質取值欄位屬性錯誤)
+// 7. diet.js (飲食、水分、運動、赤字看板與雙軌週均計算)
 
 let base64FoodImage = '';
 
@@ -254,8 +254,9 @@ function deleteWorkoutLog(id) {
   }
 }
 
-// 猛健樂週期飲食與赤字週均計算
 function renderCycleNutritionAverages(currentDateStr) {
+  const cardBlock = document.getElementById('cycleAvgCardBlock');
+  const titleEl = document.getElementById('cycleAvgTitle');
   const badgeEl = document.getElementById('cycleAvgBadge');
   const subEl = document.getElementById('cycleAvgSub');
   const deficitEl = document.getElementById('cycleAvgDeficit');
@@ -264,15 +265,17 @@ function renderCycleNutritionAverages(currentDateStr) {
   const inEl = document.getElementById('cycleAvgCalIn');
   const burnEl = document.getElementById('cycleAvgBurn');
 
-  if (!badgeEl) return;
+  if (!cardBlock || !badgeEl) return;
 
+  const userUsesMounjaro = (typeof isMounjaroEnabled === 'function') ? isMounjaroEnabled() : true;
   const shots = (window.MojoState.shotLogs || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-  
-  let matchedShot = null;
+
+  let isMounjaroTrack = userUsesMounjaro && shots.length > 0;
   let startDateStr = '';
   let endDateStr = '';
 
-  if (shots.length > 0) {
+  if (isMounjaroTrack) {
+    let matchedShot = null;
     for (let i = 0; i < shots.length; i++) {
       const sDate = shots[i].date;
       const sObj = new Date(sDate);
@@ -295,16 +298,38 @@ function renderCycleNutritionAverages(currentDateStr) {
       eObj.setDate(eObj.getDate() + 7);
       endDateStr = `${eObj.getFullYear()}-${String(eObj.getMonth() + 1).padStart(2, '0')}-${String(eObj.getDate()).padStart(2, '0')}`;
     }
-  } else {
-    const curObj = new Date(currentDateStr);
-    const sObj = new Date(curObj);
-    sObj.setDate(sObj.getDate() - 6);
-    startDateStr = `${sObj.getFullYear()}-${String(sObj.getMonth() + 1).padStart(2, '0')}-${String(sObj.getDate()).padStart(2, '0')}`;
-    endDateStr = currentDateStr;
-  }
 
-  const doseLabel = matchedShot ? `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})` : `近7日 (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
-  badgeEl.innerText = doseLabel;
+    titleEl.innerText = '💉 猛健樂週期飲食與赤字週均';
+    titleEl.style.color = '#9d174d';
+    cardBlock.style.borderLeftColor = '#ec4899';
+    cardBlock.style.background = '#fff8fa';
+    badgeEl.className = 'badge badge-shot';
+    badgeEl.style.background = '';
+    badgeEl.style.color = '';
+    badgeEl.innerText = `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
+
+  } else {
+    const curDate = new Date(currentDateStr);
+    const dayOfWeek = curDate.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+    const mondayObj = new Date(curDate);
+    mondayObj.setDate(mondayObj.getDate() + diffToMonday);
+    const sundayObj = new Date(mondayObj);
+    sundayObj.setDate(sundayObj.getDate() + 6);
+
+    startDateStr = `${mondayObj.getFullYear()}-${String(mondayObj.getMonth() + 1).padStart(2, '0')}-${String(mondayObj.getDate()).padStart(2, '0')}`;
+    endDateStr = `${sundayObj.getFullYear()}-${String(sundayObj.getMonth() + 1).padStart(2, '0')}-${String(sundayObj.getDate()).padStart(2, '0')}`;
+
+    titleEl.innerText = '📅 本週飲食與赤字週均 (週一至週日)';
+    titleEl.style.color = '#0369a1';
+    cardBlock.style.borderLeftColor = '#0284c7';
+    cardBlock.style.background = '#f0f9ff';
+    badgeEl.className = 'badge';
+    badgeEl.style.background = '#e0f2fe';
+    badgeEl.style.color = '#0369a1';
+    badgeEl.innerText = `自然週 (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
+  }
 
   const bodies = window.MojoState.bodyLogs || [];
   const latestBody = bodies.length ? bodies[bodies.length - 1] : null;
@@ -335,7 +360,6 @@ function renderCycleNutritionAverages(currentDateStr) {
       let dCal = 0, dPro = 0;
       dayDiets.forEach(d => {
         dCal += (d.cal || 0);
-        // 核心修正：雙向相容 protein 與 pro 屬性
         dPro += (d.protein !== undefined ? d.protein : (d.pro || 0));
       });
       let dBurn = 0;
@@ -350,7 +374,7 @@ function renderCycleNutritionAverages(currentDateStr) {
   }
 
   if (recordedDays === 0) {
-    subEl.innerHTML = `統計基準：本週期尚無飲食數據 ｜ <span style="color:#64748b;">待紀錄</span>`;
+    subEl.innerHTML = `統計基準：本週尚無飲食數據 ｜ <span style="color:#64748b;">待紀錄</span>`;
     deficitEl.innerText = '--';
     proEl.innerText = '--';
     waterEl.innerText = '--';
@@ -374,13 +398,13 @@ function renderCycleNutritionAverages(currentDateStr) {
     statusBadge = '<span style="color:#d97706; font-weight:bold;">🌱 溫和赤字</span>';
     deficitEl.style.color = '#d97706';
   } else {
-    statusBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 週期熱量盈餘</span>';
+    statusBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 本週熱量盈餘</span>';
     deficitEl.style.color = '#dc2626';
   }
 
   subEl.innerHTML = `統計基準：已記錄 <strong>${recordedDays}</strong> / 7 天 ｜ ${statusBadge}`;
   deficitEl.innerText = (avgDeficit > 0 ? '+' + avgDeficit : avgDeficit);
-  proEl.innerText = avgProtein; // 修正後即時顯示真實蛋白質克數
+  proEl.innerText = avgProtein;
   waterEl.innerText = avgWaterVal;
   inEl.innerText = avgIn;
   burnEl.innerText = avgBurn;
