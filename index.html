@@ -4,14 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>健體紀錄與猛健樂追蹤</title>
+  <title>健體紀錄與健康管理</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80974">
+  <link rel="stylesheet" href="style.css?v=80975">
 </head>
 <body>
 
 <header>
-  <h1>個人健體與猛健樂管理</h1>
+  <h1 id="mainAppTitle">個人健體與猛健樂管理</h1>
 </header>
 
 <div class="nav-tabs">
@@ -21,9 +21,15 @@
 
 <div class="container">
   
-  <!-- 全站統一系統與雲端管理工具列 -->
+  <!-- 全站統一系統與雲端管理工具列（加入猛健樂模式開關） -->
   <div class="card" style="padding: 10px 16px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-    <span style="font-size: 0.85rem; color: #0369a1; font-weight: 600;">☁️ 系統與雲端管理</span>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 0.85rem; color: #0369a1; font-weight: 600;">☁️ 系統管理</span>
+      <label style="font-size: 0.8rem; color: #0f172a; display: flex; align-items: center; gap: 4px; cursor: pointer; background: #fff; padding: 3px 8px; border-radius: 6px; border: 1px solid #93c5fd;">
+        <input type="checkbox" id="chkUseMounjaro" onchange="toggleMounjaroMode(this.checked)">
+        <span>💉 啟用猛健樂追蹤</span>
+      </label>
+    </div>
     <div style="display: flex; gap: 6px;">
       <button class="btn-sync" type="button" onclick="syncFromCloud()">從雲端載入</button>
       <button class="btn-sync" type="button" style="background:#8b5cf6;" onclick="openKeyModal()">⚙️ API Key</button>
@@ -31,11 +37,11 @@
     </div>
   </div>
   
-  <!-- 體態與猛健樂 TAB -->
+  <!-- 體態與健康 TAB -->
   <div id="tab-inbody" class="tab-content active">
     
-    <!-- 猛健樂施打紀錄 -->
-    <div class="card" style="border-left: 5px solid var(--shot);">
+    <!-- 猛健樂施打紀錄（受開關控制顯示/隱藏） -->
+    <div id="mounjaroShotInputCard" class="card" style="border-left: 5px solid var(--shot);">
       <div class="card-title">
         <span>💉 猛健樂 (Mounjaro) 施打紀錄</span>
       </div>
@@ -143,11 +149,11 @@
     <!-- [品牌B] Fitdays 區塊 (由 fitdays.js 自動注入) -->
     <div id="fitdaysScaleContainer" style="display: none;"></div>
 
-    <!-- [模組化] InBody 區塊容器 (由 body.js 自動注入) -->
+    <!-- InBody 模組容器 (由 body.js 自動注入) -->
     <div id="inbodyModuleContainer"></div>
 
-    <!-- 猛健樂施打歷程與週期回顧 -->
-    <div class="card">
+    <!-- 猛健樂施打歷程與週期回顧（受開關控制顯示/隱藏） -->
+    <div id="mounjaroShotHistoryCard" class="card">
       <div class="card-title">💉 猛健樂施打歷程與週期回顧</div>
       <div id="shotLogList"></div>
     </div>
@@ -178,10 +184,10 @@
       </div>
     </div>
 
-    <!-- ⭐️ 猛健樂週期飲食與赤字週均獨立圖卡 ⭐️ -->
-    <div class="card" style="border-left: 5px solid #ec4899; background: #fff8fa; border: 1px solid #fbcfe8; padding: 12px 14px;">
+    <!-- ⭐️ 飲食與赤字週均獨立圖卡（支援猛健樂模式與自然日曆週雙軌） ⭐️ -->
+    <div id="cycleAvgCardBlock" class="card" style="border-left: 5px solid #ec4899; background: #fff8fa; border: 1px solid #fbcfe8; padding: 12px 14px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <strong style="color: #9d174d; font-size: 0.9rem;">💉 猛健樂週期飲食與赤字週均</strong>
+        <strong id="cycleAvgTitle" style="color: #9d174d; font-size: 0.9rem;">💉 猛健樂週期飲食與赤字週均</strong>
         <span id="cycleAvgBadge" class="badge badge-shot">計算中...</span>
       </div>
 
@@ -191,17 +197,17 @@
 
       <div class="grid-3" style="gap: 6px; text-align: center;">
         <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
-          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均實際赤字</small>
+          <small id="lblCycleAvgDeficit" style="color: #9d174d; font-size: 0.72rem; display:block;">日均實際赤字</small>
           <strong id="cycleAvgDeficit" style="font-size: 0.95rem; color: #16a34a;">--</strong> <span style="font-size:0.7rem; color:var(--sub);">kcal</span>
         </div>
 
         <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
-          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均蛋白質</small>
+          <small id="lblCycleAvgProtein" style="color: #9d174d; font-size: 0.72rem; display:block;">日均蛋白質</small>
           <strong id="cycleAvgProtein" style="font-size: 0.95rem; color: #059669;">--</strong> <span style="font-size:0.7rem; color:var(--sub);">g</span>
         </div>
 
         <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
-          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均總水分</small>
+          <small id="lblCycleAvgWater" style="color: #9d174d; font-size: 0.72rem; display:block;">日均總水分</small>
           <strong id="cycleAvgWater" style="font-size: 0.95rem; color: #0284c7;">--</strong> <span style="font-size:0.7rem; color:var(--sub);">ml</span>
         </div>
       </div>
@@ -401,7 +407,7 @@
     </div>
   </div>
 
-  <div class="version-footer">版本驗證代碼：<strong>MK-80974</strong></div>
+  <div class="version-footer">版本驗證代碼：<strong>MK-80975</strong></div>
 </div>
 
 <!-- 視覺化 API Key 管理 Modal 彈窗 -->
@@ -422,12 +428,12 @@
   </div>
 </div>
 
-<script src="shot.js?v=80974"></script>
-<script src="scale.js?v=80974"></script>
-<script src="fitdays.js?v=80974"></script>
-<script src="body.js?v=80974"></script>
-<script src="body-chart.js?v=80974"></script>
-<script src="diet.js?v=80974"></script>
-<script src="main.js?v=80974"></script>
+<script src="shot.js?v=80975"></script>
+<script src="scale.js?v=80975"></script>
+<script src="fitdays.js?v=80975"></script>
+<script src="body.js?v=80975"></script>
+<script src="body-chart.js?v=80975"></script>
+<script src="diet.js?v=80975"></script>
+<script src="main.js?v=80975"></script>
 </body>
 </html>
