@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80975">
+  <link rel="stylesheet" href="style.css?v=80976">
 </head>
 <body>
 
@@ -21,13 +21,13 @@
 
 <div class="container">
   
-  <!-- 全站統一系統與雲端管理工具列 (修復按鈕重疊) -->
+  <!-- 全站統一系統與雲端管理工具列 -->
   <div class="card" style="padding: 12px 14px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
     <span style="font-size: 0.85rem; color: #0369a1; font-weight: 700;">☁️ 系統與雲端管理</span>
     <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-      <button class="action-btn btn-sync" type="button" style="margin: 0;" onclick="syncFromCloud()">從雲端載入</button>
-      <button class="action-btn" type="button" style="margin: 0; background:#8b5cf6; color:#fff;" onclick="openKeyModal()">⚙️ API Key</button>
-      <button class="action-btn" type="button" style="margin: 0; background:#64748b; color:#fff;" onclick="setupSecretToken()">雲端金鑰</button>
+      <button class="action-btn btn-sync" type="button" onclick="syncFromCloud()">從雲端載入</button>
+      <button class="action-btn" type="button" style="background:#8b5cf6; color:#fff;" onclick="openKeyModal()">⚙️ API Key</button>
+      <button class="action-btn" type="button" style="background:#64748b; color:#fff;" onclick="setupSecretToken()">雲端金鑰</button>
     </div>
   </div>
   
@@ -140,10 +140,10 @@
       </div>
     </div>
 
-    <!-- [品牌B] Fitdays 區塊 (由 fitdays.js 注入) -->
+    <!-- [品牌B] Fitdays 區塊 -->
     <div id="fitdaysScaleContainer" style="display: none;"></div>
 
-    <!-- ⭐️ 完整 InBody 記錄全方位數據 (實體標籤，確保絕不丟失) ⭐️ -->
+    <!-- 完整 InBody 記錄全方位數據 -->
     <div class="card">
       <div class="card-title">
         <span>📝 記錄 InBody 全方位數據</span>
@@ -218,7 +218,7 @@
       <button class="btn btn-primary" type="button" onclick="saveBodyData()">儲存完整 InBody 數據</button>
     </div>
 
-    <!-- ⭐️ InBody 趨勢分析圖表 (實體標籤) ⭐️ -->
+    <!-- InBody 趨勢分析圖表 -->
     <div class="card">
       <div class="card-title">📈 InBody 數據趨勢分析</div>
       <div class="chart-tabs" id="bodyChartTabs">
@@ -248,7 +248,7 @@
       <div class="pagination-box" id="scalePagination"></div>
     </div>
 
-    <!-- ⭐️ InBody 歷史體態紀錄 (實體標籤) ⭐️ -->
+    <!-- InBody 歷史體態紀錄 -->
     <div class="card">
       <div class="card-title">📊 InBody 歷史體態紀錄</div>
       <div id="bodyLogList"></div>
@@ -258,15 +258,15 @@
   <!-- 飲食與運動 TAB -->
   <div id="tab-diet" class="tab-content">
     
-    <!-- 日期切換卡片 -->
-    <div class="card" style="padding: 12px 16px; background: #ffffff;">
+    <!-- 日期切換卡片 (修復文字與外框重疊問題) -->
+    <div class="card" style="padding: 12px 14px; background: #ffffff;">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-        <button class="action-btn btn-edit" type="button" onclick="changeDietDateBy(-1)">◀ 前一天</button>
-        <div style="flex: 1; text-align: center;">
-          <input type="date" id="dietDate" style="text-align: center; font-weight: bold; border-color: var(--primary);" onchange="renderDiet()">
+        <button class="action-btn btn-edit" type="button" style="padding: 8px 12px;" onclick="changeDietDateBy(-1)">◀ 前一天</button>
+        <div style="flex: 1; min-width: 0;">
+          <input type="date" id="dietDate" style="text-align: center; font-weight: bold; border-color: var(--primary); min-height: 38px; width: 100%;" onchange="renderDiet()">
         </div>
-        <button class="action-btn btn-edit" type="button" onclick="changeDietDateBy(1)">後一天 ▶</button>
-        <button class="action-btn btn-sync" type="button" onclick="resetDietDateToToday()">今天</button>
+        <button class="action-btn btn-edit" type="button" style="padding: 8px 12px;" onclick="changeDietDateBy(1)">後一天 ▶</button>
+        <button class="action-btn btn-sync" type="button" style="padding: 8px 12px;" onclick="resetDietDateToToday()">今天</button>
       </div>
     </div>
 
@@ -350,7 +350,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0369a1;">✏️ 自訂純水量：</span>
             <div style="display: flex; gap: 6px; flex: 1; max-width: 220px;">
-              <input type="number" id="customWaterPure" placeholder="輸入 ml" style="padding: 4px 8px; font-size: 0.8rem;">
+              <input type="number" id="customWaterPure" placeholder="輸入 ml" style="padding: 4px 8px; font-size: 0.8rem; min-height: 34px;">
               <button class="action-btn btn-edit" type="button" onclick="addCustomWater('pure')">+加水</button>
             </div>
           </div>
@@ -365,7 +365,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
             <span style="font-size: 0.8rem; font-weight: bold; color: #0f766e;">✏️ 自訂茶/咖啡量：</span>
             <div style="display: flex; gap: 6px; flex: 1; max-width: 220px;">
-              <input type="number" id="customWaterTea" placeholder="輸入 ml" style="padding: 4px 8px; font-size: 0.8rem;">
+              <input type="number" id="customWaterTea" placeholder="輸入 ml" style="padding: 4px 8px; font-size: 0.8rem; min-height: 34px;">
               <button class="action-btn btn-edit" type="button" style="background:#ccfbf1; color:#0f766e; border-color:#99f6e4;" onclick="addCustomWater('tea')">+加茶</button>
             </div>
           </div>
@@ -493,7 +493,7 @@
     </div>
   </div>
 
-  <div class="version-footer">版本驗證代碼：<strong>MK-80975</strong></div>
+  <div class="version-footer">版本驗證代碼：<strong>MK-80976</strong></div>
 </div>
 
 <!-- 視覺化 API Key 管理 Modal 彈窗 -->
@@ -514,12 +514,12 @@
   </div>
 </div>
 
-<script src="shot.js?v=80975"></script>
-<script src="scale.js?v=80975"></script>
-<script src="fitdays.js?v=80975"></script>
-<script src="body.js?v=80975"></script>
-<script src="body-chart.js?v=80975"></script>
-<script src="diet.js?v=80975"></script>
-<script src="main.js?v=80975"></script>
+<script src="shot.js?v=80976"></script>
+<script src="scale.js?v=80976"></script>
+<script src="fitdays.js?v=80976"></script>
+<script src="body.js?v=80976"></script>
+<script src="body-chart.js?v=80976"></script>
+<script src="diet.js?v=80976"></script>
+<script src="main.js?v=80976"></script>
 </body>
 </html>
