@@ -1,5 +1,5 @@
 // Mojo Project
-// 1. main.js (MK-80974: 初始化、全域狀態、API Key 與雲端同步中心)
+// 1. main.js (MK-80975: 初始化、全域狀態、API Key 與雲端同步中心)
 
 window.MojoState = {
   bodyLogs: [],
@@ -240,7 +240,6 @@ function loadLocalState() {
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof initFitdaysUI === 'function') initFitdaysUI();
-  if (typeof initInbodyUI === 'function') initInbodyUI();
 
   initDefaultDates();
   loadLocalState();
