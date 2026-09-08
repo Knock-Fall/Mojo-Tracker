@@ -1,5 +1,5 @@
 // Mojo Project
-// 7. diet.js (MK-80977: 徹底修正猛健樂/自然日曆週判定與日期精確換算)
+// 7. diet.js (完整版：飲食、水分、運動、赤字看板與雙軌週均計算)
 
 let base64FoodImage = '';
 
@@ -255,7 +255,7 @@ function deleteWorkoutLog(id) {
   }
 }
 
-// ⭐️ 雙軌週期週均計算：支援猛健樂 7 天施打週期 VS 自然日曆週 (週一至週日)
+// 雙軌週期週均計算：支援猛健樂 7 天施打週期 VS 自然日曆週 (週一至週日)
 function renderCycleNutritionAverages(currentDateStr) {
   const cardBlock = document.getElementById('cycleAvgCardBlock');
   const titleEl = document.getElementById('cycleAvgTitle');
@@ -269,10 +269,11 @@ function renderCycleNutritionAverages(currentDateStr) {
 
   if (!cardBlock || !badgeEl) return;
 
+  // 1. 嚴格檢查是否啟用猛健樂追蹤
   const userUsesMounjaro = (typeof isMounjaroEnabled === 'function') ? isMounjaroEnabled() : true;
   const shots = (window.MojoState.shotLogs || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  // 關鍵判斷：使用者必須「開啟猛健樂模式」而且「有施打紀錄」，才走猛健樂週期
+  // 只有在「勾選啟用」且「有施打紀錄」時才跑猛健樂週期
   const isMounjaroTrack = userUsesMounjaro && (shots.length > 0);
 
   let startDateStr = '';
@@ -320,7 +321,7 @@ function renderCycleNutritionAverages(currentDateStr) {
     // B 軌：自然日曆週（週一 ～ 週日）
     const parts = currentDateStr.split('-').map(Number);
     const curDate = new Date(parts[0], parts[1] - 1, parts[2]);
-    const dayOfWeek = curDate.getDay(); // 0(日), 1(一), ..., 6(六)
+    const dayOfWeek = curDate.getDay(); // 0(日), 1(一), 2(二)...
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
 
     const mondayObj = new Date(curDate);
