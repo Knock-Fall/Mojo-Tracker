@@ -1,5 +1,5 @@
 // Mojo Project
-// fitdays.js (Fitdays 專屬 UI 模板、AI 辨識與邏輯模組)
+// fitdays.js (Fitdays 專屬 UI 模板、AI 辨識與獨立偏差比對模組)
 
 let base64FitdaysImage = '';
 let fitdaysCurrentPage = 1;
@@ -9,7 +9,7 @@ const FITDAYS_PAGE_SIZE = 5;
 function initFitdaysUI() {
   const container = document.getElementById('fitdaysScaleContainer');
   if (!container) return;
-  
+
   container.innerHTML = `
     <div class="card" style="border-left: 5px solid #0d9488;">
       <div class="card-title">
@@ -55,7 +55,7 @@ function initFitdaysUI() {
       <button class="btn" type="button" style="background:#0d9488; color:#fff;" onclick="saveFitdaysData()">記錄 Fitdays 體脂數據</button>
     </div>
 
-    <!-- InBody vs Fitdays 專屬偏差比對卡 -->
+    <!-- InBody vs Fitdays 獨立偏差比對卡 -->
     <div class="card" style="background:#f0fdfa; border: 1px solid #ccfbf1;">
       <div class="card-title" style="color:#0f766e;">⚖️ InBody vs Fitdays 獨立偏差比對</div>
       <div id="fitdaysDiffReport" style="font-size:0.85rem; line-height: 1.6; color:#134e4a;">計算比對中...</div>
@@ -70,7 +70,7 @@ function initFitdaysUI() {
   `;
 }
 
-// 2. 切換邏輯配合新容器 ID
+// 2. 品牌切換邏輯
 function switchScaleBrand(brand) {
   const zeppBlock = document.getElementById('zeppScaleBlock');
   const fitdaysBlock = document.getElementById('fitdaysScaleContainer');
