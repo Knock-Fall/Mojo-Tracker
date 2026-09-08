@@ -1,5 +1,5 @@
 // Mojo Project
-// 1. main.js (全域狀態、API Key、雲端同步與猛健樂/自然模式切換)
+// 1. main.js (MK-80974: 初始化、全域狀態、API Key 與雲端同步中心)
 
 window.MojoState = {
   bodyLogs: [],
@@ -10,41 +10,6 @@ window.MojoState = {
   waterLogs: {},
   workoutLogs: []
 };
-
-function isMounjaroEnabled() {
-  const saved = localStorage.getItem('user_uses_mounjaro');
-  return saved === null ? true : saved === 'true';
-}
-
-function toggleMounjaroMode(enabled) {
-  localStorage.setItem('user_uses_mounjaro', enabled ? 'true' : 'false');
-  applyMounjaroUIMode(enabled);
-  if (typeof renderDiet === 'function') renderDiet();
-  if (typeof renderShotList === 'function') renderShotList();
-  if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
-}
-
-function applyMounjaroUIMode(enabled) {
-  const chk = document.getElementById('chkUseMounjaro');
-  if (chk) chk.checked = enabled;
-
-  const titleEl = document.getElementById('mainAppTitle');
-  const tabInbodyBtn = document.getElementById('btnTabInbody');
-  const shotInputCard = document.getElementById('mounjaroShotInputCard');
-  const shotHistoryCard = document.getElementById('mounjaroShotHistoryCard');
-
-  if (enabled) {
-    if (titleEl) titleEl.innerText = '個人健體與猛健樂管理';
-    if (tabInbodyBtn) tabInbodyBtn.innerText = '📊 體態與猛健樂';
-    if (shotInputCard) shotInputCard.style.display = 'block';
-    if (shotHistoryCard) shotHistoryCard.style.display = 'block';
-  } else {
-    if (titleEl) titleEl.innerText = '個人健體與健康管理';
-    if (tabInbodyBtn) tabInbodyBtn.innerText = '📊 體態與健康管理';
-    if (shotInputCard) shotInputCard.style.display = 'none';
-    if (shotHistoryCard) shotHistoryCard.style.display = 'none';
-  }
-}
 
 const GAS_SYNC_URL = "https://script.google.com/macros/s/AKfycbz_G1kXy1h4Yc1_f_example/exec";
 
@@ -279,8 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initDefaultDates();
   loadLocalState();
-
-  applyMounjaroUIMode(isMounjaroEnabled());
 
   const tabInbody = document.getElementById('btnTabInbody');
   const tabDiet = document.getElementById('btnTabDiet');
