@@ -1,5 +1,5 @@
 // Mojo Project
-// 7. diet.js (飲食、水分、運動、熱量赤字與猛健樂施打週期週均看板)
+// 7. diet.js (修復週均蛋白質取值欄位屬性錯誤)
 
 let base64FoodImage = '';
 
@@ -31,7 +31,7 @@ function addWaterRecord(type, amount) {
 
   window.MojoState.waterLogs = wLogs;
   localStorage.setItem('my_water_logs', JSON.stringify(wLogs));
-  uploadToCloud('WATER', { date: dStr, data: wLogs[dStr] });
+  if (typeof uploadToCloud === 'function') uploadToCloud('WATER', { date: dStr, data: wLogs[dStr] });
   renderDiet();
 }
 
@@ -50,7 +50,7 @@ function resetWaterRecord() {
   wLogs[dStr] = { pure: 0, tea: 0 };
   window.MojoState.waterLogs = wLogs;
   localStorage.setItem('my_water_logs', JSON.stringify(wLogs));
-  uploadToCloud('WATER', { date: dStr, data: wLogs[dStr] });
+  if (typeof uploadToCloud === 'function') uploadToCloud('WATER', { date: dStr, data: wLogs[dStr] });
   renderDiet();
 }
 
@@ -103,7 +103,7 @@ async function analyzeFoodImage() {
 
     let rawText = resData.candidates[0].content.parts[0].text.trim();
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('模型未回傳有效的 JSON格式');
+    if (!jsonMatch) throw new Error('模型未回傳有效的 JSON 格式');
     const res = JSON.parse(jsonMatch[0]);
 
     if (res.foodName) document.getElementById('dietContent').value = res.foodName;
@@ -150,7 +150,7 @@ function saveDiet() {
   list.push(item);
   window.MojoState.dietLogs = list;
   localStorage.setItem('my_diet_logs', JSON.stringify(list));
-  uploadToCloud('DIET', item);
+  if (typeof uploadToCloud === 'function') uploadToCloud('DIET', item);
 
   document.getElementById('dietContent').value = '';
   document.getElementById('dietCal').value = '';
@@ -235,7 +235,7 @@ function saveWorkout() {
   list.push(item);
   window.MojoState.workoutLogs = list;
   localStorage.setItem('my_workout_logs', JSON.stringify(list));
-  uploadToCloud('WORKOUT', item);
+  if (typeof uploadToCloud === 'function') uploadToCloud('WORKOUT', item);
 
   document.getElementById('workoutDuration').value = '';
   document.getElementById('workoutCal').value = '';
@@ -254,169 +254,144 @@ function deleteWorkoutLog(id) {
   }
 }
 
-// ⭐️ 核心新增：猛健樂施打週期飲食與赤字平均看板
+// 猛健樂週期飲食與赤字週均計算
 function renderCycleNutritionAverages(currentDateStr) {
-  const cardContainer = document.getElementById('cycleAverageCard');
-  if (!cardContainer) return;
+  const badgeEl = document.getElementById('cycleAvgBadge');
+  const subEl = document.getElementById('cycleAvgSub');
+  const deficitEl = document.getElementById('cycleAvgDeficit');
+  const proEl = document.getElementById('cycleAvgProtein');
+  const waterEl = document.getElementById('cycleAvgWater');
+  const inEl = document.getElementById('cycleAvgCalIn');
+  const burnEl = document.getElementById('cycleAvgBurn');
+
+  if (!badgeEl) return;
 
   const shots = (window.MojoState.shotLogs || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
-  if (shots.length === 0) {
-    cardContainer.innerHTML = '';
-    return;
-  }
+  
+  let matchedShot = null;
+  let startDateStr = '';
+  let endDateStr = '';
 
-  // 尋找當前所選日期涵蓋在猛健樂哪一個週期 (7天區間)
-  let matchedCycle = null;
-  for (let i = 0; i < shots.length; i++) {
-    const sDate = shots[i].date;
-    const startObj = new Date(sDate);
-    const endObj = new Date(startObj);
-    endObj.setDate(endObj.getDate() + 7);
-    const eDate = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
+  if (shots.length > 0) {
+    for (let i = 0; i < shots.length; i++) {
+      const sDate = shots[i].date;
+      const sObj = new Date(sDate);
+      const eObj = new Date(sObj);
+      eObj.setDate(eObj.getDate() + 7);
+      const eDate = `${eObj.getFullYear()}-${String(eObj.getMonth() + 1).padStart(2, '0')}-${String(eObj.getDate()).padStart(2, '0')}`;
 
-    if (currentDateStr >= sDate && currentDateStr <= eDate) {
-      matchedCycle = { shot: shots[i], startDate: sDate, endDate: eDate };
-      break;
+      if (currentDateStr >= sDate && currentDateStr <= eDate) {
+        matchedShot = shots[i];
+        startDateStr = sDate;
+        endDateStr = eDate;
+        break;
+      }
     }
+    if (!matchedShot) {
+      matchedShot = shots[0];
+      startDateStr = matchedShot.date;
+      const sObj = new Date(startDateStr);
+      const eObj = new Date(sObj);
+      eObj.setDate(eObj.getDate() + 7);
+      endDateStr = `${eObj.getFullYear()}-${String(eObj.getMonth() + 1).padStart(2, '0')}-${String(eObj.getDate()).padStart(2, '0')}`;
+    }
+  } else {
+    const curObj = new Date(currentDateStr);
+    const sObj = new Date(curObj);
+    sObj.setDate(sObj.getDate() - 6);
+    startDateStr = `${sObj.getFullYear()}-${String(sObj.getMonth() + 1).padStart(2, '0')}-${String(sObj.getDate()).padStart(2, '0')}`;
+    endDateStr = currentDateStr;
   }
 
-  // 若所選日期超出任何已記錄週期，預設匹配最新一劑施打週期
-  if (!matchedCycle) {
-    const sDate = shots[0].date;
-    const startObj = new Date(sDate);
-    const endObj = new Date(startObj);
-    endObj.setDate(endObj.getDate() + 7);
-    const eDate = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
-    matchedCycle = { shot: shots[0], startDate: sDate, endDate: eDate };
-  }
+  const doseLabel = matchedShot ? `${matchedShot.dose} (${startDateStr.slice(5)}~${endDateStr.slice(5)})` : `近7日 (${startDateStr.slice(5)}~${endDateStr.slice(5)})`;
+  badgeEl.innerText = doseLabel;
 
-  // 統計該週期內的每天飲食、運動、水分
+  const bodies = window.MojoState.bodyLogs || [];
+  const latestBody = bodies.length ? bodies[bodies.length - 1] : null;
+  const refWeight = latestBody ? latestBody.weight : 81.5;
+  const tdee = Math.round(refWeight * 28);
+
   const allDiets = window.MojoState.dietLogs || [];
   const allWorkouts = window.MojoState.workoutLogs || [];
   const allWater = window.MojoState.waterLogs || {};
 
-  // 取最新 InBody 或 81.5kg 推算 TDEE
-  const bodies = window.MojoState.bodyLogs || [];
-  const refWeight = bodies.length ? bodies[bodies.length - 1].weight : 81.5;
-  const tdee = Math.round(refWeight * 28);
-
-  const cycleDays = [];
-  const curObj = new Date(matchedCycle.startDate);
-  const endObj = new Date(matchedCycle.endDate);
-
-  while (curObj <= endObj) {
-    const dStr = `${curObj.getFullYear()}-${String(curObj.getMonth() + 1).padStart(2, '0')}-${String(curObj.getDate()).padStart(2, '0')}`;
-    cycleDays.push(dStr);
-    curObj.setDate(curObj.getDate() + 1);
-  }
-
-  let recordedDaysCount = 0;
-  let totalCalIn = 0;
+  let s = new Date(startDateStr);
+  const e = new Date(endDateStr);
+  let recordedDays = 0;
+  let totalIn = 0;
   let totalBurn = 0;
-  let totalProtein = 0;
+  let totalPro = 0;
   let totalWater = 0;
 
-  cycleDays.forEach(dStr => {
+  while (s <= e) {
+    const dStr = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
     const dayDiets = allDiets.filter(d => d.date === dStr);
     const dayWorkouts = allWorkouts.filter(w => w.date === dStr);
     const dayWaterObj = allWater[dStr] || { pure: 0, tea: 0 };
     const dayWater = (dayWaterObj.pure || 0) + (dayWaterObj.tea || 0);
 
-    const hasData = dayDiets.length > 0 || dayWorkouts.length > 0 || dayWater > 0;
-    if (hasData) {
-      recordedDaysCount++;
-      let dayCal = 0, dayPro = 0;
+    if (dayDiets.length > 0 || dayWorkouts.length > 0 || dayWater > 0) {
+      recordedDays++;
+      let dCal = 0, dPro = 0;
       dayDiets.forEach(d => {
-        dayCal += (d.cal || 0);
-        dayPro += (d.protein || 0);
+        dCal += (d.cal || 0);
+        // 核心修正：雙向相容 protein 與 pro 屬性
+        dPro += (d.protein !== undefined ? d.protein : (d.pro || 0));
       });
-      let dayBurn = 0;
-      dayWorkouts.forEach(w => {
-        dayBurn += (w.cal || 0);
-      });
+      let dBurn = 0;
+      dayWorkouts.forEach(w => { dBurn += (w.cal || 0); });
 
-      totalCalIn += dayCal;
-      totalBurn += dayBurn;
-      totalProtein += dayPro;
+      totalIn += dCal;
+      totalBurn += dBurn;
+      totalPro += dPro;
       totalWater += dayWater;
     }
-  });
+    s.setDate(s.getDate() + 1);
+  }
 
-  if (recordedDaysCount === 0) {
-    cardContainer.innerHTML = `
-      <div class="card" style="border-left: 5px solid #ec4899; background: #fff5f8; padding: 12px 14px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <strong style="color: #be185d; font-size: 0.88rem;">💉 本週期每週平均 (${matchedCycle.startDate} ~ ${matchedCycle.endDate})</strong>
-          <span class="badge badge-shot">${matchedCycle.shot.dose}</span>
-        </div>
-        <div style="font-size: 0.8rem; color: #9d174d; margin-top: 4px;">本週期內尚無飲食或運動紀錄，記錄後將自動計算週平均赤字。</div>
-      </div>
-    `;
+  if (recordedDays === 0) {
+    subEl.innerHTML = `統計基準：本週期尚無飲食數據 ｜ <span style="color:#64748b;">待紀錄</span>`;
+    deficitEl.innerText = '--';
+    proEl.innerText = '--';
+    waterEl.innerText = '--';
+    inEl.innerText = '--';
+    burnEl.innerText = '--';
     return;
   }
 
-  const avgCalIn = Math.round(totalCalIn / recordedDaysCount);
-  const avgBurn = Math.round(totalBurn / recordedDaysCount);
-  const avgNetCal = avgCalIn - avgBurn;
-  const avgDeficit = avgNetCal - tdee;
-  const avgPro = (totalProtein / recordedDaysCount).toFixed(1);
-  const avgWater = Math.round(totalWater / recordedDaysCount);
+  const avgIn = Math.round(totalIn / recordedDays);
+  const avgBurn = Math.round(totalBurn / recordedDays);
+  const avgNet = avgIn - avgBurn;
+  const avgDeficit = avgNet - tdee;
+  const avgProtein = (totalPro / recordedDays).toFixed(1);
+  const avgWaterVal = Math.round(totalWater / recordedDays);
 
-  let deficitBadge = '';
+  let statusBadge = '';
   if (avgDeficit <= -500) {
-    deficitBadge = '<span style="color:#16a34a; font-weight:bold;">🔥 赤字優異 (≤ -500)</span>';
+    statusBadge = '<span style="color:#16a34a; font-weight:bold;">🔥 赤字優異 (≤ -500)</span>';
+    deficitEl.style.color = '#16a34a';
   } else if (avgDeficit < 0) {
-    deficitBadge = '<span style="color:#d97706; font-weight:bold;">🌱 溫和赤字</span>';
+    statusBadge = '<span style="color:#d97706; font-weight:bold;">🌱 溫和赤字</span>';
+    deficitEl.style.color = '#d97706';
   } else {
-    deficitBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 週期熱量盈餘</span>';
+    statusBadge = '<span style="color:#dc2626; font-weight:bold;">⚠️ 週期熱量盈餘</span>';
+    deficitEl.style.color = '#dc2626';
   }
 
-  cardContainer.innerHTML = `
-    <div class="card" style="border-left: 5px solid #ec4899; background: #fff8fa; border: 1px solid #fbcfe8; padding: 12px 14px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <strong style="color: #9d174d; font-size: 0.88rem;">💉 猛健樂週期飲食與赤字週均</strong>
-        <span class="badge badge-shot">${matchedCycle.shot.dose} (${matchedCycle.startDate.slice(5)}~${matchedCycle.endDate.slice(5)})</span>
-      </div>
-
-      <div style="font-size: 0.75rem; color: #be185d; margin-bottom: 8px;">
-        統計基準：已記錄 ${recordedDaysCount} / 7 天 ｜ ${deficitBadge}
-      </div>
-
-      <div class="grid-3" style="gap: 6px; text-align: center;">
-        <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
-          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均實際赤字</small>
-          <strong style="font-size: 0.95rem; color: ${avgDeficit <= -500 ? '#16a34a' : (avgDeficit < 0 ? '#b45309' : '#dc2626')};">
-            ${avgDeficit > 0 ? '+' + avgDeficit : avgDeficit}
-          </strong> <span style="font-size:0.7rem; color:var(--sub);">kcal</span>
-        </div>
-
-        <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
-          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均蛋白質</small>
-          <strong style="font-size: 0.95rem; color: #059669;">${avgPro}</strong> <span style="font-size:0.7rem; color:var(--sub);">g</span>
-        </div>
-
-        <div style="background: #ffffff; padding: 6px; border-radius: 8px; border: 1px solid #fce7f3;">
-          <small style="color: #9d174d; font-size: 0.72rem; display:block;">日均總水分</small>
-          <strong style="font-size: 0.95rem; color: #0284c7;">${avgWater}</strong> <span style="font-size:0.7rem; color:var(--sub);">ml</span>
-        </div>
-      </div>
-
-      <div style="font-size: 0.75rem; color: #64748b; margin-top: 8px; line-height: 1.4; border-top: 1px dashed #fbcfe8; padding-top: 6px; display: flex; justify-content: space-between;">
-        <span>🍽️ 週期日均攝取：<strong>${avgCalIn}</strong> kcal</span>
-        <span>🏋️ 週期日均運動：<strong>${avgBurn}</strong> kcal</span>
-      </div>
-    </div>
-  `;
+  subEl.innerHTML = `統計基準：已記錄 <strong>${recordedDays}</strong> / 7 天 ｜ ${statusBadge}`;
+  deficitEl.innerText = (avgDeficit > 0 ? '+' + avgDeficit : avgDeficit);
+  proEl.innerText = avgProtein; // 修正後即時顯示真實蛋白質克數
+  waterEl.innerText = avgWaterVal;
+  inEl.innerText = avgIn;
+  burnEl.innerText = avgBurn;
 }
 
 function renderDiet() {
   const dStr = getSelectedDietDate();
   initWorkoutOptions();
 
-  // 渲染猛健樂週期週均看板
   renderCycleNutritionAverages(dStr);
 
-  // 1. 最新體重連動目標
   const bodies = window.MojoState.bodyLogs || [];
   const latestBody = bodies.length ? bodies[bodies.length - 1] : null;
   const refWeight = latestBody ? latestBody.weight : 81.5;
@@ -438,12 +413,11 @@ function renderDiet() {
   document.getElementById('fiberTarget').innerText = targetFiber;
   document.getElementById('waterTarget').innerText = targetWater;
 
-  // 2. 累計攝取
   const diets = (window.MojoState.dietLogs || []).filter(d => d.date === dStr);
   let curCal = 0, curPro = 0, curCarbs = 0, curFat = 0, curFiber = 0;
   diets.forEach(d => {
     curCal += (d.cal || 0);
-    curPro += (d.protein || 0);
+    curPro += (d.protein !== undefined ? d.protein : (d.pro || 0));
     curCarbs += (d.carbs || 0);
     curFat += (d.fat || 0);
     curFiber += (d.fiber || 0);
@@ -467,7 +441,6 @@ function renderDiet() {
   document.getElementById('fatProgress').style.width = `${Math.min(100, (curFat / targetFat) * 100)}%`;
   document.getElementById('fiberProgress').style.width = `${Math.min(100, (curFiber / targetFiber) * 100)}%`;
 
-  // 3. 運動消耗與淨赤字
   const workouts = (window.MojoState.workoutLogs || []).filter(w => w.date === dStr);
   let curBurn = 0;
   workouts.forEach(w => curBurn += (w.cal || 0));
@@ -489,7 +462,6 @@ function renderDiet() {
     defEl.innerHTML = '<span style="color:#dc2626;font-weight:bold;">⚠️ 今日熱量盈餘，注意控制</span>';
   }
 
-  // 4. 水分看板
   const wObj = (window.MojoState.waterLogs || {})[dStr] || { pure: 0, tea: 0 };
   const totalWater = (wObj.pure || 0) + (wObj.tea || 0);
   document.getElementById('waterTotalVal').innerText = totalWater;
@@ -510,15 +482,15 @@ function renderDiet() {
   document.getElementById('pureWaterProgress').style.width = `${Math.min(100, pureBar)}%`;
   document.getElementById('teaWaterProgress').style.width = `${Math.min(100 - Math.min(100, pureBar), teaBar)}%`;
 
-  // 5. 渲染清單
   const dietListEl = document.getElementById('dietLogList');
   if (dietListEl) {
     let dHtml = '';
     diets.forEach(d => {
+      const pVal = (d.protein !== undefined ? d.protein : (d.pro || 0));
       dHtml += `<div class="log-item">
         <div class="log-info">
           <strong>[${d.type}] ${d.content}</strong> ｜ ${d.cal} kcal<br>
-          <small style="color:var(--sub)">蛋白: ${d.protein}g ｜ 碳水: ${d.carbs}g ｜ 脂肪: ${d.fat}g ｜ 纖維: ${d.fiber}g</small>
+          <small style="color:var(--sub)">蛋白: ${pVal}g ｜ 碳水: ${d.carbs}g ｜ 脂肪: ${d.fat}g ｜ 纖維: ${d.fiber}g</small>
         </div>
         <div class="log-actions">
           <button class="action-btn btn-del" type="button" onclick="deleteDietLog('${d.id}')">刪除</button>
