@@ -1,5 +1,5 @@
 // Mojo Project
-// 1. main.js (全域狀態、API Key、雲端同步與模式切換中心)
+// 1. main.js (全域狀態、API Key、雲端同步與猛健樂/自然模式切換)
 
 window.MojoState = {
   bodyLogs: [],
@@ -11,50 +11,34 @@ window.MojoState = {
   workoutLogs: []
 };
 
-// 猛健樂模式讀取 (預設 true)
 function isMounjaroEnabled() {
   const saved = localStorage.getItem('user_uses_mounjaro');
   return saved === null ? true : saved === 'true';
 }
 
-// 點擊切換按鈕
-function toggleMounjaroMode() {
-  const current = isMounjaroEnabled();
-  const next = !current;
-  localStorage.setItem('user_uses_mounjaro', next ? 'true' : 'false');
-  applyMounjaroUIMode(next);
-
-  // 切換後強制立即更新週均與飲食清單
+function toggleMounjaroMode(enabled) {
+  localStorage.setItem('user_uses_mounjaro', enabled ? 'true' : 'false');
+  applyMounjaroUIMode(enabled);
   if (typeof renderDiet === 'function') renderDiet();
   if (typeof renderShotList === 'function') renderShotList();
   if (typeof renderComparisonAnalysis === 'function') renderComparisonAnalysis();
 }
 
 function applyMounjaroUIMode(enabled) {
-  const btn = document.getElementById('btnToggleMounjaro');
+  const chk = document.getElementById('chkUseMounjaro');
+  if (chk) chk.checked = enabled;
+
   const titleEl = document.getElementById('mainAppTitle');
   const tabInbodyBtn = document.getElementById('btnTabInbody');
   const shotInputCard = document.getElementById('mounjaroShotInputCard');
   const shotHistoryCard = document.getElementById('mounjaroShotHistoryCard');
 
   if (enabled) {
-    if (btn) {
-      btn.innerText = '💉 猛健樂模式 (開啟)';
-      btn.style.background = '#fce7f3';
-      btn.style.color = '#be185d';
-      btn.style.borderColor = '#f472b6';
-    }
     if (titleEl) titleEl.innerText = '個人健體與猛健樂管理';
     if (tabInbodyBtn) tabInbodyBtn.innerText = '📊 體態與猛健樂';
     if (shotInputCard) shotInputCard.style.display = 'block';
     if (shotHistoryCard) shotHistoryCard.style.display = 'block';
   } else {
-    if (btn) {
-      btn.innerText = '🌱 自然健康模式 (關閉)';
-      btn.style.background = '#f1f5f9';
-      btn.style.color = '#475569';
-      btn.style.borderColor = '#cbd5e1';
-    }
     if (titleEl) titleEl.innerText = '個人健體與健康管理';
     if (tabInbodyBtn) tabInbodyBtn.innerText = '📊 體態與健康管理';
     if (shotInputCard) shotInputCard.style.display = 'none';
@@ -296,7 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initDefaultDates();
   loadLocalState();
 
-  // 套用使用者偏好的猛健樂模式
   applyMounjaroUIMode(isMounjaroEnabled());
 
   const tabInbody = document.getElementById('btnTabInbody');
