@@ -1,7 +1,8 @@
 // Mojo Project
-// 7. diet.js (MK-80974: 飲食、水分、運動、熱量赤字與猛健樂施打週期週均看板)
+// 7. diet.js (MK-80977: 恢復運動圖示、防呆自訂運動名稱、新增飲食編輯功能)
 
 let base64FoodImage = '';
+let editingDietId = null; // 記錄當前正在編輯的飲食 ID
 
 function getSelectedDietDate() {
   return document.getElementById('dietDate')?.value || getLocalTodayStr();
@@ -123,6 +124,7 @@ async function analyzeFoodImage() {
   }
 }
 
+// ⭐️ 飲食儲存（支援新增與編輯更新）
 function saveDiet() {
   const dStr = getSelectedDietDate();
   const type = document.getElementById('dietType').value;
@@ -135,23 +137,44 @@ function saveDiet() {
 
   if (!content) return alert('請輸入食物內容');
 
-  const item = {
-    id: Date.now().toString(),
-    date: dStr,
-    type,
-    content,
-    cal,
-    protein: pro,
-    carbs,
-    fat,
-    fiber
-  };
-
   let list = window.MojoState.dietLogs || [];
-  list.push(item);
+
+  if (editingDietId) {
+    const idx = list.findIndex(d => d.id === editingDietId);
+    if (idx !== -1) {
+      list[idx].type = type;
+      list[idx].content = content;
+      list[idx].cal = cal;
+      list[idx].protein = pro;
+      list[idx].carbs = carbs;
+      list[idx].fat = fat;
+      list[idx].fiber = fiber;
+      if (typeof uploadToCloud === 'function') uploadToCloud('DIET', list[idx]);
+    }
+    editingDietId = null;
+    const submitBtn = document.getElementById('btnSaveDietSubmit');
+    if (submitBtn) {
+      submitBtn.innerText = '加入所選日期飲食紀錄';
+      submitBtn.className = 'btn btn-accent';
+    }
+  } else {
+    const item = {
+      id: Date.now().toString(),
+      date: dStr,
+      type,
+      content,
+      cal,
+      protein: pro,
+      carbs,
+      fat,
+      fiber
+    };
+    list.push(item);
+    if (typeof uploadToCloud === 'function') uploadToCloud('DIET', item);
+  }
+
   window.MojoState.dietLogs = list;
   localStorage.setItem('my_diet_logs', JSON.stringify(list));
-  if (typeof uploadToCloud === 'function') uploadToCloud('DIET', item);
 
   document.getElementById('dietContent').value = '';
   document.getElementById('dietCal').value = '';
@@ -165,58 +188,128 @@ function saveDiet() {
   renderDiet();
 }
 
+// ⭐️ 編輯飲食回填
+function editDietLog(id) {
+  const list = window.MojoState.dietLogs || [];
+  const item = list.find(d => d.id === id);
+  if (!item) return;
+
+  editingDietId = id;
+  document.getElementById('dietType').value = item.type;
+  document.getElementById('dietContent').value = item.content;
+  document.getElementById('dietCal').value = item.cal || 0;
+  document.getElementById('dietPro').value = (item.protein !== undefined ? item.protein : (item.pro || 0));
+  document.getElementById('dietCarbs').value = item.carbs || 0;
+  document.getElementById('dietFat').value = item.fat || 0;
+  document.getElementById('dietFiber').value = item.fiber || 0;
+
+  const submitBtn = document.getElementById('btnSaveDietSubmit');
+  if (submitBtn) {
+    submitBtn.innerText = '💾 更新此筆飲食紀錄';
+    submitBtn.className = 'btn btn-primary';
+  }
+
+  document.getElementById('dietContent').focus();
+  document.getElementById('dietContent').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function deleteDietLog(id) {
   if (confirm('確定要刪除這筆飲食紀錄？')) {
     let list = window.MojoState.dietLogs || [];
     list = list.filter(d => d.id !== id);
+    if (editingDietId === id) {
+      editingDietId = null;
+      const submitBtn = document.getElementById('btnSaveDietSubmit');
+      if (submitBtn) {
+        submitBtn.innerText = '加入所選日期飲食紀錄';
+        submitBtn.className = 'btn btn-accent';
+      }
+    }
     window.MojoState.dietLogs = list;
     localStorage.setItem('my_diet_logs', JSON.stringify(list));
     renderDiet();
   }
 }
 
+// ⭐️ 自訂運動顯示切換
 function handleWorkoutSelectChange(selectEl) {
   const box = document.getElementById('newWorkoutItemBox');
   if (selectEl.value === 'custom_new') {
     box.style.display = 'block';
+    document.getElementById('newWorkoutNameInput').focus();
   } else {
     box.style.display = 'none';
   }
 }
 
+// ⭐️ 新增自訂運動項目
 function addNewWorkoutCategory() {
   const input = document.getElementById('newWorkoutNameInput');
   const name = input.value.trim();
   if (!name) return alert('請輸入運動名稱');
 
+  const displayName = name.startsWith('🏃') || name.startsWith('🏋️') || name.startsWith('🚴') ? name : `🏃 ${name}`;
+
   let list = JSON.parse(localStorage.getItem('custom_workout_types') || '[]');
-  if (!list.includes(name)) {
-    list.push(name);
+  if (!list.includes(displayName)) {
+    list.push(displayName);
     localStorage.setItem('custom_workout_types', JSON.stringify(list));
   }
   input.value = '';
   document.getElementById('newWorkoutItemBox').style.display = 'none';
-  initWorkoutOptions(name);
+  initWorkoutOptions(displayName);
 }
 
+// ⭐️ 初始化運動選單（恢復圖示）
 function initWorkoutOptions(selected) {
   const sel = document.getElementById('workoutTypeSelect');
   if (!sel) return;
-  const defaults = ['重量訓練', '有氧跑步', '快走 / 健走', '單車 / 飛輪', '游泳', '高強度間歇 HIIT'];
+  const currentVal = selected || sel.value;
+
+  const defaults = [
+    '🏋️ 重量訓練',
+    '🏃 有氧跑步',
+    '🚶 快走 / 健走',
+    '🚴 單車 / 飛輪',
+    '🏊 游泳',
+    '⚡ 高強度間歇 HIIT'
+  ];
   let custom = JSON.parse(localStorage.getItem('custom_workout_types') || '[]');
   const all = [...defaults, ...custom];
 
   let html = '';
   all.forEach(item => {
-    html += `<option value="${item}" ${item === selected ? 'selected' : ''}>${item}</option>`;
+    html += `<option value="${item}" ${item === currentVal ? 'selected' : ''}>${item}</option>`;
   });
-  html += `<option value="custom_new">➕ 自訂新項目...</option>`;
+  html += `<option value="custom_new" ${currentVal === 'custom_new' ? 'selected' : ''}>➕ 自訂新項目...</option>`;
   sel.innerHTML = html;
 }
 
+// ⭐️ 運動紀錄儲存（徹底解決 custom_new 問題）
 function saveWorkout() {
   const dStr = getSelectedDietDate();
-  const type = document.getElementById('workoutTypeSelect').value;
+  const selectEl = document.getElementById('workoutTypeSelect');
+  let type = selectEl.value;
+
+  // 防呆：如果停在 custom_new，自動採用輸入框中的自訂文字
+  if (type === 'custom_new') {
+    const customNameInput = document.getElementById('newWorkoutNameInput').value.trim();
+    if (!customNameInput) {
+      return alert('請先在下方輸入自訂運動名稱，或點擊「儲存項目」！');
+    }
+    type = customNameInput.startsWith('🏃') || customNameInput.startsWith('🏋️') || customNameInput.startsWith('🚴') ? customNameInput : `🏃 ${customNameInput}`;
+    
+    // 同步加入自訂列表
+    let customList = JSON.parse(localStorage.getItem('custom_workout_types') || '[]');
+    if (!customList.includes(type)) {
+      customList.push(type);
+      localStorage.setItem('custom_workout_types', JSON.stringify(customList));
+    }
+    document.getElementById('newWorkoutNameInput').value = '';
+    document.getElementById('newWorkoutItemBox').style.display = 'none';
+    initWorkoutOptions(type);
+  }
+
   const duration = parseInt(document.getElementById('workoutDuration').value) || 0;
   const cal = parseFloat(document.getElementById('workoutCal').value) || 0;
   const note = document.getElementById('workoutNote').value.trim();
@@ -488,6 +581,7 @@ function renderDiet() {
   document.getElementById('pureWaterProgress').style.width = `${Math.min(100, pureBar)}%`;
   document.getElementById('teaWaterProgress').style.width = `${Math.min(100 - Math.min(100, pureBar), teaBar)}%`;
 
+  // ⭐️ 飲食清單（加入「編輯」按鈕）
   const dietListEl = document.getElementById('dietLogList');
   if (dietListEl) {
     let dHtml = '';
@@ -496,9 +590,10 @@ function renderDiet() {
       dHtml += `<div class="log-item">
         <div class="log-info">
           <strong>[${d.type}] ${d.content}</strong> ｜ ${d.cal} kcal<br>
-          <small style="color:var(--sub)">蛋白: ${pVal}g ｜ 碳水: ${d.carbs}g ｜ 脂肪: ${d.fat}g ｜ 纖維: ${d.fiber}g</small>
+          <small style="color:var(--sub)">蛋白: ${pVal}g ｜ 碳水: ${d.carbs || 0}g ｜ 脂肪: ${d.fat || 0}g ｜ 纖維: ${d.fiber || 0}g</small>
         </div>
         <div class="log-actions">
+          <button class="action-btn btn-edit" type="button" onclick="editDietLog('${d.id}')">編輯</button>
           <button class="action-btn btn-del" type="button" onclick="deleteDietLog('${d.id}')">刪除</button>
         </div>
       </div>`;
@@ -506,13 +601,15 @@ function renderDiet() {
     dietListEl.innerHTML = dHtml || '<p style="color:var(--sub);text-align:center;padding:10px;">該日尚無飲食紀錄</p>';
   }
 
+  // ⭐️ 運動清單
   const workoutListEl = document.getElementById('workoutLogList');
   if (workoutListEl) {
     let wHtml = '';
     workouts.forEach(w => {
+      const displayType = w.type === 'custom_new' ? '🏃 自訂訓練' : w.type;
       wHtml += `<div class="log-item">
         <div class="log-info">
-          <strong>🏋️ ${w.type}</strong> (${w.duration ? w.duration + '分鐘' : '無時長'}) ｜ <span style="color:#ef4444;font-weight:bold;">-${w.cal} kcal</span><br>
+          <strong>${displayType}</strong> (${w.duration ? w.duration + '分鐘' : '無時長'}) ｜ <span style="color:#ef4444;font-weight:bold;">-${w.cal} kcal</span><br>
           <small style="color:var(--sub)">${w.note ? w.note : '無備註'}</small>
         </div>
         <div class="log-actions">
