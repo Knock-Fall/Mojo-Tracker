@@ -1,167 +1,105 @@
 // Mojo Project
-// 6-2. body-chart.js
+// 6. body-chart.js (MK-80978: 修正初次載入白畫面、自適應寬高與多模式趨勢圖)
+
+let bodyChartInstance = null;
 let currentChartMode = 'core';
-let chartInstance = null;
 
 function switchChartMode(mode, btnEl) {
   currentChartMode = mode;
-  const tabContainer = document.getElementById('bodyChartTabs');
-  if (tabContainer) {
-    tabContainer.querySelectorAll('.chart-tab-btn').forEach(btn => btn.classList.remove('active'));
-  }
+  const tabs = document.querySelectorAll('#bodyChartTabs .chart-tab-btn');
+  tabs.forEach(t => t.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
-  renderBodyChart();
+  renderChart();
 }
 
-function renderBodyChart() {
+function renderChart() {
   const canvas = document.getElementById('bodyChart');
-  const container = document.getElementById('bodyChartContainer');
-  if (!canvas || !container) return;
-  const ctx = canvas.getContext('2d');
-  const list = window.MojoState.bodyLogs || [];
+  if (!canvas) return;
 
-  if (list.length === 0) {
-    if (chartInstance) chartInstance.destroy();
+  const container = document.getElementById('bodyChartContainer');
+  if (container && container.clientWidth === 0) {
+    // 若容器寬度尚未被瀏覽器計算出來，於下一影格重試，避免 Chart.js 白畫面
+    requestAnimationFrame(() => renderChart());
     return;
   }
 
-  const minWidthPerPoint = 65;
-  const parentWidth = container.parentElement.clientWidth || 340;
-  const totalWidth = Math.max(parentWidth, list.length * minWidthPerPoint);
-  container.style.width = `${totalWidth}px`;
-
-  const labels = list.map(l => String(l.date || '').slice(5));
-  if (chartInstance) chartInstance.destroy();
-
-  let datasets = [];
-  let scales = {
-    x: {
-      grid: { display: true, color: 'rgba(226, 232, 240, 0.6)', drawBorder: false },
-      ticks: { font: { size: 11, weight: '500' }, color: '#64748b' }
+  const logs = (window.MojoState.bodyLogs || []).slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+  if (logs.length === 0) {
+    if (bodyChartInstance) {
+      bodyChartInstance.destroy();
+      bodyChartInstance = null;
     }
+    return;
+  }
+
+  const labels = logs.map(b => b.date.slice(5));
+  let datasets = [];
+  let scalesConfig = {
+    x: { grid: { display: false } },
+    y: { type: 'linear', position: 'left', grid: { color: '#f1f5f9' }, title: { display: true, text: '重量 (kg)' } }
   };
 
   if (currentChartMode === 'core') {
-    const weights = list.map(l => Number(l.weight) || 0);
-    const pbfs = list.map(l => Number(l.pbf) || 0);
-    const smms = list.map(l => Number(l.smm) || 0);
-    const minW = Math.min(...weights);
-    const maxW = Math.max(...weights);
-    const validOthers = pbfs.concat(smms).filter(v => v > 0);
-    const minOther = validOthers.length ? Math.min(...validOthers) : 0;
-    const maxOther = validOthers.length ? Math.max(...validOthers) : 50;
-
+    scalesConfig.y1 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '體脂率 (%)' } };
     datasets = [
-      {
-        label: '體重 (kg)',
-        data: weights,
-        borderColor: '#2563eb',
-        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-        borderWidth: 3,
-        pointRadius: 5,
-        tension: 0.3,
-        yAxisID: 'yWeight',
-        fill: true
-      },
-      {
-        label: '骨骼肌 (kg)',
-        data: smms,
-        borderColor: '#10b981',
-        borderWidth: 2.5,
-        pointRadius: 4,
-        tension: 0.3,
-        yAxisID: 'yOther'
-      },
-      {
-        label: '體脂率 (%)',
-        data: pbfs,
-        borderColor: '#ef4444',
-        borderWidth: 2.5,
-        borderDash: [3, 3],
-        pointRadius: 4,
-        tension: 0.3,
-        yAxisID: 'yOther'
-      }
+      { label: '體重 (kg)', data: logs.map(b => b.weight), borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderWidth: 2.5, tension: 0.2, yAxisID: 'y' },
+      { label: '骨骼肌 (kg)', data: logs.map(b => b.smm), borderColor: '#059669', borderWidth: 2, tension: 0.2, yAxisID: 'y' },
+      { label: '體脂率 (%)', data: logs.map(b => b.pbf), borderColor: '#d97706', borderWidth: 2, tension: 0.2, borderDash: [4, 4], yAxisID: 'y1' }
     ];
-
-    scales.yWeight = {
-      type: 'linear',
-      position: 'left',
-      title: { display: true, text: '體重 (kg)', color: '#2563eb', font: { weight: 'bold' } },
-      min: Math.floor(minW - 1),
-      max: Math.ceil(maxW + 1),
-      grid: { color: '#f1f5f9' },
-      ticks: { color: '#2563eb' }
-    };
-    scales.yOther = {
-      type: 'linear',
-      position: 'right',
-      title: { display: true, text: '肌肉 / 體脂', color: '#64748b', font: { weight: 'bold' } },
-      min: Math.floor(minOther - 2),
-      max: Math.ceil(maxOther + 2),
-      grid: { drawOnChartArea: false },
-      ticks: { color: '#64748b' }
-    };
   } else if (currentChartMode === 'comp') {
     datasets = [
-      { label: '水分 (L)', data: list.map(l => Number(l.tbw) || 0), borderColor: '#06b6d4', borderWidth: 2.5, tension: 0.3 },
-      { label: '蛋白質 (kg)', data: list.map(l => Number(l.protein) || 0), borderColor: '#10b981', borderWidth: 2.5, tension: 0.3 },
-      { label: '礦物質 (kg)', data: list.map(l => Number(l.minerals) || 0), borderColor: '#f59e0b', borderWidth: 2.5, tension: 0.3 },
-      { label: '體脂肪 (kg)', data: list.map(l => Number(l.bfm) || 0), borderColor: '#ef4444', borderWidth: 2.5, tension: 0.3 }
+      { label: '體水分 (L)', data: logs.map(b => b.tbw), borderColor: '#0284c7', borderWidth: 2, tension: 0.2, yAxisID: 'y' },
+      { label: '蛋白質 (kg)', data: logs.map(b => b.protein), borderColor: '#10b981', borderWidth: 2, tension: 0.2, yAxisID: 'y' },
+      { label: '礦物質 (kg)', data: logs.map(b => b.minerals), borderColor: '#8b5cf6', borderWidth: 2, tension: 0.2, yAxisID: 'y' },
+      { label: '體脂肪重 (kg)', data: logs.map(b => b.bfm), borderColor: '#f59e0b', borderWidth: 2, tension: 0.2, yAxisID: 'y' }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '數值 (kg / L)', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   } else if (currentChartMode === 'muscle_seg') {
     datasets = [
-      { label: '右上肢', data: list.map(l => Number(l.m_ra_kg) || 0), borderColor: '#3b82f6', tension: 0.3 },
-      { label: '左上肢', data: list.map(l => Number(l.m_la_kg) || 0), borderColor: '#60a5fa', tension: 0.3 },
-      { label: '軀幹', data: list.map(l => Number(l.m_tr_kg) || 0), borderColor: '#10b981', tension: 0.3, borderWidth: 3 },
-      { label: '右下肢', data: list.map(l => Number(l.m_rl_kg) || 0), borderColor: '#f59e0b', tension: 0.3 },
-      { label: '左下肢', data: list.map(l => Number(l.m_ll_kg) || 0), borderColor: '#fbbf24', tension: 0.3 }
+      { label: '右上肢 (kg)', data: logs.map(b => b.segments?.m_ra_kg || 0), borderColor: '#3b82f6', tension: 0.2, yAxisID: 'y' },
+      { label: '軀幹 (kg)', data: logs.map(b => b.segments?.m_tr_kg || 0), borderColor: '#10b981', tension: 0.2, yAxisID: 'y' },
+      { label: '左上肢 (kg)', data: logs.map(b => b.segments?.m_la_kg || 0), borderColor: '#6366f1', tension: 0.2, yAxisID: 'y' },
+      { label: '右下肢 (kg)', data: logs.map(b => b.segments?.m_rl_kg || 0), borderColor: '#f59e0b', tension: 0.2, yAxisID: 'y' },
+      { label: '左下肢 (kg)', data: logs.map(b => b.segments?.m_ll_kg || 0), borderColor: '#ec4899', tension: 0.2, yAxisID: 'y' }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '肌肉重 (kg)', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   } else if (currentChartMode === 'fat_seg') {
     datasets = [
-      { label: '右上肢', data: list.map(l => Number(l.f_ra_kg) || 0), borderColor: '#f87171', tension: 0.3 },
-      { label: '左上肢', data: list.map(l => Number(l.f_la_kg) || 0), borderColor: '#fca5a5', tension: 0.3 },
-      { label: '軀幹', data: list.map(l => Number(l.f_tr_kg) || 0), borderColor: '#ef4444', tension: 0.3, borderWidth: 3 },
-      { label: '右下肢', data: list.map(l => Number(l.f_rl_kg) || 0), borderColor: '#c084fc', tension: 0.3 },
-      { label: '左下肢', data: list.map(l => Number(l.f_ll_kg) || 0), borderColor: '#e879f9', tension: 0.3 }
+      { label: '右上肢 (kg)', data: logs.map(b => b.segments?.f_ra_kg || 0), borderColor: '#3b82f6', tension: 0.2, yAxisID: 'y' },
+      { label: '軀幹 (kg)', data: logs.map(b => b.segments?.f_tr_kg || 0), borderColor: '#10b981', tension: 0.2, yAxisID: 'y' },
+      { label: '左上肢 (kg)', data: logs.map(b => b.segments?.f_la_kg || 0), borderColor: '#6366f1', tension: 0.2, yAxisID: 'y' },
+      { label: '右下肢 (kg)', data: logs.map(b => b.segments?.f_rl_kg || 0), borderColor: '#f59e0b', tension: 0.2, yAxisID: 'y' },
+      { label: '左下肢 (kg)', data: logs.map(b => b.segments?.f_ll_kg || 0), borderColor: '#ec4899', tension: 0.2, yAxisID: 'y' }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '脂肪重 (kg)', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   } else if (currentChartMode === 'obesity') {
+    scalesConfig.y1 = { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '腰臀圍比 (WHR)' } };
     datasets = [
-      { label: 'BMI', data: list.map(l => Number(l.bmi) || 0), borderColor: '#8b5cf6', tension: 0.3 },
-      { label: '內臟脂肪級別', data: list.map(l => Number(l.vfl) || 0), borderColor: '#ea580c', tension: 0.3 },
-      { label: '腰臀比 (WHR*10)', data: list.map(l => (Number(l.whr) ? Number(l.whr) * 10 : 0)), borderColor: '#ec4899', tension: 0.3 }
+      { label: 'BMI', data: logs.map(b => b.bmi), borderColor: '#ef4444', tension: 0.2, yAxisID: 'y' },
+      { label: '內臟脂肪', data: logs.map(b => b.vfl), borderColor: '#b45309', tension: 0.2, yAxisID: 'y' },
+      { label: '腰臀比', data: logs.map(b => b.whr), borderColor: '#6b7280', tension: 0.2, yAxisID: 'y1' }
     ];
-    scales.y = { type: 'linear', beginAtZero: false, title: { display: true, text: '等級 / 指標', font: { weight: 'bold' } }, grid: { color: '#f1f5f9' } };
   }
 
-  chartInstance = new Chart(ctx, {
+  if (bodyChartInstance) {
+    bodyChartInstance.destroy();
+    bodyChartInstance = null;
+  }
+
+  bodyChartInstance = new Chart(canvas, {
     type: 'line',
-    data: { labels: labels, datasets: datasets },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 300 },
       interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: { boxWidth: 12, font: { weight: 'bold', size: 12 }, color: '#334155' }
-        },
-        tooltip: {
-          padding: 10,
-          backgroundColor: 'rgba(15, 23, 42, 0.9)',
-          titleFont: { weight: 'bold' },
-          cornerRadius: 8
-        }
-      },
-      scales: scales
+      plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+      scales: scalesConfig
     }
   });
-
-  setTimeout(() => {
-    container.parentElement.scrollLeft = container.parentElement.scrollWidth;
-  }, 50);
 }
+
+// 雙保險：頁面完成載入後短延遲自動重繪，徹底消滅初次白畫面
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (typeof renderChart === 'function') renderChart();
+  }, 150);
+});
