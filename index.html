@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80977">
+  <link rel="stylesheet" href="style.css?v=80978">
 </head>
 <body>
 
@@ -25,9 +25,9 @@
   <div class="card" style="padding: 12px 14px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
     <span style="font-size: 0.85rem; color: #0369a1; font-weight: 700;">☁️ 系統與雲端管理</span>
     <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-      <button class="action-btn btn-sync" type="button" style="margin: 0;" onclick="syncFromCloud()">從雲端載入</button>
-      <button class="action-btn" type="button" style="margin: 0; background:#8b5cf6; color:#fff;" onclick="openKeyModal()">⚙️ API Key</button>
-      <button class="action-btn" type="button" style="margin: 0; background:#64748b; color:#fff;" onclick="setupSecretToken()">雲端金鑰</button>
+      <button class="action-btn btn-sync" type="button" onclick="syncFromCloud()">從雲端載入</button>
+      <button class="action-btn" type="button" style="background:#8b5cf6; color:#fff;" onclick="openKeyModal()">⚙️ API Key</button>
+      <button class="action-btn" type="button" style="background:#64748b; color:#fff;" onclick="setupSecretToken()">雲端金鑰</button>
     </div>
   </div>
   
@@ -438,6 +438,7 @@
       <div id="suggestContent"></div>
     </div>
 
+    <!-- 體能訓練與運動消耗 -->
     <div class="card" style="border-left: 5px solid #6366f1;">
       <div class="card-title" style="color: #4338ca;"><span>🏋️ 體能訓練與運動消耗</span></div>
       <div class="grid-2">
@@ -455,11 +456,11 @@
         <div class="form-group"><label>預估消耗熱量 (kcal) *</label><input type="number" id="workoutCal" placeholder="例：280"></div>
         <div class="form-group"><label>訓練備註 / 感受度</label><input type="text" id="workoutNote" placeholder="例：深蹲 80kg 5組、核心力竭"></div>
       </div>
-      <button class="btn" type="button" style="background: #6366f1; color:#fff;" onclick="saveWorkout()">記錄本次運動消耗</button>
+      <button id="btnSaveWorkoutSubmit" class="btn" type="button" style="background: #6366f1; color:#fff;" onclick="saveWorkout()">記錄本次運動消耗</button>
       <div id="workoutLogList" style="margin-top: 12px; border-top: 1px dashed #c7d2fe; padding-top: 8px;"></div>
     </div>
 
-    <!-- ⭐️ 新增/編輯餐點紀錄 ⭐️ -->
+    <!-- 新增/編輯餐點紀錄 -->
     <div class="card">
       <div class="card-title">🍽️ 新增餐點紀錄（支援補填選取日期）</div>
       <label for="foodImage" class="btn-upload">📸 點擊此處拍照／選取餐點照片（AI 自動估算）</label>
@@ -494,7 +495,7 @@
     </div>
   </div>
 
-  <div class="version-footer">版本驗證代碼：<strong>MK-80977</strong></div>
+  <div class="version-footer">版本驗證代碼：<strong>MK-80978</strong></div>
 </div>
 
 <!-- 視覺化 API Key 管理 Modal 彈窗 -->
@@ -515,12 +516,13 @@
   </div>
 </div>
 
-<script src="shot.js?v=80977"></script>
-<script src="scale.js?v=80977"></script>
-<script src="fitdays.js?v=80977"></script>
-<script src="body.js?v=80977"></script>
-<script src="body-chart.js?v=80977"></script>
-<script src="diet.js?v=80977"></script>
-<script src="main.js?v=80977"></script>
+<script src="shot.js?v=80978"></script>
+<script src="scale.js?v=80978"></script>
+<script src="fitdays.js?v=80978"></script>
+<script src="body.js?v=80978"></script>
+<script src="body-chart.js?v=80978"></script>
+<script src="workout.js?v=80978"></script>
+<script src="diet.js?v=80978"></script>
+<script src="main.js?v=80978"></script>
 </body>
 </html>
