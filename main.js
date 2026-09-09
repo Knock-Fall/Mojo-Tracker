@@ -1,5 +1,5 @@
 // Mojo Project
-// 1. main.js (MK-80980: 動態本地儲存 GAS 網址、智慧雙向合併、本地數據安全補推)
+// 1. main.js (MK-80980: 一鍵補推備份、可視化進度反饋、智慧雙向合併)
 
 window.MojoState = {
   bodyLogs: [],
@@ -11,12 +11,12 @@ window.MojoState = {
   workoutLogs: []
 };
 
-// ⭐️ 從 LocalStorage 讀取專屬 GAS 部署網址，徹底避免寫死在代碼中被覆蓋
+// 從 LocalStorage 讀取專屬 GAS 部署網址
 function getGasUrl() {
   return localStorage.getItem('my_gas_sync_url') || '';
 }
 
-// ⭐️ 彈窗設定個人專屬 GAS 網址（存在手機本地，換代碼永遠不掉）
+// 設定個人專屬 GAS 網址
 function setupGasUrl() {
   const cur = getGasUrl();
   const val = prompt('請貼上您的 Google Apps Script 專屬部署網址 (結尾為 /exec)：', cur);
@@ -24,11 +24,13 @@ function setupGasUrl() {
     const trimmed = val.trim();
     if (trimmed && !trimmed.endsWith('/exec')) {
       alert('⚠️ 網址結尾必須是 /exec，請確認是否複製正確！');
-      return;
+      return false;
     }
     localStorage.setItem('my_gas_sync_url', trimmed);
-    alert('✅ 雲端專屬網址已儲存於本地！');
+    alert('✅ 雲端專屬網址已儲存！');
+    return true;
   }
+  return false;
 }
 
 function getSecretToken() {
@@ -148,78 +150,81 @@ async function uploadToCloud(type, data) {
     await fetch(gasUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ secret, type, data })
+      body: JSON.stringify({ secret, type, data }),
+      mode: 'no-cors' // 防止 iOS 跨域直接報錯卡死
     });
   } catch(e) {
     console.error('雲端同步失敗:', e);
   }
 }
 
-// 核心安全機制：將本地所有最新資料一次性完整推送到 Google 試算表補漏
+// ⭐️ 核心備份：點擊立即執行、自動提示網址、帶進度反饋
 async function uploadAllLocalToCloud() {
-  const gasUrl = getGasUrl();
+  let gasUrl = getGasUrl();
   if (!gasUrl || gasUrl.includes('example')) {
-    alert('請先點擊「設定雲端網址」貼上您的 Google Apps Script 部署網址！');
-    setupGasUrl();
-    return;
+    const ok = setupGasUrl();
+    if (!ok) return;
+    gasUrl = getGasUrl();
   }
 
-  if (!confirm('即將把手機上的所有最新資料（含 9/8~9/9 離線紀錄）全部補推同步到 Google 試算表，是否開始？')) {
-    return;
-  }
-
-  const secret = getSecretToken();
+  // 取得按鈕元件以提供即時文字回饋
+  const backupBtn = document.querySelector('button[onclick="uploadAllLocalToCloud()"]');
+  const originalText = backupBtn ? backupBtn.innerText : '📤 備份本地到雲端';
 
   try {
-    // 1. 補推飲食
-    const diets = window.MojoState.dietLogs || [];
-    for (let d of diets) {
-      await uploadToCloud('DIET', d);
-    }
-    // 2. 補推運動
-    const workouts = window.MojoState.workoutLogs || [];
-    for (let w of workouts) {
-      await uploadToCloud('WORKOUT', w);
-    }
-    // 3. 補推體脂計
-    const fitdays = window.MojoState.fitdaysLogs || [];
-    for (let f of fitdays) {
-      await uploadToCloud('FITDAYS', f);
-    }
-    const scales = window.MojoState.scaleLogs || [];
-    for (let s of scales) {
-      await uploadToCloud('SCALE', s);
-    }
-    // 4. 補推水分
-    const waters = window.MojoState.waterLogs || {};
-    for (let dateKey in waters) {
-      await uploadToCloud('WATER', { date: dateKey, data: waters[dateKey] });
-    }
-    // 5. 補推 InBody
-    const bodies = window.MojoState.bodyLogs || [];
-    for (let b of bodies) {
-      await uploadToCloud('BODY', b);
-    }
-    // 6. 補推猛健樂
-    const shots = window.MojoState.shotLogs || [];
-    for (let sh of shots) {
-      await uploadToCloud('SHOT', sh);
+    if (backupBtn) {
+      backupBtn.disabled = true;
+      backupBtn.innerText = '⏳ 正在備份中...';
     }
 
-    alert('🎉 本地資料已全數安全補推至 Google 試算表！\n請打開試算表確認最新紀錄。');
-  } catch(e) {
-    alert('補推過程發生錯誤：' + e.message);
+    const secret = getSecretToken();
+
+    // 彙整本地所有資料
+    const diets = window.MojoState.dietLogs || [];
+    const workouts = window.MojoState.workoutLogs || [];
+    const fitdays = window.MojoState.fitdaysLogs || [];
+    const scales = window.MojoState.scaleLogs || [];
+    const waters = window.MojoState.waterLogs || {};
+    const bodies = window.MojoState.bodyLogs || [];
+    const shots = window.MojoState.shotLogs || [];
+
+    const totalTasks = diets.length + workouts.length + fitdays.length + scales.length + Object.keys(waters).length + bodies.length + shots.length;
+    let completed = 0;
+
+    const updateProgress = () => {
+      completed++;
+      if (backupBtn) backupBtn.innerText = `⏳ 傳送中 (${completed}/${totalTasks})`;
+    };
+
+    // 逐筆推送到雲端
+    for (let d of diets) { await uploadToCloud('DIET', d); updateProgress(); }
+    for (let w of workouts) { await uploadToCloud('WORKOUT', w); updateProgress(); }
+    for (let f of fitdays) { await uploadToCloud('FITDAYS', f); updateProgress(); }
+    for (let s of scales) { await uploadToCloud('SCALE', s); updateProgress(); }
+    for (let dateKey in waters) { await uploadToCloud('WATER', { date: dateKey, data: waters[dateKey] }); updateProgress(); }
+    for (let b of bodies) { await uploadToCloud('BODY', b); updateProgress(); }
+    for (let sh of shots) { await uploadToCloud('SHOT', sh); updateProgress(); }
+
+    alert(`🎉 備份完成！共推送 ${completed} 筆本地資料至雲端試算表。\n請開啟試算表查看最新紀錄。`);
+  } catch (err) {
+    alert('備份過程發生錯誤：' + err.message);
+  } finally {
+    if (backupBtn) {
+      backupBtn.disabled = false;
+      backupBtn.innerText = originalText;
+    }
   }
 }
 
-// 核心安全機制：智慧雙向合併（絕不讓雲端舊資料洗掉本地新資料）
+// 智慧雙向合併（絕不單向抹除本地資料）
 async function syncFromCloud() {
-  const gasUrl = getGasUrl();
+  let gasUrl = getGasUrl();
   if (!gasUrl || gasUrl.includes('example')) {
-    alert('請先點擊「設定雲端網址」貼上您的 Google Apps Script 部署網址！');
-    setupGasUrl();
-    return;
+    const ok = setupGasUrl();
+    if (!ok) return;
+    gasUrl = getGasUrl();
   }
+
   const secret = getSecretToken();
   try {
     const res = await fetch(`${gasUrl}?secret=${encodeURIComponent(secret)}`);
