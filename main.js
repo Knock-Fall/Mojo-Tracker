@@ -1,5 +1,5 @@
 // Mojo Project
-// 1. main.js (MK-80979: 智慧雙向合併、本地數據補推與防覆蓋安全保護)
+// 1. main.js (MK-80980: 動態本地儲存 GAS 網址、智慧雙向合併、本地數據安全補推)
 
 window.MojoState = {
   bodyLogs: [],
@@ -11,8 +11,25 @@ window.MojoState = {
   workoutLogs: []
 };
 
-// ⚠️ 請務必將此處替換為您的實際 Google Apps Script 部署網址 (結尾為 /exec)
-const GAS_SYNC_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
+// ⭐️ 從 LocalStorage 讀取專屬 GAS 部署網址，徹底避免寫死在代碼中被覆蓋
+function getGasUrl() {
+  return localStorage.getItem('my_gas_sync_url') || '';
+}
+
+// ⭐️ 彈窗設定個人專屬 GAS 網址（存在手機本地，換代碼永遠不掉）
+function setupGasUrl() {
+  const cur = getGasUrl();
+  const val = prompt('請貼上您的 Google Apps Script 專屬部署網址 (結尾為 /exec)：', cur);
+  if (val !== null) {
+    const trimmed = val.trim();
+    if (trimmed && !trimmed.endsWith('/exec')) {
+      alert('⚠️ 網址結尾必須是 /exec，請確認是否複製正確！');
+      return;
+    }
+    localStorage.setItem('my_gas_sync_url', trimmed);
+    alert('✅ 雲端專屬網址已儲存於本地！');
+  }
+}
 
 function getSecretToken() {
   return localStorage.getItem('my_sync_secret') || 'default_secret';
@@ -124,10 +141,11 @@ function deleteApiKey(idx) {
 }
 
 async function uploadToCloud(type, data) {
-  if (!GAS_SYNC_URL || GAS_SYNC_URL.includes('example') || GAS_SYNC_URL.includes('請在此貼上')) return;
+  const gasUrl = getGasUrl();
+  if (!gasUrl || gasUrl.includes('example')) return;
   const secret = getSecretToken();
   try {
-    await fetch(GAS_SYNC_URL, {
+    await fetch(gasUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ secret, type, data })
@@ -137,10 +155,13 @@ async function uploadToCloud(type, data) {
   }
 }
 
-// ⭐️ 核心安全機制：將本地所有最新資料一次性完整推送到 Google 試算表補漏
+// 核心安全機制：將本地所有最新資料一次性完整推送到 Google 試算表補漏
 async function uploadAllLocalToCloud() {
-  if (!GAS_SYNC_URL || GAS_SYNC_URL.includes('example') || GAS_SYNC_URL.includes('請在此貼上')) {
-    return alert('請先在 main.js 中設定您的實際 Google Apps Script 部署網址！');
+  const gasUrl = getGasUrl();
+  if (!gasUrl || gasUrl.includes('example')) {
+    alert('請先點擊「設定雲端網址」貼上您的 Google Apps Script 部署網址！');
+    setupGasUrl();
+    return;
   }
 
   if (!confirm('即將把手機上的所有最新資料（含 9/8~9/9 離線紀錄）全部補推同步到 Google 試算表，是否開始？')) {
@@ -191,14 +212,17 @@ async function uploadAllLocalToCloud() {
   }
 }
 
-// ⭐️ 核心安全機制：智慧雙向合併（絕不讓雲端舊資料洗掉本地新資料）
+// 核心安全機制：智慧雙向合併（絕不讓雲端舊資料洗掉本地新資料）
 async function syncFromCloud() {
-  if (!GAS_SYNC_URL || GAS_SYNC_URL.includes('example') || GAS_SYNC_URL.includes('請在此貼上')) {
-    return alert('請先在 main.js 中設定您的 Google Apps Script 部署網址！');
+  const gasUrl = getGasUrl();
+  if (!gasUrl || gasUrl.includes('example')) {
+    alert('請先點擊「設定雲端網址」貼上您的 Google Apps Script 部署網址！');
+    setupGasUrl();
+    return;
   }
   const secret = getSecretToken();
   try {
-    const res = await fetch(`${GAS_SYNC_URL}?secret=${encodeURIComponent(secret)}`);
+    const res = await fetch(`${gasUrl}?secret=${encodeURIComponent(secret)}`);
     const json = await res.json();
     if (json.status === 'success' && json.data) {
       
@@ -264,7 +288,6 @@ async function syncFromCloud() {
             if (!wObj[w.date]) {
               wObj[w.date] = w.data;
             } else {
-              // 取數值較大者防覆蓋
               wObj[w.date].pure = Math.max(wObj[w.date].pure || 0, w.data.pure || 0);
               wObj[w.date].tea = Math.max(wObj[w.date].tea || 0, w.data.tea || 0);
             }
