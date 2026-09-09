@@ -12,7 +12,7 @@ window.MojoState = {
 };
 
 // ⚠️ 請務必將此處替換為您的實際 Google Apps Script 部署網址 (結尾為 /exec)
-const GAS_SYNC_URL = "請在此貼上您的實際GAS部署網址";
+const GAS_SYNC_URL = "https://script.google.com/macros/s/AKfycby_BMulRlvZ2MBdqsLNbYnn1lYm2o7fegy8J8ONiiu4sxIupy2sq_YYo21-KAJlVaW3cw/exec";
 
 function getSecretToken() {
   return localStorage.getItem('my_sync_secret') || 'default_secret';
