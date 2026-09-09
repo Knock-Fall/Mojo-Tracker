@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>健體紀錄與猛健樂追蹤</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css?v=80979">
+  <link rel="stylesheet" href="style.css?v=80980">
 </head>
 <body>
 
@@ -21,12 +21,13 @@
 
 <div class="container">
   
-  <!-- 全站統一系統與雲端管理工具列 (安全補推與防覆蓋按鈕) -->
+  <!-- 全站統一系統與雲端管理工具列 (本地動態設定，不再寫死網址) -->
   <div class="card" style="padding: 12px 14px; background: #e0f2fe; border: 1px solid #bae6fd; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
     <span style="font-size: 0.85rem; color: #0369a1; font-weight: 700;">☁️ 系統與雲端管理</span>
     <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
       <button class="action-btn" type="button" style="margin: 0; background:#10b981; color:#fff;" onclick="uploadAllLocalToCloud()">📤 備份本地到雲端</button>
       <button class="action-btn btn-sync" type="button" style="margin: 0;" onclick="syncFromCloud()">從雲端載入</button>
+      <button class="action-btn" type="button" style="margin: 0; background:#0284c7; color:#fff;" onclick="setupGasUrl()">設定雲端網址</button>
       <button class="action-btn" type="button" style="margin: 0; background:#8b5cf6; color:#fff;" onclick="openKeyModal()">⚙️ API Key</button>
       <button class="action-btn" type="button" style="margin: 0; background:#64748b; color:#fff;" onclick="setupSecretToken()">雲端金鑰</button>
     </div>
@@ -496,7 +497,7 @@
     </div>
   </div>
 
-  <div class="version-footer">版本驗證代碼：<strong>MK-80979</strong></div>
+  <div class="version-footer">版本驗證代碼：<strong>MK-80980</strong></div>
 </div>
 
 <!-- 視覺化 API Key 管理 Modal 彈窗 -->
@@ -517,13 +518,13 @@
   </div>
 </div>
 
-<script src="shot.js?v=80979"></script>
-<script src="scale.js?v=80979"></script>
-<script src="fitdays.js?v=80979"></script>
-<script src="body.js?v=80979"></script>
-<script src="body-chart.js?v=80979"></script>
-<script src="workout.js?v=80979"></script>
-<script src="diet.js?v=80979"></script>
-<script src="main.js?v=80979"></script>
+<script src="shot.js?v=80980"></script>
+<script src="scale.js?v=80980"></script>
+<script src="fitdays.js?v=80980"></script>
+<script src="body.js?v=80980"></script>
+<script src="body-chart.js?v=80980"></script>
+<script src="workout.js?v=80980"></script>
+<script src="diet.js?v=80980"></script>
+<script src="main.js?v=80980"></script>
 </body>
 </html>
